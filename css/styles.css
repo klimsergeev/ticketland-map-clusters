@@ -1,0 +1,675 @@
+/* ============================================================
+   Hall — схема зала (TLND-15971)
+   Мобильный лейаут, max-width 416px, fluid.
+   Значения из Figma (4902-80250) + токены Granit (colors_and_type.css).
+   Компактификация/marquee — порт логики из handoff.
+   ============================================================ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+    margin: 0;
+    background: #d9dade;                 /* фон вокруг «телефона» */
+    font-family: var(--font-sans);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+/* ---------- Каркас экрана ---------- */
+.app {
+    position: relative;
+    width: 100%;
+    max-width: 416px;
+    height: 100dvh;
+    margin: 0 auto;
+    background: var(--bg-primary);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    /* без внешней тени/свечения — в Figma её нет (пиксель-перфект) */
+}
+
+/* ============================================================
+   1. Шапка
+   ============================================================ */
+/* Шапка — ПЛАВАЮЩИЙ оверлей над схемой (как нижний блок): схема уходит ПОД
+   неё и заполняет весь вьюпорт. Абсолют сверху, непрозрачный фон. */
+.header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 5;
+    background: var(--bg-primary);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-bottom: 8px;
+}
+
+/* ---- 1.1 Заголовок ---- */
+.title {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    padding: 20px 16px 0;
+    min-width: 0;
+}
+.icon-btn {
+    flex: 0 0 auto;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    padding: 0;
+    border-radius: 999px;
+    background: var(--ctrl-secondary);
+    color: var(--icon-primary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: width 220ms cubic-bezier(0.2, 0, 0, 1),
+                height 220ms cubic-bezier(0.2, 0, 0, 1),
+                background-color 150ms ease-out;
+}
+.icon-btn:active { background: var(--ctrl-secondary-hover); }
+/* компакт: плоский шеврон 22×22 без фона */
+.header.compact .icon-btn {
+    width: 22px;
+    height: 22px;
+    background: transparent;
+}
+.header.compact .icon-btn:active { background: transparent; }
+
+.title-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+.header.compact .title-text {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 6px;
+}
+
+/* заголовок — развёрнутый (serif, A1 20/30) */
+.ttl {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    font-size: var(--fs-p1);          /* 20px */
+    line-height: var(--lh-p1);        /* 30px */
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 0 1 auto;
+    min-width: 0;
+}
+/* заголовок — компакт (sans 600, 14px). БЕЗ transition на font-size. */
+.header.compact .ttl {
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: var(--lh-c1);        /* 18px */
+    font-weight: 600;
+    letter-spacing: 0;
+    flex: 0 0 auto;
+}
+/* заголовок — окно marquee */
+.header.compact.marquee .ttl {
+    position: relative;
+    width: 125px;
+    max-width: 125px;
+    overflow: hidden;
+    text-overflow: clip;
+}
+.header.compact.marquee .ttl .ttl-inner {
+    display: inline-block;
+    white-space: nowrap;
+    will-change: transform;
+}
+/* краевые градиенты marquee — opacity из JS */
+.ttl-fade { display: none; }
+.header.compact.marquee .ttl-fade {
+    display: block;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 18px;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 1;
+}
+.header.compact.marquee .ttl-fade-l {
+    left: 0;
+    background: linear-gradient(90deg, var(--bg-primary) 20%, rgba(255, 255, 255, 0) 100%);
+}
+.header.compact.marquee .ttl-fade-r {
+    right: 0;
+    background: linear-gradient(270deg, var(--bg-primary) 20%, rgba(255, 255, 255, 0) 100%);
+}
+
+/* подзаголовок — площадка (P3 14/21) */
+.sub {
+    font: 400 var(--fs-p3)/var(--lh-p3) var(--font-sans);
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.header.compact .sub {
+    font-size: 14px;
+    letter-spacing: 0;
+    line-height: var(--lh-c1);
+    flex: 0 1 auto;
+    min-width: 24px;
+    position: relative;
+    padding-left: 12px;
+}
+.header.compact .sub::before {          /* точка-разделитель */
+    content: "";
+    position: absolute;
+    left: 3px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: var(--text-tertiary);
+}
+
+/* ---- 1.2 Лента сеансов (табы) ---- */
+.tabs {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+}
+.tabs .scroller {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 0 16px;
+    scroll-padding-left: 16px;
+    scroll-behavior: smooth;
+}
+.tabs .scroller::-webkit-scrollbar { display: none; }
+
+.tab {
+    flex: 0 0 156px;
+    width: 156px;
+    height: 64px;
+    box-sizing: border-box;
+    background: var(--bg-secondary);
+    border: 1px solid transparent;
+    border-radius: 16px;
+    padding: 8px 12px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: left;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    transition:
+        background-color 150ms ease-out,
+        border-color 150ms ease-out,
+        flex-basis 220ms cubic-bezier(0.2, 0, 0, 1),
+        width 220ms cubic-bezier(0.2, 0, 0, 1),
+        height 220ms cubic-bezier(0.2, 0, 0, 1),
+        padding 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+.tab.active {
+    background: var(--bg-modal);
+    border-color: var(--ctrl-active);   /* #2d0514 */
+}
+/* строка даты — Tercia A3 14/21 */
+.tab .tab-date {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+    font: 400 var(--fs-p3)/var(--lh-p3) var(--font-serif);
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+.tab .tab-date .wd { color: var(--text-primary); }
+.tab .tab-date.weekend .wd { color: var(--text-negative); }
+/* строка цены — Statika C1 12/18 */
+.tab .tab-price {
+    font: 400 var(--fs-c1)/var(--lh-c1) var(--font-sans);
+    color: var(--text-primary);
+    white-space: nowrap;
+    margin-top: 2px;
+}
+.tab .tab-compact { display: none; }
+
+/* компакт-таб — пилюля «28 авг · 20:00» */
+.tabs.compact .tab {
+    flex: 0 0 auto;
+    width: auto;
+    height: auto;
+    padding: 5px 12px;
+    border-radius: 999px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+}
+.tabs.compact .tab .tab-date,
+.tabs.compact .tab .tab-price { display: none; }
+.tabs.compact .tab .tab-compact {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font: 500 12px/16px var(--font-sans);
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+.tabs.compact .tab .tab-compact .sep {
+    width: 2.5px;
+    height: 2.5px;
+    border-radius: 50%;
+    background: var(--text-tertiary);
+    display: inline-block;
+}
+.tabs.compact .tab .tab-compact .time {
+    color: var(--text-secondary);
+    font-weight: 400;
+}
+.tabs.compact .tab.active .tab-compact .time {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+/* ---- 1.3 Легенда цен (Hall price filter) ---- */
+.legend {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 0 12px 8px;
+    scroll-padding-left: 12px;
+    transition: padding 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+.legend::-webkit-scrollbar { display: none; }
+.legend .pill {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 32px;
+    padding: 8px 12px;
+    background: #f2f3f7;                 /* background/secondary (MTS scale) */
+    border: 1.5px solid transparent;    /* место под цветную обводку активной пилюли */
+    border-radius: 8px;
+    font: 400 14px/20px var(--font-sans);
+    color: #1d2023;
+    white-space: nowrap;
+    cursor: pointer;                    /* пилюля = кликабельный фильтр цены */
+    -webkit-appearance: none;
+    appearance: none;
+    transition: background 160ms cubic-bezier(0.2, 0, 0, 1),
+                border-color 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+/* Активный фильтр: цветная обводка в цвет тира (--ring), светлый фон. */
+.legend .pill.active {
+    background: #fff;
+    border-color: var(--ring);
+}
+.legend .pill .sw {
+    width: 12px;
+    height: 12px;
+    border-radius: 4px;
+    flex: 0 0 auto;
+}
+
+/* ============================================================
+   2. Схема зала (пан/зум)
+   ============================================================ */
+/* Схема — слой на ВЕСЬ вьюпорт (край в край, полная ширина и высота),
+   абсолют inset:0, ПОД оверлеями (шапка z5, нижний блок z4). */
+.map-viewport {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    overflow: hidden;
+    background: var(--bg-primary);
+    touch-action: none;
+    cursor: grab;
+}
+.map-viewport.grabbing { cursor: grabbing; }
+.map-content {
+    /* COVER: коробка заполняет весь вьюпорт; SVG внутри заполняет коробку.
+       Аспект окна viewBox = аспекту коробки (считает JS) → SVG заполняет слой
+       без леттербокса. Зум/пан идут через viewBox инлайн-SVG, а НЕ через CSS
+       transform — здесь НЕТ will-change/translateZ/transform, иначе слой
+       промоутится в GPU-текстуру и вектор мылит на зуме (композитинг). */
+    position: absolute;
+    inset: 0;
+}
+.map-content .hall-svg { display: block; width: 100%; height: 100%; }
+/* инлайн-SVG схемы: заполняет box; зум через viewBox → всегда вектор */
+.map-content .hall-svg svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    user-select: none;
+    pointer-events: none;
+}
+
+/* --- Фильтр цены: бледнение невыбранных мест (REQ-1) ---
+   Активен ≥1 тир → на <svg> класс .filtering (см. updateFade в js/main.js).
+   Бледнеют только базовые 8×8-места схемы: доступные НЕ активных тиров и ВСЕ
+   занятые (у занятого — оба rect: серая заливка + белая обводка, обе width=8).
+   Места активного тира помечены .tier-active → остаются в полном цвете.
+   Слои увеличения (.filter-layer) и выбора (.sel-layer) из бледнения ИСКЛЮЧЕНЫ,
+   поэтому увеличенные копии и оранжевый маркер выбора не приглушаются. */
+.map-content .hall-svg svg rect[width="8"] { transition: opacity .18s ease; }
+.map-content .hall-svg svg.filtering rect[width="8"] { opacity: .25; }
+.map-content .hall-svg svg.filtering rect[width="8"].tier-active { opacity: 1; }
+.map-content .hall-svg svg.filtering .filter-layer rect[width="8"],
+.map-content .hall-svg svg.filtering .sel-layer rect[width="8"] { opacity: 1; }
+
+/* ============================================================
+   3. Нижний блок — билеты + CTA
+   ============================================================ */
+/* Нижний блок — прозрачный оверлей над схемой (без белой подложки: низ схемы
+   виден под билетами/кнопкой). Карта под ним cover-заполняет полную высоту.
+   pointer-events: клики ловят только билеты/кнопка, пустоты — пропускают пан. */
+.floating {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 4;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;                              /* Figma 4902-80252: gap 16 (галерея ↔ CTA) */
+    padding: 32px 16px 16px;                /* pt 32 (было 24, +8px: градиент отодвинут вверх/дальше от кнопки), px 16, pb 16 */
+    /* Подложка (Figma 4902-80252): вертикальный градиент белого — прозрачный сверху
+       растворяется в сплошной белый к 15% и далее до низа. Верхний край плавно
+       проявляется над схемой зала. Стопы/направление — по Figma + скринам редактора. */
+    background: linear-gradient(180deg,
+        rgba(255, 255, 255, 0) 0%,
+        #ffffff 15%,
+        #ffffff 100%);
+    /* pointer-events:none — градиент НЕ перехватывает клики по схеме над галереей;
+       ловят только билеты/кнопка (children ниже). */
+    pointer-events: none;
+}
+.floating > * { pointer-events: auto; }
+
+/* ---- 3.1 Галерея выбранных мест: КАРУСЕЛЬ (якорь активной зависит от позиции) ---- */
+/* .slider — вьюпорт карусели: overflow visible, чтобы соседние карточки выглядывали
+   краем (peek); финальный клип — на .app (max-width 416, hidden). Границы .slider
+   = границам CTA (тот же padded-контейнер .floating), поэтому активная карточка
+   выравнивается: первая — по левому краю, последняя — по правому, середина — по
+   центру галереи (сам расчёт сдвига трека — в js/main.js: anchorOffset/targetXFor). */
+.slider {
+    position: relative;
+    z-index: 2;             /* всё поддерево слайдера (билеты + их тени) рисуется ПОВЕРХ кнопки CTA (z-index 1).
+                               .slider-track имеет transform → создаёт свой stacking-context, поэтому z-index
+                               билетов (100/98) заскоуплены внутри .slider; чтобы тень активного билета легла
+                               НА кнопку, поднимаем весь .slider над .cta именно здесь, на уровне .floating.
+                               Стек всё равно кэпнут внутри .floating (z4 < header z5). */
+    width: 100%;            /* = ширина кнопки CTA (тот же padded-контейнер .floating) */
+    height: 64px;
+    overflow: visible;      /* соседи выглядывают краями (peek) */
+    pointer-events: none;   /* драг ловят сами карточки; пустоты пропускают пан схемы */
+    touch-action: none;
+}
+/* Трек — абсолютная лента карточек, двигается по X (follow-the-finger + пружина) */
+.slider-track {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;               /* зазор между билетами */
+    will-change: transform;
+}
+/* Карточка билета (Figma Ticket 4898-91317 Selected=False / 4899-43051 Selected=True).
+   ДВА состояния одного компонента, ОБА — HUG-content по ширине (в Figma у обоих
+   ширина = Hug: класс без w-[…], только min-h/max-h; проверено get_design_context):
+     • неактивная (Selected=False): H52, радиус 12, bg #fff, тень Shadows/Lowest
+       (бордера НЕТ — заменён тенью), строка места P3 14/21, отступы px 12, gap 16, БЕЗ крестика;
+     • активная  (Selected=True):  H64, радиус 16, bg #fff, тень Shadows/Middle,
+       отступы px 16, gap 24, строка места P2 16/24, крестик × 24.
+   Ширина карточки = ширина содержимого + 2×padding (hug). В КАРУСЕЛИ карточки лежат
+   в ряд с зазором 8px (без перекрытия); активная едет в центр, соседи выглядывают
+   краями (peek). Геометрию карусели JS считает по ФАКТИЧЕСКИМ offsetWidth (переменная
+   ширина), глубину (z-index) правит покадрово. Без кругов/полосок. */
+.ticket {
+    position: relative;                   /* z-index для peek-глубины */
+    pointer-events: auto;
+    touch-action: none;
+    box-sizing: border-box;
+    width: max-content;                   /* hug: ширина по содержимому + padding (Figma Hug) */
+    flex: 0 0 auto;
+    background: var(--ctrl-alternative);  /* Figma 4898-91317: Background/Primary #ffffff */
+    border: 0;                            /* Figma 4898-91317: бордера НЕТ — заменён тенью (в ноде нет border, только bg+radius+shadow) */
+    border-radius: 12px;                  /* Figma 4898-91317: радиус 12 */
+    height: 52px;                         /* Figma 4898-91317: 52 (min-h/max-h 52) */
+    display: flex;
+    align-items: center;
+    gap: 16px;                            /* Figma 4898-91317: gap 16 */
+    padding-left: 12px;                   /* Figma 4898-91317: px 12 */
+    padding-right: 12px;                  /* Figma 4898-91317: px 12 */
+    box-shadow: var(--shadow-lowest);     /* Figma 4898-91317: Shadows/Lowest 0 0 6px rgba(35,29,31,.04), 0 4px 16px rgba(35,29,31,.04) */
+    overflow: hidden;
+    cursor: grab;
+    user-select: none;
+    white-space: nowrap;
+    /* плавный expand/collapse при смене активной; transform/opacity правит JS покадрово — их НЕ анимируем */
+    transition: height 260ms cubic-bezier(0.2, 0.9, 0.25, 1.15),
+                border-radius 260ms cubic-bezier(0.2, 0.9, 0.25, 1.15),
+                background-color 160ms ease-out,
+                box-shadow 160ms ease-out;
+}
+.slider.grabbing .ticket { cursor: grabbing; }
+/* активная (Selected=True, Figma 4899-43051): h64, радиус 16, бордер 2px,
+   px 16, gap 24. Оверрайдим базовый .ticket, чтобы правки Selected=False
+   не протекали на активную. */
+.ticket.active {
+    height: 64px;                         /* Figma 4899-43051: 64 */
+    background: var(--ctrl-alternative);  /* Figma 4899-43051: controls/alternative #ffffff */
+    border: 0;                            /* Figma 4899-43051: без бордера */
+    border-radius: 16px;                  /* Figma 4899-43051: радиус 16 */
+    box-shadow: var(--shadow-middle);     /* Figma Shadows/Middle */
+    gap: 16px;                            /* Figma 4899-43051 (размеченный скрин): gap 16 */
+    padding-left: 16px;                   /* Figma 4899-43051: px-left 16 */
+    padding-right: 12px;                  /* Figma 4899-43051 (размеченный скрин): px-right 12 */
+}
+.ticket .t-text {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    white-space: nowrap;
+}
+.ticket .t-seat {
+    font: 400 var(--fs-p3)/var(--lh-p3) var(--font-sans);   /* Selected=False (Figma 4898-91317): P3 14/21 */
+    color: var(--text-primary);
+}
+/* активная (Selected=True) не переверстывается → исходный шрифт строки места P2 16/24 */
+.ticket.active .t-seat {
+    font: 400 var(--fs-p2)/var(--lh-p2) var(--font-sans);
+}
+.ticket .t-price {
+    font: 400 var(--fs-p3)/var(--lh-p3) var(--font-sans);
+    color: var(--text-secondary);
+}
+.ticket .t-x {
+    flex: 0 0 auto;
+    margin-left: auto;                    /* × — последний элемент, прижат к правому краю (padding-right) */
+    width: 24px;                          /* Figma: иконка 24 */
+    height: 24px;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    color: var(--icon-primary);          /* Figma Icons/Primary #231d1f */
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+    /* Figma: крестик есть ТОЛЬКО у активного (Selected=True), у неактивного его НЕТ.
+       При hug-ширине неактивный крестик раздул бы ширину на gap+24 → исключаем из
+       layout полностью (display:none), чтобы ширина неактивного = текст + 2×padding. */
+    display: none;
+    opacity: 1;
+}
+.ticket.active .t-x { display: inline-flex; }
+.ticket .t-x svg { display: block; width: 24px; height: 24px; }   /* иконка × 24 */
+
+/* Клон уходящей карточки при удалении (fade): рисуется поверх слайдера, вне потока,
+   чтобы не ломать layout карусели. Наследует вид .ticket; геометрию/анимацию (scale→.2 +
+   opacity→0) задаёт JS (deleteActiveTicket в js/main.js). */
+.exit-clone {
+    position: absolute;
+    z-index: 200;
+    margin: 0;
+    cursor: default;
+    pointer-events: none;
+}
+
+/* ---- 3.2 CTA ---- */
+.cta {
+    position: relative;                   /* нужен для z-index */
+    z-index: 1;                           /* ниже .slider (z-index 2) → тень активного билета ложится поверх кнопки */
+    width: 100%;
+    height: 44px;                         /* Figma Button size 44 (node 4902:80257) */
+    border: 0;
+    border-radius: 22px;
+    background: var(--ctrl-primary);      /* #ff5005 */
+    color: var(--text-inverted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;                            /* Figma 4902:80257: gap 4 (текст ↔ шеврон) */
+    padding: 0 16px 0 20px;              /* Figma 4902:80257: pl 20, pr 16 (правый меньше — под шеврон), верт. 0 */
+    font: 500 var(--fs-p2)/var(--lh-p2) var(--font-sans);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.cta:active { background: var(--ctrl-primary-press); }
+.cta .cta-ico { flex: 0 0 auto; display: inline-flex; color: var(--icon-inverted); }   /* Figma: Chevron Right, Icons/Inverted #fafafa */
+.cta .cta-ico svg { display: block; width: 24px; height: 24px; }                        /* Figma: иконка 24×24 */
+
+/* ============================================================
+   Окно «твиков» — bottom-sheet (Figma 4960-122090 «Dialog / Mobile»).
+   Каркас окна из макета; КОНТЕНТ пустой (плейсхолдер под будущие твики).
+   Логика/жест открытия — js/tweaks.js.
+   ============================================================ */
+.tweaks-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 10;                          /* выше шапки (z5) и нижнего блока (z4) */
+    display: none;                        /* скрыто по умолчанию */
+    align-items: flex-end;                /* лист прижат к низу (justify-end) */
+    justify-content: center;
+    background: var(--bg-overlay);        /* Figma Background/Overlay #0f0f0f80 */
+    animation: tweaks-overlay-in .24s ease;
+}
+.tweaks-overlay.is-open { display: flex; }
+@keyframes tweaks-overlay-in { from { opacity: 0; } to { opacity: 1; } }
+
+.tweaks-sheet {
+    width: 100%;
+    max-height: 728px;                    /* Figma Content max-h */
+    background: var(--bg-modal);          /* #ffffff */
+    border-top-left-radius: var(--r-16);  /* 16px */
+    border-top-right-radius: var(--r-16);
+    /* Figma Content drop-shadow: 0 -2 12 / 0 -8 12 (база #231d1f) */
+    box-shadow: 0 -2px 12px 0 rgba(35,29,31,0.04), 0 -8px 12px 0 rgba(35,29,31,0.06);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    animation: tweaks-slide-up .24s ease;
+}
+@keyframes tweaks-slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+/* Хедер: заголовок + подзаголовок + кнопка закрытия (Figma Dialog title) */
+.tweaks-head {
+    display: flex;
+    align-items: flex-start;              /* Figma: Icon button — items-start */
+    gap: var(--s-8);                      /* 8px */
+    width: 100%;
+    min-height: 72px;                     /* Figma min-h-72 */
+    padding: 20px 20px 16px;              /* Figma pt20 pb16 px20 */
+}
+.tweaks-title-wrap {
+    flex: 1 0 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);                      /* 4px */
+}
+.tweaks-title {                           /* Figma H3 Desktop: Statika Medium 24/27, -0.5 */
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 24px;
+    line-height: 27px;
+    letter-spacing: -0.5px;
+    color: var(--text-primary);           /* #231d1f */
+    margin: 0;
+}
+.tweaks-sub {                             /* Figma P2 Regular: Statika Regular 16/24 */
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 16px;
+    line-height: 24px;
+    color: var(--text-secondary);         /* #706e6f */
+    margin: 0;
+}
+.tweaks-close {                           /* Figma Icon button: 44×44, Controls/Secondary, круг */
+    flex: 0 0 auto;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    padding: 0;
+    border-radius: var(--r-full);         /* rounded-22 → круг */
+    background: var(--ctrl-secondary);    /* #f5f4f2 */
+    color: var(--icon-primary);           /* крестик #231d1f */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.tweaks-close svg { display: block; width: 24px; height: 24px; }
+
+/* Пустая область контента — плейсхолдер под будущие твики (Figma Modal content h-192) */
+.tweaks-body {
+    width: 100%;
+    height: 192px;
+}
+
+/* Группа кнопок (Figma Button group: gap8, px20 pb24, без pt) */
+.tweaks-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--s-8);                      /* 8px */
+    width: 100%;
+    padding: 0 20px 24px;                 /* Figma px20 pb24 */
+}
+.tweaks-btn {                             /* Figma Button: min/max-h 44, rounded-22, Statika Medium 16/24 */
+    width: 100%;
+    min-height: 44px;
+    max-height: 44px;
+    border: 0;
+    border-radius: var(--r-full);         /* 22px pill */
+    padding: 0 20px;
+    font: 500 var(--fs-p2)/var(--lh-p2) var(--font-sans);
+    text-align: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.tweaks-btn-primary   { background: var(--ctrl-primary);     color: var(--text-inverted); }  /* #ff5005 / #fafafa */
+.tweaks-btn-secondary { background: var(--ctrl-alternative); color: var(--text-primary);  }  /* #ffffff / #231d1f */
