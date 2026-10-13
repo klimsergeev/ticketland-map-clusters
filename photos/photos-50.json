@@ -1,0 +1,302 @@
+[
+    {
+        "id": "p001",
+        "url": "photos/photo-1.jpg",
+        "seatId": "balcony-4-4",
+        "caption": "Вид с места: балкон, ряд 4, место 4"
+    },
+    {
+        "id": "p002",
+        "url": "photos/photo-2.jpg",
+        "seatId": "balcony-4-8",
+        "caption": "Вид с места: балкон, ряд 4, место 8"
+    },
+    {
+        "id": "p003",
+        "url": "photos/photo-3.jpg",
+        "seatId": "parter-6-22",
+        "caption": "Вид с места: партер, ряд 6, место 22"
+    },
+    {
+        "id": "p004",
+        "url": "photos/photo-4.jpg",
+        "seatId": "parter-6-24",
+        "caption": "Вид с места: партер, ряд 6, место 24"
+    },
+    {
+        "id": "p005",
+        "url": "photos/photo-5.jpg",
+        "seatId": "parter-6-26",
+        "caption": "Вид с места: партер, ряд 6, место 26"
+    },
+    {
+        "id": "p006",
+        "url": "photos/photo-1.jpg",
+        "seatId": "parter-6-28",
+        "caption": "Вид с места: партер, ряд 6, место 28"
+    },
+    {
+        "id": "p007",
+        "url": "photos/photo-2.jpg",
+        "seatId": "parter-6-19",
+        "caption": "Вид с места: партер, ряд 6, место 19"
+    },
+    {
+        "id": "p008",
+        "url": "photos/photo-3.jpg",
+        "seatId": "parter-6-23",
+        "caption": "Вид с места: партер, ряд 6, место 23"
+    },
+    {
+        "id": "p009",
+        "url": "photos/photo-4.jpg",
+        "seatId": "parter-6-27",
+        "caption": "Вид с места: партер, ряд 6, место 27"
+    },
+    {
+        "id": "p010",
+        "url": "photos/photo-5.jpg",
+        "seatId": "parter-6-31",
+        "caption": "Вид с места: партер, ряд 6, место 31"
+    },
+    {
+        "id": "p011",
+        "url": "photos/photo-1.jpg",
+        "seatId": "parter-6-35",
+        "caption": "Вид с места: партер, ряд 6, место 35"
+    },
+    {
+        "id": "p012",
+        "url": "photos/photo-2.jpg",
+        "seatId": "parter-12-7",
+        "caption": "Вид с места: партер, ряд 12, место 7"
+    },
+    {
+        "id": "p013",
+        "url": "photos/photo-3.jpg",
+        "seatId": "parter-12-9",
+        "caption": "Вид с места: партер, ряд 12, место 9"
+    },
+    {
+        "id": "p014",
+        "url": "photos/photo-4.jpg",
+        "seatId": "parter-12-11",
+        "caption": "Вид с места: партер, ряд 12, место 11"
+    },
+    {
+        "id": "p015",
+        "url": "photos/photo-5.jpg",
+        "seatId": "parter-12-13",
+        "caption": "Вид с места: партер, ряд 12, место 13"
+    },
+    {
+        "id": "p016",
+        "url": "photos/photo-1.jpg",
+        "seatId": "parter-12-15",
+        "caption": "Вид с места: партер, ряд 12, место 15"
+    },
+    {
+        "id": "p017",
+        "url": "photos/photo-2.jpg",
+        "seatId": "balcony-2-9",
+        "caption": "Вид с места: балкон, ряд 2, место 9"
+    },
+    {
+        "id": "p018",
+        "url": "photos/photo-3.jpg",
+        "seatId": "balcony-2-11",
+        "caption": "Вид с места: балкон, ряд 2, место 11"
+    },
+    {
+        "id": "p019",
+        "url": "photos/photo-4.jpg",
+        "seatId": "balcony-2-13",
+        "caption": "Вид с места: балкон, ряд 2, место 13"
+    },
+    {
+        "id": "p020",
+        "url": "photos/photo-5.jpg",
+        "seatId": "parter-11-2",
+        "caption": "Вид с места: партер, ряд 11, место 2"
+    },
+    {
+        "id": "p021",
+        "url": "photos/photo-1.jpg",
+        "seatId": "parter-11-5",
+        "caption": "Вид с места: партер, ряд 11, место 5"
+    },
+    {
+        "id": "p022",
+        "url": "photos/photo-2.jpg",
+        "seatId": "parter-8-6",
+        "caption": "Вид с места: партер, ряд 8, место 6"
+    },
+    {
+        "id": "p023",
+        "url": "photos/photo-3.jpg",
+        "seatId": "parter-8-9",
+        "caption": "Вид с места: партер, ряд 8, место 9"
+    },
+    {
+        "id": "p024",
+        "url": "photos/photo-4.jpg",
+        "seatId": "parter-8-12",
+        "caption": "Вид с места: партер, ряд 8, место 12"
+    },
+    {
+        "id": "p025",
+        "url": "photos/photo-5.jpg",
+        "seatId": "parter-14-17",
+        "caption": "Вид с места: партер, ряд 14, место 17"
+    },
+    {
+        "id": "p026",
+        "url": "photos/photo-1.jpg",
+        "seatId": "parter-14-20",
+        "caption": "Вид с места: партер, ряд 14, место 20"
+    },
+    {
+        "id": "p027",
+        "url": "photos/photo-2.jpg",
+        "seatId": "parter-14-23",
+        "caption": "Вид с места: партер, ряд 14, место 23"
+    },
+    {
+        "id": "p028",
+        "url": "photos/photo-3.jpg",
+        "seatId": "parter-10-3",
+        "caption": "Вид с места: партер, ряд 10, место 3"
+    },
+    {
+        "id": "p029",
+        "url": "photos/photo-4.jpg",
+        "seatId": "parter-10-4",
+        "caption": "Вид с места: партер, ряд 10, место 4"
+    },
+    {
+        "id": "p030",
+        "url": "photos/photo-5.jpg",
+        "seatId": "parter-4-7",
+        "caption": "Вид с места: партер, ряд 4, место 7"
+    },
+    {
+        "id": "p031",
+        "url": "photos/photo-1.jpg",
+        "seatId": "parter-4-8",
+        "caption": "Вид с места: партер, ряд 4, место 8"
+    },
+    {
+        "id": "p032",
+        "url": "photos/photo-2.jpg",
+        "seatId": "parter-4-9",
+        "caption": "Вид с места: партер, ряд 4, место 9"
+    },
+    {
+        "id": "p033",
+        "url": "photos/photo-3.jpg",
+        "seatId": "parter-4-10",
+        "caption": "Вид с места: партер, ряд 4, место 10"
+    },
+    {
+        "id": "p034",
+        "url": "photos/photo-4.jpg",
+        "seatId": "parter-4-11",
+        "caption": "Вид с места: партер, ряд 4, место 11"
+    },
+    {
+        "id": "p035",
+        "url": "photos/photo-5.jpg",
+        "seatId": "balcony-4-11",
+        "caption": "Вид с места: балкон, ряд 4, место 11"
+    },
+    {
+        "id": "p036",
+        "url": "photos/photo-1.jpg",
+        "seatId": "balcony-4-12",
+        "caption": "Вид с места: балкон, ряд 4, место 12"
+    },
+    {
+        "id": "p037",
+        "url": "photos/photo-2.jpg",
+        "seatId": "balcony-4-13",
+        "caption": "Вид с места: балкон, ряд 4, место 13"
+    },
+    {
+        "id": "p038",
+        "url": "photos/photo-3.jpg",
+        "seatId": "balcony-4-14",
+        "caption": "Вид с места: балкон, ряд 4, место 14"
+    },
+    {
+        "id": "p039",
+        "url": "photos/photo-4.jpg",
+        "seatId": "balcony-4-15",
+        "caption": "Вид с места: балкон, ряд 4, место 15"
+    },
+    {
+        "id": "p040",
+        "url": "photos/photo-5.jpg",
+        "seatId": "balcony-2-20",
+        "caption": "Вид с места: балкон, ряд 2, место 20"
+    },
+    {
+        "id": "p041",
+        "url": "photos/photo-1.jpg",
+        "seatId": "balcony-2-23",
+        "caption": "Вид с места: балкон, ряд 2, место 23"
+    },
+    {
+        "id": "p042",
+        "url": "photos/photo-2.jpg",
+        "seatId": "balcony-2-26",
+        "caption": "Вид с места: балкон, ряд 2, место 26"
+    },
+    {
+        "id": "p043",
+        "url": "photos/photo-3.jpg",
+        "seatId": "balcony-1-9",
+        "caption": "Вид с места: балкон, ряд 1, место 9"
+    },
+    {
+        "id": "p044",
+        "url": "photos/photo-4.jpg",
+        "seatId": "balcony-1-13",
+        "caption": "Вид с места: балкон, ряд 1, место 13"
+    },
+    {
+        "id": "p045",
+        "url": "photos/photo-5.jpg",
+        "seatId": "balcony-1-17",
+        "caption": "Вид с места: балкон, ряд 1, место 17"
+    },
+    {
+        "id": "p046",
+        "url": "photos/photo-1.jpg",
+        "seatId": "balcony-3-21",
+        "caption": "Вид с места: балкон, ряд 3, место 21"
+    },
+    {
+        "id": "p047",
+        "url": "photos/photo-2.jpg",
+        "seatId": "balcony-3-22",
+        "caption": "Вид с места: балкон, ряд 3, место 22"
+    },
+    {
+        "id": "p048",
+        "url": "photos/photo-3.jpg",
+        "seatId": "balcony-3-23",
+        "caption": "Вид с места: балкон, ряд 3, место 23"
+    },
+    {
+        "id": "p049",
+        "url": "photos/photo-4.jpg",
+        "seatId": "balcony-3-24",
+        "caption": "Вид с места: балкон, ряд 3, место 24"
+    },
+    {
+        "id": "p050",
+        "url": "photos/photo-5.jpg",
+        "seatId": "parter-8-24",
+        "caption": "Вид с места: партер, ряд 8, место 24"
+    }
+]
