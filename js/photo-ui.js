@@ -56,8 +56,8 @@ export function createPhotoToggle({ parentEl, onChange }) {
     dock.className = 'photo-dock';
     dock.innerHTML =
         '<button class="photo-switch" type="button" role="switch" aria-checked="false">'
-        + '<span class="photo-switch-track" aria-hidden="true"><span class="photo-switch-knob"></span></span>'
         + '<span class="photo-switch-label">Фото с мест</span>'
+        + '<span class="photo-switch-track" aria-hidden="true"><span class="photo-switch-knob"></span></span>'
         + '</button>';
     parentEl.appendChild(dock);
 
