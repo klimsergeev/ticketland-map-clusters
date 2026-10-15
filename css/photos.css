@@ -3,10 +3,12 @@
    Подключается после css/styles.css.
    ============================================================ */
 
-/* ---------- Слой меток: поверх схемы, события не принимает — попадание считает js/photo-map.js ---------- */
+/* ---------- Слой меток: поверх схемы, события не принимает — попадание считает js/photo-map.js.
+   isolation — z-index меток и кластеров действуют только внутри слоя ---------- */
 .photo-layer {
     position: absolute;
     inset: 0;
+    isolation: isolate;
     pointer-events: none;
     user-select: none;
     transition: opacity 200ms ease, visibility 0s linear 0s;
@@ -28,23 +30,40 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--bg-inverted);
-    box-shadow: 0 0 0 2px var(--bg-primary);       /* обводка снаружи круга */
     border-radius: var(--r-full);
     transition: transform 100ms ease;
 }
 .ph-body svg { display: block; }
-.ph--marker .ph-body { width: 20px; height: 20px; color: var(--icon-inverted); }
-.ph--cluster .ph-body {
-    width: 28px;
-    height: 28px;
-    color: var(--text-inverted);
-    font: 500 var(--fs-p3)/1 var(--font-sans);
+
+/* Метка: тёмный круг 20 px, белая обводка 2 px снаружи, фотоаппарат 12 px */
+.ph--marker .ph-body {
+    width: 20px;
+    height: 20px;
+    background: var(--bg-inverted);
+    box-shadow: 0 0 0 2px var(--bg-primary);
+    color: var(--icon-inverted);
 }
-.ph--mid .ph-body { width: 32px; height: 32px; }
-.ph--wide .ph-body { width: auto; height: 32px; padding: 0 8px; }
 .ph-lens { fill: var(--bg-inverted); }
+
+/* Кластер: диаметр — инлайн из it.d (40 / 48 / 64 / 88 px).
+   Обводка и тень — значения макета из таблицы «Кластер» дизайнера, без токенов:
+   обводка 1 px #626C77 внутрь круга (inset — диаметр не растёт),
+   тень в два слоя: 0 8px 16px 0 #0000000A и 0 4px 24px 0 #0000000F */
+.ph--cluster .ph-body {
+    box-sizing: border-box;
+    background: var(--bg-modal);
+    box-shadow: inset 0 0 0 1px #626C77, 0 8px 16px 0 #0000000A, 0 4px 24px 0 #0000000F;
+    color: var(--text-primary);
+    font: 500 var(--fs-p1)/1 var(--font-sans);
+}
+
 .ph.is-pressed .ph-body { transform: scale(.9); }
+
+/* ---------- Режим фото: свободные кресла — цвет тира с непрозрачностью 50 %, за 200 мс в обе стороны.
+   data-status="available" есть только у заливки свободного кресла; занятые, их обводки
+   и маркеры выбранных мест (.sel-layer) не задеты ---------- */
+.hall-svg rect[data-status="available"] { transition: fill-opacity 200ms ease; }
+.hall-svg.is-photo-mode rect[data-status="available"] { fill-opacity: .5; }
 
 /* ---------- Кнопка режима фото: 12 px под шапкой, 12 px от правого края ---------- */
 /* Кнопка 44 px (зона касания), капсула 40 px по центру: top 100% + 10 px → капсула ровно в 12 px под шапкой */

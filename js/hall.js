@@ -257,19 +257,22 @@ export class HallViewport {
         this._animateTo(s, (BASE_W / 2 - px) * ppu, (BASE_H / 2 - py) * ppu + (top - bottom) / 2);
     }
 
-    /* Рамка box { minX, minY, maxX, maxY } в SVG-юнитах → вписать в полосу между шапкой
-       и нижним блоком с отступом padPx и поставить в её центр (тап по кластеру).
-       Зум не меньше текущего и не больше MAX_SCALE — ограничивает focusInBand. */
-    focusOnSvgBox(box, padPx) {
+    /* Тап по кластеру. box { minX, minY, maxX, maxY } — рамка по центрам кресел в SVG-юнитах.
+       Середина рамки → центр полосы между шапкой и нижним блоком; крайние кресла разнесены
+       на долю share ширины вьюпорта или высоты полосы — берётся масштаб, который приближает меньше.
+       Схема уже на этом масштабе или крупнее — приближение в step раз от текущего.
+       Не меньше текущего масштаба, не больше MAX_SCALE, пан в границах зала — это делает focusInBand. */
+    focusOnSvgBox(box, share, step) {
         const { VW, VH, cover } = this._dims();
-        const top = this._inset('topInset');
-        const bottom = this._inset('bottomInset');
-        const w = Math.max(box.maxX - box.minX, 1);
-        const h = Math.max(box.maxY - box.minY, 1);
-        const availW = Math.max(1, VW - 2 * padPx);
-        const availH = Math.max(1, VH - top - bottom - 2 * padPx);
-        const fit = Math.min(availW / w, availH / h) / cover;   // масштаб, при котором рамка вписывается
-        this.focusInBand((box.minX + box.maxX) / 2, (box.minY + box.maxY) / 2, fit);
+        const band = Math.max(1, VH - this._inset('topInset') - this._inset('bottomInset'));
+        const w = box.maxX - box.minX;
+        const h = box.maxY - box.minY;
+        // на экране отрезок в d SVG-юнитов при масштабе s занимает d * cover * s px
+        const byW = w > 0 ? (share * VW) / (w * cover) : Infinity;   // кресла в одном столбце — ширина не ограничивает
+        const byH = h > 0 ? (share * band) / (h * cover) : Infinity; // кресла в одном ряду — высота не ограничивает
+        let s = Math.min(byW, byH);
+        if (s <= this.scale * 1.001) s = this.scale * step;          // кластер не распался на «60%» — шаг дальше
+        this.focusInBand((box.minX + box.maxX) / 2, (box.minY + box.maxY) / 2, s);
     }
 
     /* ---- pointer (мышь): drag-пан ---- */

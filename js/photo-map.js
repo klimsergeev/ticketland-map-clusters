@@ -5,12 +5,13 @@
    работают как раньше, попадание тапа считается здесь по координатам.
    ============================================================ */
 import { loadPhotos, bindPhotos } from './photos.js';
-import { clusterize, buildItems } from './cluster.js';
+import { buildTree, cutTree, buildItems } from './cluster.js';
 
-const HIT_HALF = 22;   // половина зоны касания 44×44 px
+const HIT_HALF = 22;   // половина наименьшей зоны касания 44×44 px
 const SEAT_HIT_R = 8;  // радиус поиска кресла в SVG-юнитах, как в handleTap
 const PRESS_SLOP = 6;  // жест стал паном — тот же порог, что TAP_DIST в hall.js
-const CLUSTER_FOCUS_PAD = 48;   // px вокруг содержимого кластера при зуме: метки по краю видны целиком
+const CLUSTER_SPAN = 0.6;   // доля экрана между крайними креслами кластера после тапа
+const CLUSTER_STEP = 2;     // шаг приближения, если кластер не распался на масштабе «60%»
 
 /* Фотоаппарат: скруглённый корпус и круглый объектив. Тот же рисунок — в кнопке режима (16 px). */
 export function cameraSvg(size) {
@@ -21,22 +22,22 @@ export function cameraSvg(size) {
         + '</svg>';
 }
 
+/* Метка: размер 20 px — из CSS. Кластер: диаметр по ступеням — инлайн из it.d, та же цифра,
+   по которой считаются касание и наезд кругов. Меньший круг лежит выше: крупный кластер ниже,
+   меньший выше, метка (24 px) выше любого кластера (40–88 px). */
 function createEl(it) {
     const el = document.createElement('div');
-    el.className = 'ph ' + (it.kind === 'marker' ? 'ph--marker' : 'ph--cluster')
-        + (it.count >= 100 ? ' ph--wide' : it.count >= 10 ? ' ph--mid' : '');
+    el.className = 'ph ' + (it.kind === 'marker' ? 'ph--marker' : 'ph--cluster');
     el.dataset.key = it.key;
+    el.style.zIndex = String(100 - it.d);
     const body = it.kind === 'marker' ? cameraSvg(12) : `<span class="ph-num">${it.count}</span>`;
     el.innerHTML = `<span class="ph-anim"><span class="ph-body">${body}</span></span>`;
+    if (it.kind === 'cluster') {
+        const b = el.querySelector('.ph-body');
+        b.style.width = `${it.d}px`;
+        b.style.height = `${it.d}px`;
+    }
     return el;
-}
-
-/* После вставки в DOM: полуразмеры кружка с обводкой 2 px — для попадания «по кружку».
-   offsetWidth трансформацию не учитывает, поэтому замер верный при любом нажатии и анимации. */
-function measure(el) {
-    const b = el.querySelector('.ph-body');
-    el._bodyHalfW = b.offsetWidth / 2 + 2;
-    el._bodyHalfH = b.offsetHeight / 2 + 2;
 }
 
 const tf = (it) => `translate(${it.sx}px, ${it.sy}px) translate(-50%, -50%)`;
@@ -71,7 +72,8 @@ export function createPhotoMap({ hall, viewportEl, seats, nearestSeat, config })
     let items = [];             // элементы слоя (см. buildItems)
     let els = new Map();        // key → div.ph
     let prevBySeat = new Map(); // seatId → элемент, где кресло было до пересборки (для разъезда)
-    let lastK = null;           // px на SVG-юнит при прошлой пересборке: от него зависит порог
+    let tree = { merges: [], aloneK: [] };   // дерево слияний: строится в setPhotos один раз на загрузку данных
+    let lastK = null;           // px на SVG-юнит при прошлой пересборке: по нему режется дерево слияний
     let dirty = true;
 
     /* ---------- позиции и сверка DOM ---------- */
@@ -96,7 +98,6 @@ export function createPhotoMap({ hall, viewportEl, seats, nearestSeat, config })
                 el = createEl(it);
                 el.style.transform = tf(it);
                 layerEl.appendChild(el);
-                measure(el);
                 const parent = prevBySeat.get(it.members[0].seatId);
                 if (parent && parent.count > it.count) {
                     playSpread(el.firstChild, parent.x * k + ox - it.sx, parent.y * k + oy - it.sy);
@@ -110,12 +111,12 @@ export function createPhotoMap({ hall, viewportEl, seats, nearestSeat, config })
         for (const it of items) for (const m of it.members) prevBySeat.set(m.seatId, it);
     }
 
-    /* Полный пересчёт кластеров. Порог объединения — radiusPx в SVG-юнитах текущего масштаба.
+    /* Полный пересчёт кластеров: дерево слияний режется по текущему vt.k.
        С disableAtScale кластеризация отключена: каждое кресло — своя метка. */
     function rebuild(vt) {
         dirty = false;
         const off = hall.scale >= cfg.disableAtScale - 1e-3;
-        const groups = off ? nodes.map((_, i) => [i]) : clusterize(nodes, cfg.radiusPx / vt.k);
+        const groups = off ? nodes.map((_, i) => [i]) : cutTree(nodes.length, tree.merges, vt.k);
         items = buildItems(nodes, groups, cfg);
         place(vt);
         reconcile(vt);
@@ -136,16 +137,16 @@ export function createPhotoMap({ hall, viewportEl, seats, nearestSeat, config })
     function setPhotos(list) {
         nodes = bindPhotos(list, seatsById);
         bySeat = new Map(nodes.map((n) => [n.seatId, n]));
+        tree = buildTree(nodes, cfg);
         prevBySeat = new Map();   // при загрузке данных разъезд не играет
         dirty = true;
         update();
     }
 
-    /* Тап по кластеру: схема вписывает его кресла в видимую полосу — масштаб растёт в разы,
-       кластер распадается. Упрётся в MAX_SCALE — распадается, там кластеризация отключена. */
+    /* Тап по кластеру: один шаг приближения. Не распался — следующий тап приближает ещё в CLUSTER_STEP раз. */
     function zoomToCluster(it) {
         try {
-            hall.focusOnSvgBox(it.box, CLUSTER_FOCUS_PAD);
+            hall.focusOnSvgBox(it.box, CLUSTER_SPAN, CLUSTER_STEP);
         } catch (e) {
             console.error('Метки фото: зум к кластеру не удался', e);
         }
@@ -163,23 +164,26 @@ export function createPhotoMap({ hall, viewportEl, seats, nearestSeat, config })
 
     /* ---------- правила касания ---------- */
 
-    /* Ближайший элемент, в который попадает точка (lx, ly) в px вьюпорта.
-       byBody: true — только по кружку (капсуле), false — по зоне касания. */
+    /* Элемент, в который попадает точка (lx, ly) в px вьюпорта.
+       byBody: true — по видимому кругу, из нескольких — верхний: меньший диаметр, при равном — ближний центр;
+       false — по зоне касания (квадрат со стороной max(44, d)), из нескольких — ближний центр. */
     function nearestItem(lx, ly, byBody) {
         let best = null;
-        let bestD = Infinity;
+        let bestDist = Infinity;
         for (const it of items) {
-            const el = els.get(it.key);
-            if (!el) continue;
-            const dx = Math.abs(lx - it.sx);
-            const dy = Math.abs(ly - it.sy);
-            const inside = byBody
-                // расстояние до капсулы: у круга halfW = halfH, у капсулы от 100 прямой участок halfW - halfH
-                ? Math.hypot(Math.max(0, dx - (el._bodyHalfW - el._bodyHalfH)), dy) <= el._bodyHalfH
-                : dx <= Math.max(HIT_HALF, el._bodyHalfW) && dy <= HIT_HALF;
-            if (!inside) continue;
-            const d = Math.hypot(dx, dy);
-            if (d < bestD) { bestD = d; best = it; }
+            if (!els.has(it.key)) continue;
+            const dx = lx - it.sx;
+            const dy = ly - it.sy;
+            const dist = Math.hypot(dx, dy);
+            if (byBody) {
+                if (dist > it.d / 2) continue;
+                const above = !best || it.d < best.d || (it.d === best.d && dist < bestDist);
+                if (above) { best = it; bestDist = dist; }
+            } else {
+                const half = Math.max(HIT_HALF, it.d / 2);
+                if (Math.abs(dx) > half || Math.abs(dy) > half) continue;
+                if (dist < bestDist) { best = it; bestDist = dist; }
+            }
         }
         return best;
     }
@@ -250,16 +254,15 @@ export function createPhotoMap({ hall, viewportEl, seats, nearestSeat, config })
         release();
     }
 
-    /* Масштаб, с которого метка кресла гарантированно не входит в кластер: при полной связи
-       кресло ни с кем не сливается, если все остальные кресла с фото дальше порога объединения.
-       Не выше disableAtScale: там кластеризация отключена. */
+    /* Масштаб, с которого метка кресла стоит отдельно: по дереву слияний метка отдельна ровно
+       при vt.k ≥ aloneK кресла — при любом overlap, в том числе когда кресло втягивается
+       в соседний кластер наездом круга. Не выше disableAtScale: там кластеризация отключена. */
     function aloneScale(node) {
-        let d = Infinity;
-        for (const m of nodes) if (m !== node) d = Math.min(d, Math.hypot(m.x - node.x, m.y - node.y));
-        if (!Number.isFinite(d) || d <= 0) return 0;
-        const cover = hall.pxPerUnit() / hall.scale;           // px на SVG-юнит при scale = 1
-        const s = (cfg.radiusPx / (d * cover)) * 1.02;       // запас 2 % против погрешности на самом пороге
-        return Math.min(cfg.disableAtScale, s);
+        const i = nodes.indexOf(node);
+        const e = i < 0 ? 0 : tree.aloneK[i];
+        if (!(e > 0)) return 0;                                    // кресло ни с кем не сливается
+        const cover = hall.pxPerUnit() / hall.scale;               // px на SVG-юнит при scale = 1
+        return Math.min(cfg.disableAtScale, (e / cover) * 1.02);   // запас 2 % против погрешности на самом пороге
     }
 
     return {

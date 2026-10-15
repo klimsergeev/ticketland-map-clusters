@@ -5,9 +5,11 @@
 import { MAX_SCALE } from './hall.js';
 
 export const PHOTO_CONFIG = {
-    dataUrl: 'photos/photos-50.json',
+    dataUrl: 'photos/photos-bug.json',   // основной набор: частота и разброс из примера бага
     radiusPx: 44,                // кластеризация: радиус объединения, px экрана (= сторона зоны касания)
     minPhotos: 2,                // кластеризация: минимум меток для кластера
     disableAtScale: MAX_SCALE,   // кластеризация: с этого масштаба кластеризация отключается
     position: 'centroid',        // кластеризация: 'centroid' — центр масс, 'first' — первая метка по данным
+    overlap: 'clusters',         // кластеризация: сливаются наезжающие круги — 'clusters' — кластеры между собой,
+                                 // 'all' — ещё и метка с кластером, 'off' — только по радиусу объединения
 };

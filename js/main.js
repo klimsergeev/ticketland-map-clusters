@@ -634,6 +634,7 @@ function handleTap(clientX, clientY) {
 function setPhotoMode(on) {
     photoMode = on;
     photoToggle.setOn(on);
+    $('.hall-svg').classList.toggle('is-photo-mode', on);   // приглушение свободных кресел, см. css/photos.css
     if (photoMap) photoMap.setEnabled(on);
     if (!on) photoCard.close();          // выключение режима убирает открытую карточку
 }
