@@ -246,15 +246,16 @@ export class HallViewport {
 
     /* Точка (px, py) в SVG-юнитах → центр полосы между шапкой и нижним блоком.
        Масштаб не меньше текущего и не больше MAX_SCALE; пан клампится в каждом кадре _animateTo,
-       поэтому у края схемы точка остаётся не по центру, а вид не выходит за границы. */
-    focusInBand(px, py, scale) {
+       поэтому у края схемы точка остаётся не по центру, а вид не выходит за границы.
+       onDone — после последнего кадра; движение оборвано жестом, panTo или новым _animateTo — не приходит. */
+    focusInBand(px, py, scale, onDone) {
         const { cover } = this._dims();
         const top = this._inset('topInset');
         const bottom = this._inset('bottomInset');
         const s = Math.max(this.scale, this._fitScale(), Math.min(MAX_SCALE, scale));
         const ppu = cover * s;
         // экранY точки = VH/2 + ty - (BASE_H/2 - py) * ppu; нужно VH/2 + (top - bottom)/2
-        this._animateTo(s, (BASE_W / 2 - px) * ppu, (BASE_H / 2 - py) * ppu + (top - bottom) / 2);
+        this._animateTo(s, (BASE_W / 2 - px) * ppu, (BASE_H / 2 - py) * ppu + (top - bottom) / 2, onDone);
     }
 
     /* Тап по кластеру. box { minX, minY, maxX, maxY } — рамка по центрам кресел в SVG-юнитах.

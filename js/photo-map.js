@@ -6,13 +6,24 @@
    ============================================================ */
 import { loadPhotos, bindPhotos, CAMERA16_PATHS } from './photos.js';
 import { buildTree, cutTree, buildItems } from './cluster.js';
-import { ACTIVE_SCALE, SEL_HALF } from './seats.js';
+import { ACTIVE_SCALE, SEL_HALF, SEL_RADIUS } from './seats.js';
 
 const HIT_HALF = 22;   // половина наименьшей зоны касания 44×44 px
 const SEAT_HIT_R = 8;  // радиус поиска кресла в SVG-юнитах, как в handleTap
 const PRESS_SLOP = 6;  // жест стал паном — тот же порог, что TAP_DIST в hall.js
 const CLUSTER_SPAN = 0.6;   // доля экрана между крайними креслами кластера после тапа
 const CLUSTER_STEP = 2;     // шаг приближения, если кластер не распался на масштабе «60%»
+
+/* Подсветка кресла после «Показать на схеме»: одна расходящаяся волна, без статичного кольца */
+const RING_GAP = 2;    // px от края кресла или маркера до внутреннего края волны на старте
+const RING_LINE = 4;   // px, толщина линии волны; совпадает с border в .seat-pulse-wave
+const WAVE_GROW = 2.5; // волна вырастает до 2,5 стартового диаметра
+const WAVE_MS = 1600;  // волна одна; её конец — конец подсветки
+const PULSE_OFF_MS = 150;   // гашение по действию человека
+const PULSE_EASE = 'cubic-bezier(.2, .8, .2, 1)';   // быстрый старт, мягкая остановка
+
+// дальняя от центра точка скруглённого квадрата: полусторона h, радиус угла r, в единицах схемы
+const reach = (h, r) => (h - r) * Math.SQRT2 + r;
 
 // фотоаппарат метки: 16×16, цвет из CSS (.ph--marker .ph-body)
 const CAMERA16 = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">${CAMERA16_PATHS}</svg>`;
@@ -60,6 +71,15 @@ export function createPhotoMap({ hall, viewportEl, seats, nearestSeat, config })
     layerEl.setAttribute('aria-hidden', 'true');
     const contentEl = viewportEl.querySelector('.map-content');
     viewportEl.insertBefore(layerEl, contentEl ? contentEl.nextSibling : null);
+
+    // подсветка кресла — отдельно от слоя меток: при выключенном режиме он прозрачен
+    const pulseEl = document.createElement('div');
+    pulseEl.className = 'seat-pulse';
+    pulseEl.hidden = true;
+    pulseEl.setAttribute('aria-hidden', 'true');
+    pulseEl.innerHTML = '<span class="seat-pulse-wave"></span>';
+    viewportEl.insertBefore(pulseEl, layerEl.nextSibling);
+    const waveEl = pulseEl.firstElementChild;
 
     let enabled = false;
     let nodes = [];             // узлы из bindPhotos, порядок данных
@@ -148,6 +168,7 @@ export function createPhotoMap({ hall, viewportEl, seats, nearestSeat, config })
         }
         if (dirty) rebuild(vt);
         else place(vt);
+        placePulse(vt);
     }
 
     function setPhotos(list) {
@@ -274,22 +295,72 @@ export function createPhotoMap({ hall, viewportEl, seats, nearestSeat, config })
     viewportEl.addEventListener('pointerup', release);
     viewportEl.addEventListener('pointercancel', release);
 
-    /* ---------- режим и масштаб для «Выбрать места» ---------- */
+    /* ---------- режим ---------- */
     function setEnabled(on) {
         enabled = !!on;
         layerEl.classList.toggle('is-off', !enabled);
         release();
     }
 
-    /* Масштаб, с которого метка кресла стоит отдельно: по дереву слияний метка отдельна ровно
-       при vt.k ≥ aloneK кресла — при любом overlap, в том числе когда кресло втягивается
-       в соседний кластер наездом круга. Не выше disableAtScale: там кластеризация отключена. */
-    function aloneScale(node) {
-        const i = nodes.indexOf(node);
-        const e = i < 0 ? 0 : tree.aloneK[i];
-        if (!(e > 0)) return 0;                                    // кресло ни с кем не сливается
-        const cover = hall.pxPerUnit() / hall.scale;               // px на SVG-юнит при scale = 1
-        return Math.min(cfg.disableAtScale, (e / cover) * 1.02);   // запас 2 % против погрешности на самом пороге
+    /* ---------- подсветка кресла после «Показать на схеме» ---------- */
+    let pulseSeat = null;   // кресло под подсветкой; null — подсветки нет
+    let pulseAnims = [];
+    let pulseFade = null;
+
+    /* Стартовый внешний диаметр волны в px (внутренний край на RING_GAP снаружи кресла): кресло 8×8 со своим rx; кресло в заказе — маркер, у активного билета крупнее */
+    function ringDiameter(seat, k) {
+        const units = seat.selected
+            ? reach(SEL_HALF, SEL_RADIUS) * (seat.id === activeSeatId ? ACTIVE_SCALE : 1)
+            : reach(4, +seat.el.getAttribute('rx') || 0);
+        return 2 * (units * k + RING_GAP + RING_LINE);
+    }
+
+    function placePulse({ k, ox, oy }) {
+        if (!pulseSeat) return;
+        const x = +pulseSeat.el.getAttribute('x') + 4;
+        const y = +pulseSeat.el.getAttribute('y') + 4;
+        pulseEl.style.transform = `translate(${x * k + ox}px, ${y * k + oy}px)`;
+    }
+
+    /* Сразу, без затухания: конец сценария или новая подсветка */
+    function stopPulse() {
+        pulseSeat = null;
+        pulseEl.hidden = true;
+        pulseAnims.forEach((a) => a.cancel());
+        pulseAnims = [];
+        if (pulseFade) { pulseFade.cancel(); pulseFade = null; }
+    }
+
+    function highlightSeat(seatId) {
+        stopPulse();
+        const seat = seatsById.get(seatId);
+        if (!seat) return;
+        pulseSeat = seat;
+        // цвет волны — заливка кресла из SVG: полный цвет тира у свободного и у кресла в заказе,
+        // серый у занятого; приглушение режима фото — fill-opacity в CSS, атрибут fill оно не трогает
+        pulseEl.style.color = seat.el.getAttribute('fill');
+        const vt = hall.viewTransform();
+        const d = ringDiameter(seat, vt.k);
+        waveEl.style.width = `${d}px`;
+        waveEl.style.height = `${d}px`;
+        placePulse(vt);
+        pulseEl.hidden = false;
+        const wave = waveEl.animate(
+            [
+                { width: `${d}px`, height: `${d}px`, opacity: 0.6 },
+                { width: `${d * WAVE_GROW}px`, height: `${d * WAVE_GROW}px`, opacity: 0 },
+            ],
+            { duration: WAVE_MS, easing: PULSE_EASE },
+        );
+        pulseAnims = [wave];
+        wave.onfinish = stopPulse;   // конец волны — конец подсветки
+    }
+
+    /* Действие человека: волна гаснет за 150 мс; повторно подсветка не возвращается */
+    function hideHighlight() {
+        if (!pulseSeat || pulseFade) return;
+        pulseFade = pulseEl.animate([{ opacity: 1 }, { opacity: 0 }], { duration: PULSE_OFF_MS, easing: 'ease-out', fill: 'forwards' });
+        pulseFade.onfinish = stopPulse;
     }
 
     return {
@@ -299,7 +370,8 @@ export function createPhotoMap({ hall, viewportEl, seats, nearestSeat, config })
         update,
         syncSelected,
         resolveTap,
-        aloneScale,
         zoomToCluster,
+        highlightSeat,
+        hideHighlight,
     };
 }

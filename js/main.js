@@ -29,12 +29,15 @@ const floatingEl = $('.floating');
        fitHall() сразу вызывает onView, и обращение к photoMap ниже по файлу упало бы. --- */
 let photoMode = false;
 let photoMap = null;     // слой меток фото, появляется после загрузки схемы
+let showSeq = 0;           // номер текущего «Показать на схеме»; действие человека его сбивает
+let showLeaving = false;   // карточка уезжает после «Показать на схеме»: касания схемы игнорируются
 const photoToggle = createPhotoToggle({ parentEl: $('.app'), onChange: onPhotoButton });
 const photoTip = createPhotoTip({ parentEl: photoToggle.dockEl });
-const photoCard = createPhotoCard({ parentEl: $('.app'), onSelect: selectNearPhoto });
+const photoCard = createPhotoCard({ parentEl: $('.app'), onShow: showOnMap });
 
-/* Кнопка режима: тултип гаснет сразу, режим переключается как обычно */
+/* Кнопка режима: подсветка кресла и тултип гаснут сразу, режим переключается как обычно */
 function onPhotoButton(on) {
+    stopShowOnMap();
     photoTip.dismiss();
     setPhotoMode(on);
 }
@@ -668,18 +671,38 @@ function setPhotoMode(on) {
     if (!on) photoCard.close();          // выключение режима убирает открытую карточку
 }
 
-/* «Выбрать места» в карточке: карточка уезжает, схема приближается к креслу с фото —
-   метка стоит отдельно, соседние кресла крупные (FOCUS_SCALE, как при выборе места). */
-function selectNearPhoto(node) {
+/* «Показать на схеме»: карточка уезжает и одновременно выключается режим фото,
+   через 250 мс схема приближается к креслу, после остановки кресло подсвечивается */
+function showOnMap(node) {
+    const seq = ++showSeq;
+    showLeaving = true;
+    // схема не реагирует на касания, пока уезжает карточка: ни тап, ни пан, ни щипок, ни колесо
+    viewportEl.style.pointerEvents = 'none';
+    // сначала закрыть с колбэком: setPhotoMode(false) закрывает карточку без колбэка,
+    // и после него close(cb) вызвал бы cb сразу — приближение пошло бы под карточкой
     photoCard.close(() => {
-        let scale = FOCUS_SCALE;
-        try {
-            if (photoMap) scale = Math.max(FOCUS_SCALE, photoMap.aloneScale(node));
-        } catch (e) {
-            console.error('Метки фото: масштаб для кресла не посчитан', e);
-        }
-        hall.focusInBand(node.x, node.y, scale);
+        showLeaving = false;
+        viewportEl.style.pointerEvents = '';
+        hall.focusInBand(node.x, node.y, FOCUS_SCALE, () => {
+            if (seq !== showSeq || !photoMap) return;
+            try {
+                photoMap.highlightSeat(node.seatId);
+            } catch (e) {
+                console.error('Метки фото: подсветка кресла не показана', e);
+            }
+        });
     });
+    // режим выключается тем же, что вызывает кнопка режима; второй close() внутри — пустой
+    photoTip.dismiss();
+    setPhotoMode(false);
+}
+
+/* Действие человека: подсветка гаснет за 150 мс, подсветка, которая ещё не началась, отменяется.
+   Пока карточка уезжает — ничего: сценарий доводится до конца */
+function stopShowOnMap() {
+    if (showLeaving) return;
+    showSeq++;
+    if (photoMap) photoMap.hideHighlight();
 }
 
 /* --- Пересчёт схемы под размеры вьюпорта ---
@@ -740,6 +763,13 @@ const hall = new HallViewport($('.map-viewport'), $('.map-content'), {
 const viewportEl = $('.map-viewport');
 viewportEl.addEventListener('pointerdown', () => photoTip.dismiss(), { capture: true });
 viewportEl.addEventListener('wheel', () => photoTip.dismiss(), { capture: true, passive: true });
+// тап, пан, щипок, колесо по схеме — подсветка гаснет; жест идёт в hall.js как обычно
+viewportEl.addEventListener('pointerdown', stopShowOnMap, { capture: true });
+viewportEl.addEventListener('wheel', stopShowOnMap, { capture: true, passive: true });
+// касание билетов: смена активного билета меняет размер маркера, от которого считается волна
+floatingEl.addEventListener('pointerdown', stopShowOnMap, { capture: true });
+// кнопка режима: подсветка гаснет при касании, а не по click; вызов в onPhotoButton — для клавиатуры
+photoToggle.dockEl.querySelector('.photo-btn').addEventListener('pointerdown', stopShowOnMap);
 
 // вписать всю схему в кадр (contain) сразу и после первого лейаута
 fitHall();

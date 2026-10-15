@@ -113,9 +113,13 @@ export function createPhotoTip({ parentEl }) {
     return { schedule, dismiss };
 }
 
+// Место словами: «партер, ряд 3, место 12» — для подписи к фото и для диктора
+const seatText = (s) => `${s.section.toLowerCase()}, ряд ${s.row}, место ${s.seat}`;
+
 /* Карточка с фото. open(node) — узел из bindPhotos; close(onDone) — onDone через 250 мс
-   по таймеру, а не по transitionend: колбэк приходит, даже если переход не сыграл. */
-export function createPhotoCard({ parentEl, onSelect }) {
+   по таймеру, а не по transitionend: колбэк приходит, даже если переход не сыграл.
+   onShow(node) — кнопка «Показать на схеме». */
+export function createPhotoCard({ parentEl, onShow }) {
     const el = document.createElement('div');
     el.className = 'photo-card';
     el.setAttribute('role', 'dialog');
@@ -126,8 +130,14 @@ export function createPhotoCard({ parentEl, onSelect }) {
         + `<button class="photo-card-close" type="button" aria-label="Закрыть"><span class="photo-card-close-body">${icoCross}</span></button>`
         + '</div>'
         + '<div class="photo-card-caption"></div>'
-        + '<button class="photo-card-select" type="button">Выбрать места</button>';
+        + '<button class="photo-card-show" type="button">Показать на схеме</button>';
     parentEl.appendChild(el);
+
+    // Live-строка вне карточки: закрытая карточка visibility: hidden, а скрытый live-регион диктор не слушает
+    const sr = document.createElement('span');
+    sr.className = 'photo-sr';
+    sr.setAttribute('aria-live', 'polite');
+    parentEl.appendChild(sr);
 
     const img = el.querySelector('.photo-card-img');
     const caption = el.querySelector('.photo-card-caption');
@@ -145,8 +155,7 @@ export function createPhotoCard({ parentEl, onSelect }) {
         img.style.visibility = '';
         img.alt = n.photo.caption || '';
         img.src = n.photo.url;
-        const s = n.seat;
-        caption.textContent = `Вид с места: ${s.section.toLowerCase()}, ряд ${s.row}, место ${s.seat}`;
+        caption.textContent = `Вид с места: ${seatText(n.seat)}`;
         el.style.transition = '';
         el.style.transform = '';
         el.classList.add('is-open');
@@ -170,8 +179,13 @@ export function createPhotoCard({ parentEl, onSelect }) {
     }
 
     el.querySelector('.photo-card-close').addEventListener('click', () => close());
-    el.querySelector('.photo-card-select').addEventListener('click', () => {
-        if (isOpen && node) onSelect(node);
+    el.querySelector('.photo-card-show').addEventListener('click', () => {
+        if (!isOpen || !node) return;   // второй тап, пока карточка уезжает, — ничего
+        const n = node;
+        // сначала пусто, потом текст: одна и та же фраза подряд зачитывается снова
+        sr.textContent = '';
+        requestAnimationFrame(() => { sr.textContent = `Показано: ${seatText(n.seat)}`; });
+        onShow(n);
     });
 
     /* Свайп вниз: карточка едет за пальцем вниз, вверх не едет.

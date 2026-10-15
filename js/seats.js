@@ -127,6 +127,10 @@ export const ACTIVE_SCALE = 1.4;
 /* Половина маркера выбранного места в единицах схемы: кресло 8 + обводка 3 (по 1,5 с каждой стороны). */
 export const SEL_HALF = 5.5;
 
+/* Радиус угла маркера выбранного места снаружи обводки, в единицах схемы: rx 2,5 + половина обводки 1,5.
+   Нужен js/photo-map.js: волна подсветки стартует снаружи маркера. */
+export const SEL_RADIUS = 4;
+
 const CHECK = `<path fill-rule="evenodd" clip-rule="evenodd" d="${CHECK_D}" fill="white"/>`;
 // Camera 16 из Figma, ужатый до кресла 8×8, белый — Constant/Greyscale 0 макета
 const CAMERA = `<g transform="translate(88 16) scale(.5)" color="#FFFFFF">${CAMERA16_PATHS}</g>`;
