@@ -15,7 +15,6 @@
    возвращает массив объектов-мест.
    ============================================================ */
 import { TIER_COLORS } from './data.js';
-import { CAMERA16_PATHS } from './photos.js';
 
 const OCCUPIED = '#BBC1C7';
 const SECTION_GAP = 40;   // разрыв по Y больше этого = граница секций
@@ -108,7 +107,7 @@ export function applySessionPrices(seats, priceByColor) {
 /* ============================================================
    Selected-вид места (Figma-нода 4902-80205).
    Выбранное место = оранжевый #FF5005 + белый значок, ПЕРЕКРЫВАЕТ цвет тира.
-   Значок — галочка или фотоаппарат (кресло с фото в заказе при включённом режиме фото).
+   Значок — белая галочка у любого выбранного места, в том числе у кресла с фото.
    Оригинальный rect места (8×8) не трогаем — рисуем поверх отдельный слой
    <g class="sel-layer"> в конце <svg> (document order = сверху всех мест).
    Разметка галочки взята дословно из макета для 8px-варианта с
@@ -125,31 +124,25 @@ export const SEL_HALF = 5.5;
 export const SEL_RADIUS = 4;
 
 const CHECK = `<path fill-rule="evenodd" clip-rule="evenodd" d="${CHECK_D}" fill="white"/>`;
-// Camera 16 из Figma, ужатый до кресла 8×8, белый — Constant/Greyscale 0 макета
-const CAMERA = `<g transform="translate(88 16) scale(.5)" color="#FFFFFF">${CAMERA16_PATHS}</g>`;
 
-/* Маркер выбранного места: все выбранные места одного размера.
-   Значок — галочка или фотоаппарат: camera: true — фотоаппарат
-   (кресло с фото в заказе при включённом режиме фото), он ложится ровно на кресло 8×8. */
-function selectedGroup(x, y, camera = false) {
+/* Маркер выбранного места: все выбранные места одного размера, с галочкой. */
+function selectedGroup(x, y) {
     const inner =
         `<rect x="88" y="16" width="8" height="8" rx="2.5" fill="${SEL_COLOR}"/>`
         + `<rect x="88" y="16" width="8" height="8" rx="2.5" stroke="${SEL_COLOR}" stroke-width="3"/>`
-        + (camera ? CAMERA : CHECK);
+        + CHECK;
     return `<g transform="translate(${x - 88} ${y - 16})">${inner}</g>`;
 }
 
-/* Создать слой выбора и вернуть функцию его перерисовки под список мест.
-   withCamera(seat) — у места вместо галочки фотоаппарат; по умолчанию у всех галочка.
-   Признак считает main.js: здесь нет знаний о режиме и фото. */
+/* Создать слой выбора и вернуть функцию его перерисовки под список мест. */
 export function createSelectionLayer(svgRoot) {
     const layer = document.createElementNS(SVG_NS, 'g');
     layer.setAttribute('class', 'sel-layer');
     svgRoot.appendChild(layer);
-    return function render(seats, withCamera = () => false) {
+    return function render(seats) {
         layer.innerHTML = seats
             .filter((s) => s.selected)
-            .map((s) => selectedGroup(+s.el.getAttribute('x'), +s.el.getAttribute('y'), withCamera(s)))
+            .map((s) => selectedGroup(+s.el.getAttribute('x'), +s.el.getAttribute('y')))
             .join('');
     };
 }
