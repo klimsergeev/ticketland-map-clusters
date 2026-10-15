@@ -84,6 +84,7 @@ export function createPhotoMap({ hall, viewportEl, seats, nearestSeat, config })
     let enabled = false;
     let nodes = [];             // узлы из bindPhotos, порядок данных
     let bySeat = new Map();     // seatId → узел
+    let gallery = [];           // узлы в порядке галереи: секция, ряд от сцены, место слева направо
     let items = [];             // элементы слоя (см. buildItems)
     let els = new Map();        // key → div.ph
     let prevBySeat = new Map(); // seatId → элемент, где кресло было до пересборки (для разъезда)
@@ -174,6 +175,8 @@ export function createPhotoMap({ hall, viewportEl, seats, nearestSeat, config })
     function setPhotos(list) {
         nodes = bindPhotos(list, seatsById);
         bySeat = new Map(nodes.map((n) => [n.seatId, n]));
+        // y растёт от сцены назад и от партера к балкону, x — слева направо; у кресел одного ряда y одинаковый
+        gallery = [...nodes].sort((a, b) => a.y - b.y || a.x - b.x);
         tree = buildTree(nodes, cfg);
         prevBySeat = new Map();   // при загрузке данных разъезд не играет
         dirty = true;
@@ -367,6 +370,7 @@ export function createPhotoMap({ hall, viewportEl, seats, nearestSeat, config })
         load,
         setEnabled,
         hasPhoto: (seatId) => bySeat.has(seatId),
+        gallery: () => gallery,
         update,
         syncSelected,
         resolveTap,

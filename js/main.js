@@ -5,7 +5,7 @@ import { EVENT, TIER_COLORS, TIER_PRICES, MAX_SEATS, formatPrice } from './data.
 import { HallViewport } from './hall.js';
 import { buildSeats, createSelectionLayer, applySessionPrices } from './seats.js';
 import { createPhotoMap } from './photo-map.js';
-import { createPhotoToggle, createPhotoCard, createPhotoTip } from './photo-ui.js';
+import { createPhotoToggle, createLightbox, createPhotoTip } from './photo-ui.js';
 import { PHOTO_CONFIG } from './photo-config.js';
 
 /* --- Иконки (инлайн SVG) --- */
@@ -30,10 +30,10 @@ const floatingEl = $('.floating');
 let photoMode = false;
 let photoMap = null;     // слой меток фото, появляется после загрузки схемы
 let showSeq = 0;           // номер текущего «Показать на схеме»; действие человека его сбивает
-let showLeaving = false;   // карточка уезжает после «Показать на схеме»: касания схемы игнорируются
+let showLeaving = false;   // лайтбокс гаснет после «Показать на схеме»: касания схемы игнорируются
 const photoToggle = createPhotoToggle({ parentEl: $('.app'), onChange: onPhotoButton });
 const photoTip = createPhotoTip({ parentEl: photoToggle.dockEl });
-const photoCard = createPhotoCard({ parentEl: $('.app'), onShow: showOnMap });
+const lightbox = createLightbox({ parentEl: $('.app'), onShow: showOnMap });
 
 /* Кнопка режима: подсветка кресла и тултип гаснут сразу, режим переключается как обычно */
 function onPhotoButton(on) {
@@ -633,7 +633,7 @@ function findNearestSeat(sx, sy, maxR) {
     return best;
 }
 function handleTap(clientX, clientY) {
-    if (photoCard.isOpen()) { photoCard.close(); return; }   // тап при открытой карточке только закрывает её
+    if (lightbox.isOpen()) { lightbox.close(); return; }   // лайтбокс перекрывает весь экран, тап до схемы не дойдёт; строка — страховка
     if (deleting) return;                         // не трогаем корзину во время анимации удаления
     const p = hall.clientToSvg(clientX, clientY);
     if (!p) return;
@@ -644,7 +644,7 @@ function handleTap(clientX, clientY) {
     } catch (e) {
         console.error('Метки фото: тап не разобран, он уходит креслам', e);
     }
-    if (hit && hit.type === 'photo') { photoCard.open(hit.node); return; }
+    if (hit && hit.type === 'photo') { lightbox.open(hit.node, photoMap.gallery()); return; }
     if (hit && hit.type === 'cluster') { photoMap.zoomToCluster(hit.item); return; }   // этап кластеризации
     const seat = hit && hit.type === 'seat' ? hit.seat : findNearestSeat(p.x, p.y, 8);   // R=8 SVG-юнитов (место 8 + зазор)
     // Попадание в ДОСТУПНОЕ место → выбрать/снять + подзум. В режиме фото место с фото в заказ не идёт.
@@ -661,26 +661,26 @@ function handleTap(clientX, clientY) {
     }
 }
 
-/* --- Режим фото: кнопка ↔ слой меток ↔ карточка --- */
+/* --- Режим фото: кнопка ↔ слой меток ↔ лайтбокс --- */
 function setPhotoMode(on) {
     photoMode = on;
     photoToggle.setOn(on);
     $('.hall-svg').classList.toggle('is-photo-mode', on);   // приглушение свободных кресел, см. css/photos.css
     if (photoMap) photoMap.setEnabled(on);
     renderSelectionActive();             // галочка ↔ фотоаппарат на креслах с фото в заказе, сразу
-    if (!on) photoCard.close();          // выключение режима убирает открытую карточку
+    if (!on) lightbox.close();           // выключение режима убирает открытый лайтбокс
 }
 
-/* «Показать на схеме»: карточка уезжает и одновременно выключается режим фото,
-   через 250 мс схема приближается к креслу, после остановки кресло подсвечивается */
+/* «Показать на схеме»: лайтбокс гаснет и одновременно выключается режим фото,
+   после гашения лайтбокса схема приближается к креслу, после остановки кресло подсвечивается */
 function showOnMap(node) {
     const seq = ++showSeq;
     showLeaving = true;
-    // схема не реагирует на касания, пока уезжает карточка: ни тап, ни пан, ни щипок, ни колесо
+    // схема не реагирует на касания, пока гаснет лайтбокс: ни тап, ни пан, ни щипок, ни колесо
     viewportEl.style.pointerEvents = 'none';
-    // сначала закрыть с колбэком: setPhotoMode(false) закрывает карточку без колбэка,
-    // и после него close(cb) вызвал бы cb сразу — приближение пошло бы под карточкой
-    photoCard.close(() => {
+    // сначала закрыть с колбэком: setPhotoMode(false) закрывает лайтбокс без колбэка,
+    // и после него close(cb) вызвал бы cb сразу — приближение пошло бы под лайтбоксом
+    lightbox.close(() => {
         showLeaving = false;
         viewportEl.style.pointerEvents = '';
         hall.focusInBand(node.x, node.y, FOCUS_SCALE, () => {
@@ -698,7 +698,7 @@ function showOnMap(node) {
 }
 
 /* Действие человека: подсветка гаснет за 150 мс, подсветка, которая ещё не началась, отменяется.
-   Пока карточка уезжает — ничего: сценарий доводится до конца */
+   Пока лайтбокс гаснет — ничего: сценарий доводится до конца */
 function stopShowOnMap() {
     if (showLeaving) return;
     showSeq++;
