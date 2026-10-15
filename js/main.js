@@ -5,7 +5,7 @@ import { EVENT, TIER_COLORS, TIER_PRICES, MAX_SEATS, formatPrice } from './data.
 import { HallViewport } from './hall.js';
 import { buildSeats, createSelectionLayer, applySessionPrices } from './seats.js';
 import { createPhotoMap } from './photo-map.js';
-import { createPhotoToggle, createPhotoCard } from './photo-ui.js';
+import { createPhotoToggle, createPhotoCard, createPhotoTip } from './photo-ui.js';
 import { PHOTO_CONFIG } from './photo-config.js';
 
 /* --- Иконки (инлайн SVG) --- */
@@ -29,8 +29,15 @@ const floatingEl = $('.floating');
        fitHall() сразу вызывает onView, и обращение к photoMap ниже по файлу упало бы. --- */
 let photoMode = false;
 let photoMap = null;     // слой меток фото, появляется после загрузки схемы
-const photoToggle = createPhotoToggle({ parentEl: header, onChange: setPhotoMode });
+const photoToggle = createPhotoToggle({ parentEl: $('.app'), onChange: onPhotoButton });
+const photoTip = createPhotoTip({ parentEl: photoToggle.dockEl });
 const photoCard = createPhotoCard({ parentEl: $('.app'), onSelect: selectNearPhoto });
+
+/* Кнопка режима: тултип гаснет сразу, режим переключается как обычно */
+function onPhotoButton(on) {
+    photoTip.dismiss();
+    setPhotoMode(on);
+}
 
 /* --- Шапка: статичная (название, площадка, «Назад») --- */
 $('.ttl').textContent = EVENT.title;
@@ -433,9 +440,19 @@ function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 /* --- Подложка галереи: видна только при непустой корзине. Пустая корзина →
    display:none, чтобы белый градиент не рисовался и высота не резервировалась
    (низ схемы зала не перекрывается белой пеленой). --- */
+const appEl = $('.app');
+
+/* Подъём дока над нижним блоком: от низа экрана до верха ряда билетов. Блок скрыт — 0.
+   Градиент над билетами в счёт не идёт: меряется .slider, а не .floating */
+function photoDockLift() {
+    if (floatingEl.style.display === 'none') return 0;
+    return Math.round(appEl.getBoundingClientRect().bottom - sliderEl.getBoundingClientRect().top);
+}
+
 function syncFloating() {
     if (!floatingEl) return;
     floatingEl.style.display = cart.length === 0 ? 'none' : '';
+    photoToggle.setLift(photoDockLift());   // getBoundingClientRect после смены display — свежая раскладка
 }
 
 /* --- CTA: сумма = сумме цен выбранных мест. Пустая корзина → кнопки нет. --- */
@@ -706,6 +723,12 @@ const hall = new HallViewport($('.map-viewport'), $('.map-content'), {
     },
 });
 
+/* Первое касание схемы гасит тултип; жест при этом идёт в hall.js как обычно.
+   Слушается ввод, а не onView: onView зовут и программные движения схемы — fitHall, refit, resize */
+const viewportEl = $('.map-viewport');
+viewportEl.addEventListener('pointerdown', () => photoTip.dismiss(), { capture: true });
+viewportEl.addEventListener('wheel', () => photoTip.dismiss(), { capture: true, passive: true });
+
 // вписать всю схему в кадр (contain) сразу и после первого лейаута
 fitHall();
 requestAnimationFrame(fitHall);
@@ -735,4 +758,11 @@ hallReady.then(() => {
         photoMap = null;
         console.error('Метки фото: слой не создан, схема работает без фото', e);
     }
+});
+
+// тултип: отсчёт 1 с с момента, когда схема на экране. Схема не загрузилась — подсказывать не к чему
+hallReady.then(() => {
+    if (!seats.length) return;
+    // два кадра: в первом применяется загрузочный viewBox, ко второму схема уже нарисована
+    requestAnimationFrame(() => requestAnimationFrame(() => photoTip.schedule()));
 });

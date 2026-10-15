@@ -1,5 +1,5 @@
 /* ============================================================
-   Фото на схеме: метки, кнопка режима, карточка с фото.
+   Фото на схеме: метки, кнопка режима, тултип, карточка с фото.
    Подключается после css/styles.css.
    ============================================================ */
 
@@ -65,49 +65,122 @@
 .hall-svg rect[data-status="available"] { transition: fill-opacity 200ms ease; }
 .hall-svg.is-photo-mode rect[data-status="available"] { fill-opacity: .5; }
 
-/* ---------- Кнопка режима фото: 12 px под шапкой, 12 px от правого края ---------- */
-/* Кнопка 44 px (зона касания), капсула 40 px по центру: top 100% + 10 px → капсула ровно в 12 px под шапкой */
-.photo-toggle {
+/* ---------- Док кнопки режима: правый нижний угол, над нижним блоком (z 4) и шапкой (z 5),
+   под карточкой с фото (z 20). Подъём над билетами — translateY из js (setLift) ---------- */
+.photo-dock {
     position: absolute;
-    top: calc(100% + 10px);
-    right: 12px;
+    right: 16px;
+    bottom: 16px;
+    z-index: 10;
+    pointer-events: none;
+    transition: transform 250ms cubic-bezier(.2, .8, .2, 1);
+}
+
+/* ---------- Кнопка режима: выключен — 44×44 #F2F3F7, иконка #1D2023;
+   включён — #07103E, иконка и подпись #FAFAFA, ширина из js ---------- */
+.photo-btn {
+    position: relative;
+    display: block;
+    width: 44px;
     height: 44px;
     margin: 0;
     padding: 0;
     border: 0;
-    background: transparent;
-    display: flex;
-    align-items: center;
+    border-radius: var(--r-8);
+    background: var(--gs-100);      /* #F2F3F7 — Controls/Tertiary Active */
+    color: var(--gs-800);           /* #1D2023 — Icons/Primary макета; --icon-primary не подходит */
+    overflow: hidden;               /* подпись не вылезает за правый край, пока кнопка раздвигается */
+    pointer-events: auto;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
+    transition:
+        width 200ms cubic-bezier(.2, .8, .2, 1),
+        background-color 200ms cubic-bezier(.2, .8, .2, 1),
+        color 200ms cubic-bezier(.2, .8, .2, 1),
+        transform 100ms ease;
 }
-.photo-toggle-body {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    height: 40px;
-    padding: 0 12px;
-    border: 1px solid var(--bg-stroke);
-    border-radius: var(--r-full);
-    background: var(--bg-primary);
-    box-shadow: var(--shadow-low);
-    color: var(--icon-primary);
-    font: 500 var(--fs-p3)/1 var(--font-sans);
-    transition: background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, transform 100ms ease;
-}
-.photo-toggle-body svg { display: block; flex: 0 0 auto; }
-.photo-toggle-label { color: var(--text-primary); transition: color 200ms ease; }
-.photo-toggle .ph-lens { fill: var(--bg-primary); transition: fill 200ms ease; }
-.photo-toggle.is-on .photo-toggle-body {
-    background: var(--bg-inverted);
-    border-color: transparent;
-    box-shadow: none;
+.photo-btn.is-on {
+    background: #07103E;            /* Controls/Secondary Active, токена в проекте нет */
     color: var(--icon-inverted);
 }
-.photo-toggle.is-on .photo-toggle-label { color: var(--text-inverted); }
-.photo-toggle.is-on .ph-lens { fill: var(--bg-inverted); }
-.photo-toggle:active .photo-toggle-body { transform: scale(.96); }
+.photo-btn:active { transform: scale(.96); }
+.photo-btn-icon {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    display: block;
+}
+.photo-btn-label {
+    position: absolute;
+    left: 42px;                     /* 10 отступ + 24 иконка + 8 до текста */
+    top: 10px;
+    white-space: nowrap;
+    font: 500 17px/24px var(--font-sans);   /* Statika вместо MTS Compact, параметры макета */
+    color: var(--text-inverted);
+    visibility: hidden;             /* сразу, без перехода; в раскладке остаётся — fitWidth её меряет */
+}
+.photo-btn.is-on .photo-btn-label { visibility: visible; }
+
+/* ---------- Тултип: 240 px, правый край в 5 px левее правого края кнопки,
+   остриё в 4 px над кнопкой. Едет вместе с доком ---------- */
+.photo-tip {
+    position: absolute;
+    right: 5px;
+    bottom: calc(100% + 4px);
+    width: 240px;
+    display: flex;
+    flex-direction: column;
+    /* скрыт: ниже на 4 px — оттуда проявляется */
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(4px);
+    pointer-events: none;
+}
+.photo-tip.is-shown {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    pointer-events: auto;
+    transition:
+        opacity 200ms cubic-bezier(.2, .8, .2, 1),
+        transform 200ms cubic-bezier(.2, .8, .2, 1),
+        visibility 0s linear 0s;
+}
+/* гаснет на месте, без движения; касания сразу проходят сквозь */
+.photo-tip.is-gone {
+    opacity: 0;
+    visibility: hidden;
+    transform: none;
+    pointer-events: none;
+    transition: opacity 150ms cubic-bezier(.4, 0, 1, 1), visibility 0s linear 150ms;
+}
+.photo-tip-body {
+    padding: 10px 12px;
+    border-radius: var(--r-8);
+    background: var(--bg-inverted);
+    color: var(--text-inverted);
+    font: 400 var(--fs-p3)/var(--lh-p3) var(--font-sans);
+}
+/* Хвостик вплотную под плашкой у её правого края. Сдвиг на 0,5 px вправо ставит остриё
+   ровно над центром кнопки: 5 + (60 − 42,5) − 0,5 = 22 px от правого края кнопки */
+.photo-tip-arrow {
+    display: block;
+    align-self: flex-end;
+    margin-right: -0.5px;
+    color: var(--bg-inverted);
+}
+
+/* ---------- Строка для экранного диктора: в раскладке не видна ---------- */
+.photo-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
 
 /* ---------- Карточка с фото: выезжает снизу поверх нижнего блока (z 4) и шапки (z 5) ---------- */
 .photo-card {

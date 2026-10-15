@@ -13,7 +13,7 @@ const PRESS_SLOP = 6;  // жест стал паном — тот же поро�
 const CLUSTER_SPAN = 0.6;   // доля экрана между крайними креслами кластера после тапа
 const CLUSTER_STEP = 2;     // шаг приближения, если кластер не распался на масштабе «60%»
 
-/* Фотоаппарат: скруглённый корпус и круглый объектив. Тот же рисунок — в кнопке режима (16 px). */
+/* Фотоаппарат меток: скруглённый корпус и круглый объектив. */
 export function cameraSvg(size) {
     return `<svg width="${size}" height="${size}" viewBox="0 0 12 12" aria-hidden="true">`
         + '<rect x="4" y="1.5" width="4" height="2" rx="0.75" fill="currentColor"/>'
