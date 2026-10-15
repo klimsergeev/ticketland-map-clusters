@@ -15,6 +15,7 @@
    возвращает массив объектов-мест.
    ============================================================ */
 import { TIER_COLORS } from './data.js';
+import { CAMERA16_PATHS } from './photos.js';
 
 const OCCUPIED = '#BBC1C7';
 const SECTION_GAP = 40;   // разрыв по Y больше этого = граница секций
@@ -106,7 +107,8 @@ export function applySessionPrices(seats, priceByColor) {
 
 /* ============================================================
    Selected-вид места (Figma-нода 4902-80205).
-   Выбранное место = оранжевый #FF5005 + белая галочка, ПЕРЕКРЫВАЕТ цвет тира.
+   Выбранное место = оранжевый #FF5005 + белый значок, ПЕРЕКРЫВАЕТ цвет тира.
+   Значок — галочка или фотоаппарат (кресло с фото в заказе при включённом режиме фото).
    Оригинальный rect места (8×8) не трогаем — рисуем поверх отдельный слой
    <g class="sel-layer"> в конце <svg> (document order = сверху всех мест).
    Разметка галочки взята дословно из макета для 8px-варианта с
@@ -118,18 +120,28 @@ const CHECK_D = 'M94.5543 18.1123C94.7008 18.2587 94.7008 18.4962 94.5543 18.642
 /* Масштаб маркера АКТИВНОГО места относительно обычного выбранного.
    1.4× — заметная разница (визуально ~11px → ~15.5px с учётом обводки),
    середина рекомендованного диапазона 1.3–1.5×: явно выделяется, но не
-   перекрывает соседние места и не выглядит чрезмерно. */
-const ACTIVE_SCALE = 1.4;
+   перекрывает соседние места и не выглядит чрезмерно.
+   Экспорт: нужен js/photo-map.js для касания по маркеру. */
+export const ACTIVE_SCALE = 1.4;
+
+/* Половина маркера выбранного места в единицах схемы: кресло 8 + обводка 3 (по 1,5 с каждой стороны). */
+export const SEL_HALF = 5.5;
+
+const CHECK = `<path fill-rule="evenodd" clip-rule="evenodd" d="${CHECK_D}" fill="white"/>`;
+// Camera 16 из Figma, ужатый до кресла 8×8, белый — Constant/Greyscale 0 макета
+const CAMERA = `<g transform="translate(88 16) scale(.5)" color="#FFFFFF">${CAMERA16_PATHS}</g>`;
 
 /* Маркер выбранного места. scale — множитель размера вокруг ЦЕНТРА места
    (x+4, y+4): центр остаётся на месте при любом масштабе, растёт только размер.
    Композиция трансформа: translate(cx,cy) scale(k) translate(-92,-20) — при k=1
-   даёт исходный translate(x-88,y-16); центр контента (92,20) всегда → (cx,cy). */
-function selectedGroup(x, y, scale = 1) {
+   даёт исходный translate(x-88,y-16); центр контента (92,20) всегда → (cx,cy).
+   Значок — галочка или фотоаппарат: camera: true — фотоаппарат
+   (кресло с фото в заказе при включённом режиме фото), он ложится ровно на кресло 8×8. */
+function selectedGroup(x, y, scale = 1, camera = false) {
     const inner =
         `<rect x="88" y="16" width="8" height="8" rx="2.5" fill="${SEL_COLOR}"/>`
         + `<rect x="88" y="16" width="8" height="8" rx="2.5" stroke="${SEL_COLOR}" stroke-width="3"/>`
-        + `<path fill-rule="evenodd" clip-rule="evenodd" d="${CHECK_D}" fill="white"/>`;
+        + (camera ? CAMERA : CHECK);
     const t = scale === 1
         ? `translate(${x - 88} ${y - 16})`
         : `translate(${x + 4} ${y + 4}) scale(${scale}) translate(-92 -20)`;
@@ -138,22 +150,25 @@ function selectedGroup(x, y, scale = 1) {
 
 /* Создать слой выбора и вернуть функцию его перерисовки под список мест.
    activeSeat — объект-место активного билета: рисуется ПОСЛЕДНИМ (поверх всех)
-   и КРУПНЕЕ (ACTIVE_SCALE). В любой момент увеличено ровно одно место. */
+   и КРУПНЕЕ (ACTIVE_SCALE). В любой момент увеличено ровно одно место.
+   withCamera(seat) — у места вместо галочки фотоаппарат; по умолчанию у всех галочка.
+   Признак считает main.js: здесь нет знаний о режиме и фото. */
 export function createSelectionLayer(svgRoot) {
     const layer = document.createElementNS(SVG_NS, 'g');
     layer.setAttribute('class', 'sel-layer');
     svgRoot.appendChild(layer);
-    return function render(seats, activeSeat) {
+    return function render(seats, activeSeat, withCamera = () => false) {
         const selected = seats.filter((s) => s.selected);
         const parts = selected
             .filter((s) => s !== activeSeat)
-            .map((s) => selectedGroup(+s.el.getAttribute('x'), +s.el.getAttribute('y')));
+            .map((s) => selectedGroup(+s.el.getAttribute('x'), +s.el.getAttribute('y'), 1, withCamera(s)));
         // активное место — крупнее и поверх остальных (последним в document order)
         if (activeSeat && activeSeat.selected) {
             parts.push(selectedGroup(
                 +activeSeat.el.getAttribute('x'),
                 +activeSeat.el.getAttribute('y'),
                 ACTIVE_SCALE,
+                withCamera(activeSeat),
             ));
         }
         layer.innerHTML = parts.join('');

@@ -35,15 +35,18 @@
 }
 .ph-body svg { display: block; }
 
-/* Метка: тёмный круг 20 px, белая обводка 2 px снаружи, фотоаппарат 12 px */
+/* Метка: белый кружок 24 px без обводки и тени, по центру фотоаппарат 16 px.
+   #FFFFFF — Constant/Greyscale 0 макета; #1D2023 — Icons/Primary макета, --icon-primary не подходит */
 .ph--marker .ph-body {
-    width: 20px;
-    height: 20px;
-    background: var(--bg-inverted);
-    box-shadow: 0 0 0 2px var(--bg-primary);
-    color: var(--icon-inverted);
+    width: 24px;
+    height: 24px;
+    background: var(--gs-0);
+    color: var(--gs-800);
 }
-.ph-lens { fill: var(--bg-inverted); }
+
+/* Кресло с фото в заказе: метку заменяет маркер выбранного места с фотоаппаратом (js/seats.js).
+   Сразу, без перехода; зона касания остаётся — её считает js/photo-map.js */
+.ph.is-selected { visibility: hidden; }
 
 /* Кластер: диаметр — инлайн из it.d (40 / 48 / 64 / 88 px).
    Обводка и тень — значения макета из таблицы «Кластер» дизайнера, без токенов:

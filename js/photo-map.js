@@ -4,8 +4,9 @@
    Слой и метки события не принимают (pointer-events: none) — жесты hall.js
    работают как раньше, попадание тапа считается здесь по координатам.
    ============================================================ */
-import { loadPhotos, bindPhotos } from './photos.js';
+import { loadPhotos, bindPhotos, CAMERA16_PATHS } from './photos.js';
 import { buildTree, cutTree, buildItems } from './cluster.js';
+import { ACTIVE_SCALE, SEL_HALF } from './seats.js';
 
 const HIT_HALF = 22;   // половина наименьшей зоны касания 44×44 px
 const SEAT_HIT_R = 8;  // радиус поиска кресла в SVG-юнитах, как в handleTap
@@ -13,16 +14,10 @@ const PRESS_SLOP = 6;  // жест стал паном — тот же поро�
 const CLUSTER_SPAN = 0.6;   // доля экрана между крайними креслами кластера после тапа
 const CLUSTER_STEP = 2;     // шаг приближения, если кластер не распался на масштабе «60%»
 
-/* Фотоаппарат меток: скруглённый корпус и круглый объектив. */
-export function cameraSvg(size) {
-    return `<svg width="${size}" height="${size}" viewBox="0 0 12 12" aria-hidden="true">`
-        + '<rect x="4" y="1.5" width="4" height="2" rx="0.75" fill="currentColor"/>'
-        + '<rect x="0.75" y="3" width="10.5" height="7.5" rx="1.75" fill="currentColor"/>'
-        + '<circle class="ph-lens" cx="6" cy="6.75" r="2.1"/>'
-        + '</svg>';
-}
+// фотоаппарат метки: 16×16, цвет из CSS (.ph--marker .ph-body)
+const CAMERA16 = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">${CAMERA16_PATHS}</svg>`;
 
-/* Метка: размер 20 px — из CSS. Кластер: диаметр по ступеням — инлайн из it.d, та же цифра,
+/* Метка: белый кружок 24 px — из CSS. Кластер: диаметр по ступеням — инлайн из it.d, та же цифра,
    по которой считаются касание и наезд кругов. Меньший круг лежит выше: крупный кластер ниже,
    меньший выше, метка (24 px) выше любого кластера (40–88 px). */
 function createEl(it) {
@@ -30,7 +25,7 @@ function createEl(it) {
     el.className = 'ph ' + (it.kind === 'marker' ? 'ph--marker' : 'ph--cluster');
     el.dataset.key = it.key;
     el.style.zIndex = String(100 - it.d);
-    const body = it.kind === 'marker' ? cameraSvg(12) : `<span class="ph-num">${it.count}</span>`;
+    const body = it.kind === 'marker' ? CAMERA16 : `<span class="ph-num">${it.count}</span>`;
     el.innerHTML = `<span class="ph-anim"><span class="ph-body">${body}</span></span>`;
     if (it.kind === 'cluster') {
         const b = el.querySelector('.ph-body');
@@ -75,6 +70,7 @@ export function createPhotoMap({ hall, viewportEl, seats, nearestSeat, config })
     let tree = { merges: [], aloneK: [] };   // дерево слияний: строится в setPhotos один раз на загрузку данных
     let lastK = null;           // px на SVG-юнит при прошлой пересборке: по нему режется дерево слияний
     let dirty = true;
+    let activeSeatId = null;    // кресло активного билета: его маркер крупнее в ACTIVE_SCALE раз
 
     /* ---------- позиции и сверка DOM ---------- */
     // vt — hall.viewTransform(), один раз на кадр
@@ -111,6 +107,25 @@ export function createPhotoMap({ hall, viewportEl, seats, nearestSeat, config })
         for (const it of items) for (const m of it.members) prevBySeat.set(m.seatId, it);
     }
 
+    /* ---------- кресло с фото в заказе ---------- */
+
+    /* Вместо метки виден маркер выбранного места с фотоаппаратом (js/seats.js). Прячется только
+       одиночная метка: фото в кластере — кластер лежит поверх маркера, число не меняется. */
+    const isSel = (it) => it.kind === 'marker' && it.members[0].seat.selected;
+
+    function paintSelected() {
+        for (const it of items) {
+            const el = els.get(it.key);
+            if (el) el.classList.toggle('is-selected', isSel(it));
+        }
+    }
+
+    /* Из main.js после каждой перерисовки маркеров выбранных мест */
+    function syncSelected(activeSeat) {
+        activeSeatId = activeSeat ? activeSeat.id : null;
+        paintSelected();
+    }
+
     /* Полный пересчёт кластеров: дерево слияний режется по текущему vt.k.
        С disableAtScale кластеризация отключена: каждое кресло — своя метка. */
     function rebuild(vt) {
@@ -120,6 +135,7 @@ export function createPhotoMap({ hall, viewportEl, seats, nearestSeat, config })
         items = buildItems(nodes, groups, cfg);
         place(vt);
         reconcile(vt);
+        paintSelected();   // новые элементы после зума: метка кресла в заказе тоже прячется
     }
 
     /* Из hall.opts.onView: состав пересобирается при смене px на SVG-юнит (зум, ресайз)
@@ -164,21 +180,32 @@ export function createPhotoMap({ hall, viewportEl, seats, nearestSeat, config })
 
     /* ---------- правила касания ---------- */
 
+    /* Попала ли точка в видимую фигуру: метка — круг it.d, спрятанная метка — маркер выбранного
+       места, квадрат 2 · SEL_HALF единиц схемы, у активного билета — в ACTIVE_SCALE раз больше. */
+    function inBody(it, dx, dy, dist) {
+        if (!isSel(it)) return dist <= it.d / 2;
+        const half = SEL_HALF * lastK * (it.members[0].seatId === activeSeatId ? ACTIVE_SCALE : 1);
+        return Math.abs(dx) <= half && Math.abs(dy) <= half;
+    }
+
     /* Элемент, в который попадает точка (lx, ly) в px вьюпорта.
-       byBody: true — по видимому кругу, из нескольких — верхний: меньший диаметр, при равном — ближний центр;
+       byBody: true — по видимой фигуре, из нескольких — верхний: меньший диаметр, при равном — ближний центр;
+       маркер выбранного места лежит в SVG под слоем меток — ниже любого круга слоя;
        false — по зоне касания (квадрат со стороной max(44, d)), из нескольких — ближний центр. */
     function nearestItem(lx, ly, byBody) {
         let best = null;
         let bestDist = Infinity;
+        let bestRank = Infinity;
         for (const it of items) {
             if (!els.has(it.key)) continue;
             const dx = lx - it.sx;
             const dy = ly - it.sy;
             const dist = Math.hypot(dx, dy);
             if (byBody) {
-                if (dist > it.d / 2) continue;
-                const above = !best || it.d < best.d || (it.d === best.d && dist < bestDist);
-                if (above) { best = it; bestDist = dist; }
+                if (!inBody(it, dx, dy, dist)) continue;
+                const rank = isSel(it) ? Infinity : it.d;
+                const above = !best || rank < bestRank || (rank === bestRank && dist < bestDist);
+                if (above) { best = it; bestDist = dist; bestRank = rank; }
             } else {
                 const half = Math.max(HIT_HALF, it.d / 2);
                 if (Math.abs(dx) > half || Math.abs(dy) > half) continue;
@@ -270,6 +297,7 @@ export function createPhotoMap({ hall, viewportEl, seats, nearestSeat, config })
         setEnabled,
         hasPhoto: (seatId) => bySeat.has(seatId),
         update,
+        syncSelected,
         resolveTap,
         aloneScale,
         zoomToCluster,

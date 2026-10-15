@@ -475,8 +475,19 @@ function renderCTA() {
 /* Перерисовать слой выбранных мест с учётом АКТИВНОГО билета (cart[activeTicket]) —
    его место рисуется крупнее и поверх остальных. Вызывать при любой смене
    корзины ИЛИ активного билета, чтобы увеличенным было ровно одно (новое) место. */
+/* Фотоаппарат вместо галочки: кресло с фото в заказе при включённом режиме фото */
+const cameraOnSeat = (s) => photoMode && photoMap !== null && photoMap.hasPhoto(s.id);
+
 function renderSelectionActive() {
-    if (renderSelection) renderSelection(seats, cart[activeTicket]);
+    const active = cart[activeTicket];
+    if (renderSelection) renderSelection(seats, active, cameraOnSeat);
+    // слой меток: метка кресла с фото в заказе прячется; ошибка здесь не мешает выбору мест
+    if (!photoMap) return;
+    try {
+        photoMap.syncSelected(active);
+    } catch (e) {
+        console.error('Метки фото: метки выбранных кресел не обновлены', e);
+    }
 }
 
 /* Перерисовать зависимые от корзины UI (галерея + CTA + отметки на схеме) */
@@ -653,6 +664,7 @@ function setPhotoMode(on) {
     photoToggle.setOn(on);
     $('.hall-svg').classList.toggle('is-photo-mode', on);   // приглушение свободных кресел, см. css/photos.css
     if (photoMap) photoMap.setEnabled(on);
+    renderSelectionActive();             // галочка ↔ фотоаппарат на креслах с фото в заказе, сразу
     if (!on) photoCard.close();          // выключение режима убирает открытую карточку
 }
 
@@ -690,7 +702,7 @@ function injectHall() {
             const svgEl = $('.hall-svg svg');
             // привязать к местам схемы данные (ряд/место/статус) + разметить DOM
             seats = buildSeats(svgEl);
-            // слой selected-отметок поверх мест (оранжевый + галочка)
+            // слой selected-отметок поверх мест (оранжевый + галочка или фотоаппарат)
             renderSelection = createSelectionLayer(svgEl);
             // цены мест: цвет тира → цена
             applySessionPrices(seats, new Map(TIER_COLORS.map((c, i) => [c.toUpperCase(), TIER_PRICES[i]])));
@@ -753,7 +765,7 @@ hallReady.then(() => {
             hall, viewportEl: $('.map-viewport'), seats, nearestSeat: findNearestSeat, config: PHOTO_CONFIG,
         });
         photoMap.setEnabled(photoMode);
-        photoMap.load(PHOTO_CONFIG.dataUrl);
+        photoMap.load(PHOTO_CONFIG.dataUrl).then(renderSelectionActive);   // режим к этому моменту может быть уже включён
     } catch (e) {
         photoMap = null;
         console.error('Метки фото: слой не создан, схема работает без фото', e);
