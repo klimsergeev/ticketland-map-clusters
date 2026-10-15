@@ -6,7 +6,7 @@
    ============================================================ */
 import { loadPhotos, bindPhotos, CAMERA16_PATHS } from './photos.js';
 import { buildTree, cutTree, buildItems } from './cluster.js';
-import { ACTIVE_SCALE, SEL_HALF, SEL_RADIUS } from './seats.js';
+import { SEL_HALF, SEL_RADIUS } from './seats.js';
 
 const HIT_HALF = 22;   // половина наименьшей зоны касания 44×44 px
 const SEAT_HIT_R = 8;  // радиус поиска кресла в SVG-юнитах, как в handleTap
@@ -91,7 +91,6 @@ export function createPhotoMap({ hall, viewportEl, seats, nearestSeat, config })
     let tree = { merges: [], aloneK: [] };   // дерево слияний: строится в setPhotos один раз на загрузку данных
     let lastK = null;           // px на SVG-юнит при прошлой пересборке: по нему режется дерево слияний
     let dirty = true;
-    let activeSeatId = null;    // кресло активного билета: его маркер крупнее в ACTIVE_SCALE раз
 
     /* ---------- позиции и сверка DOM ---------- */
     // vt — hall.viewTransform(), один раз на кадр
@@ -142,8 +141,7 @@ export function createPhotoMap({ hall, viewportEl, seats, nearestSeat, config })
     }
 
     /* Из main.js после каждой перерисовки маркеров выбранных мест */
-    function syncSelected(activeSeat) {
-        activeSeatId = activeSeat ? activeSeat.id : null;
+    function syncSelected() {
         paintSelected();
     }
 
@@ -205,10 +203,10 @@ export function createPhotoMap({ hall, viewportEl, seats, nearestSeat, config })
     /* ---------- правила касания ---------- */
 
     /* Попала ли точка в видимую фигуру: метка — круг it.d, спрятанная метка — маркер выбранного
-       места, квадрат 2 · SEL_HALF единиц схемы, у активного билета — в ACTIVE_SCALE раз больше. */
+       места, квадрат 2 · SEL_HALF единиц схемы. */
     function inBody(it, dx, dy, dist) {
         if (!isSel(it)) return dist <= it.d / 2;
-        const half = SEL_HALF * lastK * (it.members[0].seatId === activeSeatId ? ACTIVE_SCALE : 1);
+        const half = SEL_HALF * lastK;
         return Math.abs(dx) <= half && Math.abs(dy) <= half;
     }
 
@@ -310,10 +308,10 @@ export function createPhotoMap({ hall, viewportEl, seats, nearestSeat, config })
     let pulseAnims = [];
     let pulseFade = null;
 
-    /* Стартовый внешний диаметр волны в px (внутренний край на RING_GAP снаружи кресла): кресло 8×8 со своим rx; кресло в заказе — маркер, у активного билета крупнее */
+    /* Стартовый внешний диаметр волны в px (внутренний край на RING_GAP снаружи кресла): кресло 8×8 со своим rx; кресло в заказе — маркер */
     function ringDiameter(seat, k) {
         const units = seat.selected
-            ? reach(SEL_HALF, SEL_RADIUS) * (seat.id === activeSeatId ? ACTIVE_SCALE : 1)
+            ? reach(SEL_HALF, SEL_RADIUS)
             : reach(4, +seat.el.getAttribute('rx') || 0);
         return 2 * (units * k + RING_GAP + RING_LINE);
     }

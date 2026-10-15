@@ -30,10 +30,33 @@
         </div>
     </div>
 
-    <!-- 3. Нижний блок: билеты + CTA -->
-    <div class="floating">
-        <div class="slider"><div class="slider-track"></div></div>
-        <button class="cta" type="button"></button>
+    <!-- 3. Шторка заказа: свёрнута — итог и «Оформить»; развёрнута — событие и список билетов над затемнением -->
+    <div class="sheet-scrim"></div>
+    <div class="sheet is-hidden">
+        <div class="sheet-details">
+            <div class="sheet-details-in">
+                <button class="sheet-close" type="button" aria-label="Свернуть"></button>
+                <div class="sheet-head">
+                    <div class="sheet-title"></div>
+                    <div class="sheet-meta">
+                        <div class="sheet-date"></div>
+                        <div class="sheet-venue"></div>
+                    </div>
+                </div>
+                <div class="sheet-list"></div>
+            </div>
+        </div>
+        <div class="sheet-total">
+            <button class="sheet-sum" type="button" aria-expanded="false">
+                <span class="sheet-tickets">
+                    <span class="sheet-ico"></span>
+                    <span class="sheet-count"></span>
+                    <span class="sheet-chevron"></span>
+                </span>
+                <span class="sheet-amount"></span>
+            </button>
+            <button class="sheet-pay" type="button"><span>Оформить</span></button>
+        </div>
     </div>
 </div>
 

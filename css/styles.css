@@ -33,7 +33,7 @@ html, body {
 /* ============================================================
    1. Шапка
    ============================================================ */
-/* Шапка — ПЛАВАЮЩИЙ оверлей над схемой (как нижний блок): схема уходит ПОД
+/* Шапка — ПЛАВАЮЩИЙ оверлей над схемой (как шторка z16): схема уходит ПОД
    неё и заполняет весь вьюпорт. Абсолют сверху, непрозрачный фон. */
 .header {
     position: absolute;
@@ -109,7 +109,7 @@ html, body {
    2. Схема зала (пан/зум)
    ============================================================ */
 /* Схема — слой на ВЕСЬ вьюпорт (край в край, полная ширина и высота),
-   абсолют inset:0, ПОД оверлеями (шапка z5, нижний блок z4). */
+   абсолют inset:0, ПОД оверлеями (шапка z5, шторка z16). */
 .map-viewport {
     position: absolute;
     inset: 0;
@@ -140,187 +140,179 @@ html, body {
 }
 
 /* ============================================================
-   3. Нижний блок — билеты + CTA
+   3. Шторка заказа (Figma bottomsheet 4337:28517)
    ============================================================ */
-/* Нижний блок — прозрачный оверлей над схемой (без белой подложки: низ схемы
-   виден под билетами/кнопкой). Карта под ним cover-заполняет полную высоту.
-   pointer-events: клики ловят только билеты/кнопка, пустоты — пропускают пан. */
-.floating {
+.sheet-scrim {
+    position: absolute;
+    inset: 0;
+    z-index: 15;
+    background: rgba(29, 32, 35, .4);       /* Background/Overlay #1D202366 */
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 250ms cubic-bezier(.2, .8, .2, 1), visibility 0s linear 250ms;
+}
+.sheet-scrim.is-shown {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 250ms cubic-bezier(.2, .8, .2, 1), visibility 0s;
+}
+
+.sheet {
     position: absolute;
     left: 0;
     right: 0;
     bottom: 0;
-    z-index: 4;
+    z-index: 16;
     display: flex;
     flex-direction: column;
-    gap: 16px;                              /* Figma 4902-80252: gap 16 (галерея ↔ CTA) */
-    padding: 32px 16px 16px;                /* pt 32 (было 24, +8px: градиент отодвинут вверх/дальше от кнопки), px 16, pb 16 */
-    /* Подложка (Figma 4902-80252): вертикальный градиент белого — прозрачный сверху
-       растворяется в сплошной белый к 15% и далее до низа. Верхний край плавно
-       проявляется над схемой зала. Стопы/направление — по Figma + скринам редактора. */
-    background: linear-gradient(180deg,
-        rgba(255, 255, 255, 0) 0%,
-        #ffffff 15%,
-        #ffffff 100%);
-    /* pointer-events:none — градиент НЕ перехватывает клики по схеме над галереей;
-       ловят только билеты/кнопка (children ниже). */
-    pointer-events: none;
+    background: var(--bg-modal);
+    border-radius: var(--r-16) var(--r-16) 0 0;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, .06), 0 -2px 24px rgba(0, 0, 0, .04);   /* Shadows/Upper-middle */
+    color: var(--gs-800);                   /* Text/Primary #1D2023 */
+    touch-action: none;                     /* свайп вниз ловит js */
+    transition: transform 250ms cubic-bezier(.2, .8, .2, 1), visibility 0s;
 }
-.floating > * { pointer-events: auto; }
+/* пустой заказ: шторка уезжает вниз целиком вместе с тенью (тень выходит на 32 px над краем) */
+.sheet.is-hidden {
+    transform: translateY(calc(100% + 32px));
+    visibility: hidden;
+    transition: transform 250ms cubic-bezier(.2, .8, .2, 1), visibility 0s linear 250ms;
+}
+.sheet.is-dragging { transition: none; }
 
-/* ---- 3.1 Галерея выбранных мест: КАРУСЕЛЬ (якорь активной зависит от позиции) ---- */
-/* .slider — вьюпорт карусели: overflow visible, чтобы соседние карточки выглядывали
-   краем (peek); финальный клип — на .app (max-width 416, hidden). Границы .slider
-   = границам CTA (тот же padded-контейнер .floating), поэтому активная карточка
-   выравнивается: первая — по левому краю, последняя — по правому, середина — по
-   центру галереи (сам расчёт сдвига трека — в js/main.js: anchorOffset/targetXFor). */
-.slider {
-    position: relative;
-    z-index: 2;             /* всё поддерево слайдера (билеты + их тени) рисуется ПОВЕРХ кнопки CTA (z-index 1).
-                               .slider-track имеет transform → создаёт свой stacking-context, поэтому z-index
-                               билетов (100/98) заскоуплены внутри .slider; чтобы тень активного билета легла
-                               НА кнопку, поднимаем весь .slider над .cta именно здесь, на уровне .floating.
-                               Стек всё равно кэпнут внутри .floating (z4 < header z5). */
-    width: 100%;            /* = ширина кнопки CTA (тот же padded-контейнер .floating) */
-    height: 64px;
-    overflow: visible;      /* соседи выглядывают краями (peek) */
-    pointer-events: none;   /* драг ловят сами карточки; пустоты пропускают пан схемы */
-    touch-action: none;
+/* верх развёрнутой шторки: высоту ставит js, в свёрнутой 0 */
+.sheet-details {
+    flex: 0 0 auto;
+    height: 0;
+    overflow: hidden;
+    transition: height 250ms cubic-bezier(.2, .8, .2, 1);
 }
-/* Трек — абсолютная лента карточек, двигается по X (follow-the-finger + пружина) */
-.slider-track {
-    position: absolute;
-    left: 0;
-    top: 0;
+.sheet-details-in {
+    position: relative;                     /* опора крестика закрытия */
     height: 100%;
     display: flex;
-    align-items: center;
-    gap: 8px;               /* зазор между билетами */
-    will-change: transform;
+    flex-direction: column;
+    padding: 24px 20px 0;
 }
-/* Карточка билета (Figma Ticket 4898-91317 Selected=False / 4899-43051 Selected=True).
-   ДВА состояния одного компонента, ОБА — HUG-content по ширине (в Figma у обоих
-   ширина = Hug: класс без w-[…], только min-h/max-h; проверено get_design_context):
-     • неактивная (Selected=False): H52, радиус 12, bg #fff, тень Shadows/Lowest
-       (бордера НЕТ — заменён тенью), строка места P3 14/21, отступы px 12, gap 16, БЕЗ крестика;
-     • активная  (Selected=True):  H64, радиус 16, bg #fff, тень Shadows/Middle,
-       отступы px 16, gap 24, строка места P2 16/24, крестик × 24.
-   Ширина карточки = ширина содержимого + 2×padding (hug). В КАРУСЕЛИ карточки лежат
-   в ряд с зазором 8px (без перекрытия); активная едет в центр, соседи выглядывают
-   краями (peek). Геометрию карусели JS считает по ФАКТИЧЕСКИМ offsetWidth (переменная
-   ширина), глубину (z-index) правит покадрово. Без кругов/полосок. */
-.ticket {
-    position: relative;                   /* z-index для peek-глубины */
-    pointer-events: auto;
-    touch-action: none;
-    box-sizing: border-box;
-    width: max-content;                   /* hug: ширина по содержимому + padding (Figma Hug) */
-    flex: 0 0 auto;
-    background: var(--ctrl-alternative);  /* Figma 4898-91317: Background/Primary #ffffff */
-    border: 0;                            /* Figma 4898-91317: бордера НЕТ — заменён тенью (в ноде нет border, только bg+radius+shadow) */
-    border-radius: 12px;                  /* Figma 4898-91317: радиус 12 */
-    height: 52px;                         /* Figma 4898-91317: 52 (min-h/max-h 52) */
+.sheet-close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: var(--gs-100);              /* Controls/Tertiary Active #F2F3F7 */
     display: flex;
     align-items: center;
-    gap: 16px;                            /* Figma 4898-91317: gap 16 */
-    padding-left: 12px;                   /* Figma 4898-91317: px 12 */
-    padding-right: 12px;                  /* Figma 4898-91317: px 12 */
-    box-shadow: var(--shadow-lowest);     /* Figma 4898-91317: Shadows/Lowest 0 0 6px rgba(35,29,31,.04), 0 4px 16px rgba(35,29,31,.04) */
-    overflow: hidden;
-    cursor: grab;
-    user-select: none;
-    white-space: nowrap;
-    /* плавный expand/collapse при смене активной; transform/opacity правит JS покадрово — их НЕ анимируем */
-    transition: height 260ms cubic-bezier(0.2, 0.9, 0.25, 1.15),
-                border-radius 260ms cubic-bezier(0.2, 0.9, 0.25, 1.15),
-                background-color 160ms ease-out,
-                box-shadow 160ms ease-out;
+    justify-content: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
 }
-.slider.grabbing .ticket { cursor: grabbing; }
-/* активная (Selected=True, Figma 4899-43051): h64, радиус 16, бордер 2px,
-   px 16, gap 24. Оверрайдим базовый .ticket, чтобы правки Selected=False
-   не протекали на активную. */
-.ticket.active {
-    height: 64px;                         /* Figma 4899-43051: 64 */
-    background: var(--ctrl-alternative);  /* Figma 4899-43051: controls/alternative #ffffff */
-    border: 0;                            /* Figma 4899-43051: без бордера */
-    border-radius: 16px;                  /* Figma 4899-43051: радиус 16 */
-    box-shadow: var(--shadow-middle);     /* Figma Shadows/Middle */
-    gap: 16px;                            /* Figma 4899-43051 (размеченный скрин): gap 16 */
-    padding-left: 16px;                   /* Figma 4899-43051: px-left 16 */
-    padding-right: 12px;                  /* Figma 4899-43051 (размеченный скрин): px-right 12 */
-}
-.ticket .t-text {
+.sheet-head {
     flex: 0 0 auto;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    white-space: nowrap;
+    gap: 2px;
+    padding-bottom: 4px;
 }
-.ticket .t-seat {
-    font: 400 var(--fs-p3)/var(--lh-p3) var(--font-sans);   /* Selected=False (Figma 4898-91317): P3 14/21 */
-    color: var(--text-primary);
+.sheet-title { font: 500 20px/24px var(--font-sans); }   /* H1 Mobile Comp */
+.sheet-meta  { font: 400 17px/24px var(--font-sans); }   /* P1 Regular Comp */
+/* только сжимается, не растягивается: иначе scrollHeight списка равен высоте шторки,
+   и после удаления строки js не увидел бы, что содержимое стало ниже */
+.sheet-list {
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow: hidden;
 }
-/* активная (Selected=True) не переверстывается → исходный шрифт строки места P2 16/24 */
-.ticket.active .t-seat {
-    font: 400 var(--fs-p2)/var(--lh-p2) var(--font-sans);
+/* билеты не влезли в высоту шторки: список прокручивается сам. Только по классу: прокручиваемый
+   блок с pan-y забирает вертикальный жест у браузера, и свайп шторки из списка оборвался бы pointercancel */
+.sheet-list.is-scroll {
+    overflow-y: auto;
+    touch-action: pan-y;
 }
-.ticket .t-price {
-    font: 400 var(--fs-p3)/var(--lh-p3) var(--font-sans);
-    color: var(--text-secondary);
+.sheet-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+    padding: 12px 0;
+    box-shadow: inset 0 -1px 0 rgba(188, 195, 208, .5);   /* Background/Stroke #BCC3D080, внутри высоты строки */
+    transition: opacity 150ms ease-out;
 }
-.ticket .t-x {
+.sheet-row:last-child { box-shadow: none; }
+.sheet-row.is-leaving { opacity: 0; pointer-events: none; }
+.sheet-seat { flex: 1 1 0; min-width: 0; font: 400 17px/24px var(--font-sans); }
+.sheet-row-end { flex: 0 0 auto; display: flex; align-items: flex-end; gap: 8px; }
+.sheet-price { font: 500 17px/24px var(--font-sans); white-space: nowrap; }
+.sheet-clear {
+    position: relative;
     flex: 0 0 auto;
-    margin-left: auto;                    /* × — последний элемент, прижат к правому краю (padding-right) */
-    width: 24px;                          /* Figma: иконка 24 */
+    width: 24px;
     height: 24px;
+    padding: 0;
     border: 0;
     background: transparent;
-    padding: 0;
-    color: var(--icon-primary);          /* Figma Icons/Primary #231d1f */
+    display: block;
     cursor: pointer;
-    align-items: center;
-    justify-content: center;
     -webkit-tap-highlight-color: transparent;
-    /* Figma: крестик есть ТОЛЬКО у активного (Selected=True), у неактивного его НЕТ.
-       При hug-ширине неактивный крестик раздул бы ширину на gap+24 → исключаем из
-       layout полностью (display:none), чтобы ширина неактивного = текст + 2×padding. */
-    display: none;
-    opacity: 1;
 }
-.ticket.active .t-x { display: inline-flex; }
-.ticket .t-x svg { display: block; width: 24px; height: 24px; }   /* иконка × 24 */
+.sheet-clear::after { content: ''; position: absolute; inset: -10px; }   /* зона касания 44 × 44, глазу не видна */
+.sheet-close svg, .sheet-clear svg, .sheet-ico svg, .sheet-chevron svg { display: block; }
 
-/* Клон уходящей карточки при удалении (fade): рисуется поверх слайдера, вне потока,
-   чтобы не ломать layout карусели. Наследует вид .ticket; геометрию/анимацию (scale→.2 +
-   opacity→0) задаёт JS (deleteActiveTicket в js/main.js). */
-.exit-clone {
+/* итог: одинаков в свёрнутой и развёрнутой шторке, высота 124 */
+.sheet-total {
+    position: relative;
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 20px;
+}
+/* разделитель над итогом — только в развёрнутой; лежит на 1 px выше блока, как в макете */
+.sheet-total::before {
+    content: '';
     position: absolute;
-    z-index: 200;
-    margin: 0;
-    cursor: default;
-    pointer-events: none;
+    left: 0;
+    right: 0;
+    top: -1px;
+    height: 1px;
+    background: rgba(188, 195, 208, .5);
+    opacity: 0;
+    transition: opacity 250ms cubic-bezier(.2, .8, .2, 1);
 }
-
-/* ---- 3.2 CTA ---- */
-.cta {
-    position: relative;                   /* нужен для z-index */
-    z-index: 1;                           /* ниже .slider (z-index 2) → тень активного билета ложится поверх кнопки */
+.sheet.is-open .sheet-total::before { opacity: 1; }
+.sheet-sum {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
     width: 100%;
-    height: 44px;                         /* Figma Button size 44 (node 4902:80257) */
+    height: 24px;
+    padding: 0;
     border: 0;
-    border-radius: 22px;
-    background: var(--ctrl-primary);      /* #ff5005 */
-    color: var(--text-inverted);
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.sheet-tickets { display: flex; align-items: center; gap: 4px; font: 400 17px/24px var(--font-sans); white-space: nowrap; }
+.sheet-ico     { width: 24px; height: 24px; }
+.sheet-chevron { width: 16px; height: 16px; }
+.sheet-amount  { font: 500 17px/24px var(--font-sans); white-space: nowrap; }
+.sheet-pay {
+    width: 100%;
+    min-width: 256px;
+    height: 44px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: var(--r-8);
+    background: var(--brand-mts);           /* Controls/Primary Active #FF0032 */
+    color: var(--gs-0);                     /* Constant/Greyscale 0 #FFFFFF */
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;                            /* Figma 4902:80257: gap 4 (текст ↔ шеврон) */
-    padding: 0 16px 0 20px;              /* Figma 4902:80257: pl 20, pr 16 (правый меньше — под шеврон), верт. 0 */
-    font: 500 var(--fs-p2)/var(--lh-p2) var(--font-sans);
+    font: 500 17px/24px var(--font-sans);
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
 }
-.cta:active { background: var(--ctrl-primary-press); }
-.cta .cta-ico { flex: 0 0 auto; display: inline-flex; color: var(--icon-inverted); }   /* Figma: Chevron Right, Icons/Inverted #fafafa */
-.cta .cta-ico svg { display: block; width: 24px; height: 24px; }                        /* Figma: иконка 24×24 */
+.sheet-pay span { padding: 10px 8px; }

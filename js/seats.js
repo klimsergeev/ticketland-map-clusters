@@ -117,13 +117,6 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 const SEL_COLOR = '#FF5005';
 const CHECK_D = 'M94.5543 18.1123C94.7008 18.2587 94.7008 18.4962 94.5543 18.6426L91.5983 21.5986C91.528 21.6689 91.4326 21.7085 91.3332 21.7085C91.2337 21.7085 91.1383 21.6689 91.068 21.5986L89.4013 19.932C89.2549 19.7855 89.2549 19.5481 89.4013 19.4016C89.5478 19.2552 89.7852 19.2552 89.9317 19.4016L91.3332 20.8031L94.024 18.1123C94.1704 17.9658 94.4079 17.9658 94.5543 18.1123Z';
 
-/* Масштаб маркера АКТИВНОГО места относительно обычного выбранного.
-   1.4× — заметная разница (визуально ~11px → ~15.5px с учётом обводки),
-   середина рекомендованного диапазона 1.3–1.5×: явно выделяется, но не
-   перекрывает соседние места и не выглядит чрезмерно.
-   Экспорт: нужен js/photo-map.js для касания по маркеру. */
-export const ACTIVE_SCALE = 1.4;
-
 /* Половина маркера выбранного места в единицах схемы: кресло 8 + обводка 3 (по 1,5 с каждой стороны). */
 export const SEL_HALF = 5.5;
 
@@ -135,46 +128,28 @@ const CHECK = `<path fill-rule="evenodd" clip-rule="evenodd" d="${CHECK_D}" fill
 // Camera 16 из Figma, ужатый до кресла 8×8, белый — Constant/Greyscale 0 макета
 const CAMERA = `<g transform="translate(88 16) scale(.5)" color="#FFFFFF">${CAMERA16_PATHS}</g>`;
 
-/* Маркер выбранного места. scale — множитель размера вокруг ЦЕНТРА места
-   (x+4, y+4): центр остаётся на месте при любом масштабе, растёт только размер.
-   Композиция трансформа: translate(cx,cy) scale(k) translate(-92,-20) — при k=1
-   даёт исходный translate(x-88,y-16); центр контента (92,20) всегда → (cx,cy).
+/* Маркер выбранного места: все выбранные места одного размера.
    Значок — галочка или фотоаппарат: camera: true — фотоаппарат
    (кресло с фото в заказе при включённом режиме фото), он ложится ровно на кресло 8×8. */
-function selectedGroup(x, y, scale = 1, camera = false) {
+function selectedGroup(x, y, camera = false) {
     const inner =
         `<rect x="88" y="16" width="8" height="8" rx="2.5" fill="${SEL_COLOR}"/>`
         + `<rect x="88" y="16" width="8" height="8" rx="2.5" stroke="${SEL_COLOR}" stroke-width="3"/>`
         + (camera ? CAMERA : CHECK);
-    const t = scale === 1
-        ? `translate(${x - 88} ${y - 16})`
-        : `translate(${x + 4} ${y + 4}) scale(${scale}) translate(-92 -20)`;
-    return `<g transform="${t}">${inner}</g>`;
+    return `<g transform="translate(${x - 88} ${y - 16})">${inner}</g>`;
 }
 
 /* Создать слой выбора и вернуть функцию его перерисовки под список мест.
-   activeSeat — объект-место активного билета: рисуется ПОСЛЕДНИМ (поверх всех)
-   и КРУПНЕЕ (ACTIVE_SCALE). В любой момент увеличено ровно одно место.
    withCamera(seat) — у места вместо галочки фотоаппарат; по умолчанию у всех галочка.
    Признак считает main.js: здесь нет знаний о режиме и фото. */
 export function createSelectionLayer(svgRoot) {
     const layer = document.createElementNS(SVG_NS, 'g');
     layer.setAttribute('class', 'sel-layer');
     svgRoot.appendChild(layer);
-    return function render(seats, activeSeat, withCamera = () => false) {
-        const selected = seats.filter((s) => s.selected);
-        const parts = selected
-            .filter((s) => s !== activeSeat)
-            .map((s) => selectedGroup(+s.el.getAttribute('x'), +s.el.getAttribute('y'), 1, withCamera(s)));
-        // активное место — крупнее и поверх остальных (последним в document order)
-        if (activeSeat && activeSeat.selected) {
-            parts.push(selectedGroup(
-                +activeSeat.el.getAttribute('x'),
-                +activeSeat.el.getAttribute('y'),
-                ACTIVE_SCALE,
-                withCamera(activeSeat),
-            ));
-        }
-        layer.innerHTML = parts.join('');
+    return function render(seats, withCamera = () => false) {
+        layer.innerHTML = seats
+            .filter((s) => s.selected)
+            .map((s) => selectedGroup(+s.el.getAttribute('x'), +s.el.getAttribute('y'), withCamera(s)))
+            .join('');
     };
 }

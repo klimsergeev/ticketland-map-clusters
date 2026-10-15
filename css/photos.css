@@ -88,8 +88,8 @@
 .hall-svg rect[data-status="available"] { transition: fill-opacity 200ms ease; }
 .hall-svg.is-photo-mode rect[data-status="available"] { fill-opacity: .5; }
 
-/* ---------- Док кнопки режима: правый нижний угол, над нижним блоком (z 4) и шапкой (z 5),
-   под лайтбоксом (z 20). Подъём над билетами — translateY из js (setLift) ---------- */
+/* ---------- Док кнопки режима: правый нижний угол, над шапкой (z 5), под затемнением
+   и шторкой заказа (z 15, z 16) и лайтбоксом (z 20). Подъём над шторкой — translateY из js (setLift) ---------- */
 .photo-dock {
     position: absolute;
     right: 16px;
