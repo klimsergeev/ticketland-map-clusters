@@ -51,13 +51,15 @@
 .ph.is-selected { visibility: hidden; }
 
 /* Кластер — макет «Cluster / colors / smooth», node 4340:30101. Диаметр — инлайн из it.d (40 / 48 / 64 / 88 px).
-   Заливка #FAFBFF без обводки, токена нет; тень Shadows/Middle макета: 0 8px 16px 0 #0000000A и 0 4px 24px 0 #0000000F —
+   Заливка #FAFBFF, токена нет; обводка 1 px внутрь круга (inset — диаметр не растёт) Background/Stroke #BCC3D080,
+   токена нет — --bg-stroke другой; одна на всех ступенях (макет Draft, node 4361:30444).
+   Тень Shadows/Middle макета: 0 8px 16px 0 #0000000A и 0 4px 24px 0 #0000000F —
    --shadow-middle проекта другой. Число — MTS Compact Medium 14/24, Statika с теми же параметрами;
    Text/Primary #231D1F — var(--text-primary), совпадает один в один */
 .ph--cluster .ph-body {
     box-sizing: border-box;
     background: #FAFBFF;
-    box-shadow: 0 8px 16px 0 #0000000A, 0 4px 24px 0 #0000000F;
+    box-shadow: inset 0 0 0 1px #BCC3D080, 0 8px 16px 0 #0000000A, 0 4px 24px 0 #0000000F;
     color: var(--text-primary);
     font: 500 14px/24px var(--font-sans);
 }
@@ -101,19 +103,22 @@
     transition: transform 250ms cubic-bezier(.2, .8, .2, 1);
 }
 
-/* ---------- Переключатель «Фото с мест» — макет button, node 4338:29198.
-   Подпись слева, тумблер справа. Капсула по содержимому: 12 + подпись + 8 + тумблер 28 + 8; высота 8 + 20 + 8 = 36.
-   Переходы 200 мс — не по макету, в макете анимации нет ---------- */
+/* ---------- Переключатель «Фото с мест» — макет Draft, node 4361:30444: Frame 6 (выключен) и Frame 7 (включён).
+   Подпись слева, тумблер справа. Капсула по содержимому: 16 + подпись + 8 + тумблер 28 + 12;
+   высота 12 + 20 + 12 = 44 — она же зона касания. В макете высота 44 фиксирована, содержимое по центру.
+   Обводка 1 px Inside, «Strokes included in layout» выключено — inset-тенью поверх отступов, габарит не меняется.
+   Тени у капсулы нет. Переходы 200 мс — не по макету, в макете анимации нет ---------- */
 .photo-switch {
     position: relative;
     display: flex;
     align-items: flex-start;
     gap: 8px;
     margin: 0;
-    padding: 8px 8px 8px 12px;
+    padding: 12px 12px 12px 16px;
     border: 0;
     border-radius: var(--r-8);
     background: var(--gs-100);              /* #F2F3F7 — Background/Secondary */
+    box-shadow: inset 0 0 0 1px #BCC3D080;  /* Background/Stroke, токена нет — --bg-stroke другой */
     color: var(--gs-800);                   /* #1D2023 — Text/Primary макета; --text-primary не подходит */
     font: 400 14px/20px var(--font-sans);   /* P2 Regular Comp 14/20: Statika вместо MTS Compact */
     white-space: nowrap;
@@ -121,15 +126,13 @@
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
-    transition: background-color 200ms cubic-bezier(.2, .8, .2, 1);
+    transition:
+        background-color 200ms cubic-bezier(.2, .8, .2, 1),
+        box-shadow 200ms cubic-bezier(.2, .8, .2, 1);
 }
-.photo-switch.is-on { background: #E8FAEC; }   /* Constant/Lightest Apple, токена нет */
-
-/* Зона касания 44 по высоте: по 4 px сверху и снизу от капсулы 36 */
-.photo-switch::before {
-    content: '';
-    position: absolute;
-    inset: -4px 0;
+.photo-switch.is-on {
+    background: #E8FAEC;                    /* Constant/Lightest Apple, токена нет */
+    box-shadow: inset 0 0 0 1px #74DF8B;    /* Accent/Positive Inverted, токена нет */
 }
 
 /* Тумблер 28 × 16 по центру строки 20 (Padding-v макета) */
@@ -206,13 +209,13 @@
     font: 400 var(--fs-p3)/var(--lh-p3) var(--font-sans);
 }
 /* Хвостик вплотную под плашкой; остриё ассета на x = 42,5 из 60 — над центром тумблера:
-   правый отступ капсулы 8 + половина тумблера 14 = 22 px от правого края капсулы,
-   правый край ассета — в 22 − (60 − 42,5) = 4,5 px от него.
-   Основание хвостика x 32,5…52,5 — от 32 до 12 px от правого края плашки, скругление 8 не задевает */
+   правый отступ капсулы 12 + половина тумблера 14 = 26 px от правого края капсулы,
+   правый край ассета — в 26 − (60 − 42,5) = 8,5 px от него.
+   Основание хвостика x 32,5…52,5 — от 36 до 16 px от правого края плашки, скругление 8 не задевает */
 .photo-tip-arrow {
     display: block;
     align-self: flex-end;
-    margin-right: 4.5px;
+    margin-right: 8.5px;
     color: var(--bg-inverted);
 }
 
