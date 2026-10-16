@@ -35,15 +35,14 @@
 }
 .ph-body svg { display: block; }
 
-/* Метка — макет «Photo / smooth», Selected=False, node 4340:30129: кружок 24 px без тени, по центру лупа 16 px.
-   Заливка #FAFBFF, токена нет; обводка 1 px внутрь круга (inset — диаметр не растёт) Background/Stroke #BCC3D080,
-   токена нет — --bg-stroke другой; лупа Icons/Primary #1D2023 — var(--gs-800), совпадает один в один */
+/* Метка — макет «Photo / smooth», Selected=False, node 4340:30129: тёмный кружок 24 px без обводки и тени,
+   по центру лупа 16 px. Заливка Icons/Primary #1D2023 — var(--gs-800), совпадает один в один;
+   лупа Constant/Greyscale 0 #FFFFFF — var(--gs-0), совпадает один в один */
 .ph--marker .ph-body {
     width: 24px;
     height: 24px;
-    background: #FAFBFF;
-    box-shadow: inset 0 0 0 1px #BCC3D080;
-    color: var(--gs-800);
+    background: var(--gs-800);
+    color: var(--gs-0);
 }
 
 /* Кресло с фото в заказе: метку заменяет маркер выбранного места с галочкой (js/seats.js).
