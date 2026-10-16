@@ -1,7 +1,6 @@
 /* ============================================================
    Переключатель режима фото, тултип над ним и лайтбокс с фото (вид с места).
    ============================================================ */
-import { formatPrice } from './data.js';
 
 // Хвостик тултипа 60×8 — ассет Figma «Arrow», node I4300:19820;5010:334
 const icoTipArrow =
@@ -148,7 +147,7 @@ export function createLightbox({ parentEl, onShow }) {
         + `<button class="lb-arrow lb-arrow--next" type="button" aria-label="Следующее фото">${icoChevronRight24}</button>`
         + '</div>'
         + '<div class="lb-bottom">'
-        + '<div class="lb-info"><div class="lb-place"><span class="lb-section"></span><span class="lb-seat"></span></div><div class="lb-price"></div></div>'
+        + '<div class="lb-info"><span class="lb-section"></span><span class="lb-seat"></span></div>'
         + '<button class="lb-show" type="button">Показать на схеме</button>'
         + '</div>';
     parentEl.appendChild(el);
@@ -166,7 +165,6 @@ export function createLightbox({ parentEl, onShow }) {
     const nextBtn = q('.lb-arrow--next');
     const sectionEl = q('.lb-section');
     const seatEl = q('.lb-seat');
-    const priceEl = q('.lb-price');
 
     // Три слота ленты: предыдущее, текущее, следующее. После листания слоты переставляются,
     // а не перезаливаются: картинка на экране не мигает
@@ -214,7 +212,6 @@ export function createLightbox({ parentEl, onShow }) {
         const s = list[index].seat;
         sectionEl.textContent = s.section;
         seatEl.textContent = `Ряд ${s.row} место ${s.seat}`;
-        priceEl.textContent = s.status === 'available' && s.price != null ? formatPrice(s.price) : 'Недоступно';
         const first = index === 0;
         const last = index === list.length - 1;
         prevBtn.classList.toggle('is-edge', first);
