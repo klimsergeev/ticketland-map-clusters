@@ -35,13 +35,19 @@
 }
 .ph-body svg { display: block; }
 
-/* Метка: белый кружок 24 px без обводки и тени, по центру фотоаппарат 16 px.
-   #FFFFFF — Constant/Greyscale 0 макета; #1D2023 — Icons/Primary макета, --icon-primary не подходит */
+/* Метка — макет «Photo / smooth», Selected=False, node 4340:30129: без подложки, только лупа 16 px
+   (Search, Size=16, Style=Outline). Рамка 16×16 стоит центром на кресле, лупа в ней — left 4, top −4:
+   на 4 px правее и на 4 px выше центра кресла. Цвет Icons/Primary #1D2023 — var(--gs-800), совпадает один в один.
+   .ph-body остаётся кругом 24 px по центру кресла — по нему считаются касание и наезд (MARKER_D в js/cluster.js) */
 .ph--marker .ph-body {
     width: 24px;
     height: 24px;
-    background: var(--gs-0);
     color: var(--gs-800);
+}
+.ph--marker .ph-body svg {
+    position: relative;
+    left: 4px;
+    top: -4px;
 }
 
 /* Кресло с фото в заказе: метку заменяет маркер выбранного места с галочкой (js/seats.js).
