@@ -362,3 +362,8 @@
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
 }
+/* «Добавить в корзину» — цвета кнопки «Оформить» шторки заказа (.sheet-pay в css/styles.css) */
+.lb-show.is-add {
+    background: var(--brand-mts);           /* Controls/Primary Active #FF0032 */
+    color: var(--gs-0);                     /* Constant/Greyscale 0 #FFFFFF */
+}

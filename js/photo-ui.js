@@ -219,6 +219,7 @@ export function createLightbox({ parentEl, onShow, onAdd, canAdd = () => false }
         // свободное место не в заказе — «Добавить в корзину»; занятое или уже в заказе — «Показать на схеме»
         addMode = !!(onAdd && canAdd(s));
         actionBtn.textContent = addMode ? 'Добавить в корзину' : 'Показать на схеме';
+        actionBtn.classList.toggle('is-add', addMode);   // красная, как «Оформить»
         const first = index === 0;
         const last = index === list.length - 1;
         prevBtn.classList.toggle('is-edge', first);
