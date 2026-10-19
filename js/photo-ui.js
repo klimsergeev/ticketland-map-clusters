@@ -131,14 +131,17 @@ const seatText = (s) => `${s.section.toLowerCase()}, ряд ${s.row}, место
 /* Лайтбокс с фото: галерея всех фото зала.
    open(node, list) — node из bindPhotos, list — узлы в порядке галереи (photoMap.gallery()).
    close(onDone) — onDone через LB_MS по таймеру, а не по transitionend: колбэк приходит, даже если переход не сыграл.
-   Под фото «Добавить в корзину» → onAdd(node) и под ней «Показать на схеме» → onShow(node).
+   Под фото главная кнопка — «Добавить в корзину» → onAdd(node) или «Убрать из корзины» → onRemove(node),
+   под ней «Показать на схеме» → onShow(node).
    statusOf(seat) — 'free' | 'busy' | 'cart': подпись справа «Свободно» / «Занято» / «В корзине».
-   addState(seat) — 'on' | 'off' | 'hidden': «Добавить в корзину» активна, неактивна (disabled, не нажимается)
-   или скрыта — тогда под подписью одна «Показать на схеме».
-   Подпись и кнопки пересчитываются при открытии и при каждом листании. */
+   addState(seat) — 'on' | 'off' | 'remove' | 'hidden': «Добавить в корзину» активна, неактивна
+   (disabled, не нажимается), вместо неё «Убрать из корзины» или главной кнопки нет — тогда под подписью
+   одна «Показать на схеме».
+   Подпись и кнопки пересчитываются при открытии, при каждом листании и после «Убрать из корзины»:
+   лайтбокс при этом остаётся открытым. */
 const STATUS_TEXT = { free: 'Свободно', busy: 'Занято', cart: 'В корзине' };
 
-export function createLightbox({ parentEl, onShow, onAdd, statusOf = () => 'busy', addState = () => 'hidden' }) {
+export function createLightbox({ parentEl, onShow, onAdd, onRemove, statusOf = () => 'busy', addState = () => 'hidden' }) {
     const el = document.createElement('div');
     el.className = 'lb';
     el.setAttribute('role', 'dialog');
@@ -159,6 +162,7 @@ export function createLightbox({ parentEl, onShow, onAdd, statusOf = () => 'busy
         + '</div>'
         + '<div class="lb-actions">'
         + '<button class="lb-add" type="button">Добавить в корзину</button>'
+        + '<button class="lb-remove" type="button" hidden>Убрать из корзины</button>'
         + '<button class="lb-show" type="button">Показать на схеме</button>'
         + '</div>'
         + '</div>';
@@ -179,6 +183,7 @@ export function createLightbox({ parentEl, onShow, onAdd, statusOf = () => 'busy
     const seatEl = q('.lb-seat');
     const statusEl = q('.lb-status');
     const addBtn = q('.lb-add');
+    const removeBtn = q('.lb-remove');
     const showBtn = q('.lb-show');
 
     // Три слота ленты: предыдущее, текущее, следующее. После листания слоты переставляются,
@@ -228,9 +233,11 @@ export function createLightbox({ parentEl, onShow, onAdd, statusOf = () => 'busy
         sectionEl.textContent = s.section;
         seatEl.textContent = `Ряд ${s.row} место ${s.seat}`;
         statusEl.textContent = STATUS_TEXT[statusOf(s)] || '';
-        const add = onAdd ? addState(s) : 'hidden';
-        addBtn.hidden = add === 'hidden';
+        let add = addState(s);
+        if ((add === 'remove' && !onRemove) || (add !== 'remove' && !onAdd)) add = 'hidden';
+        addBtn.hidden = add === 'hidden' || add === 'remove';
         addBtn.disabled = add !== 'on';
+        removeBtn.hidden = add !== 'remove';
         const first = index === 0;
         const last = index === list.length - 1;
         prevBtn.classList.toggle('is-edge', first);
@@ -480,9 +487,20 @@ export function createLightbox({ parentEl, onShow, onAdd, statusOf = () => 'busy
     addBtn.addEventListener('click', () => {
         if (!isOpen || addBtn.disabled || addBtn.hidden) return;   // второй тап, пока лайтбокс гаснет, — ничего
         const n = list[index];
-        const inCart = statusOf(n.seat) === 'cart';
-        announce(`${inCart ? 'Уже в корзине' : 'Добавлено в корзину'}: ${seatText(n.seat)}`);
+        announce(`Добавлено в корзину: ${seatText(n.seat)}`);
         onAdd(n);
+    });
+    // «Убрать из корзины»: лайтбокс остаётся открытым, подпись и главная кнопка пересчитываются сразу
+    removeBtn.addEventListener('click', () => {
+        if (!isOpen || removeBtn.hidden) return;
+        const n = list[index];
+        onRemove(n);
+        paintInfo();
+        announce(`Убрано из корзины: ${seatText(n.seat)}`);
+        // фокус был на кнопке, которая спряталась, — переносим на кнопку, вставшую на её место
+        if (document.activeElement === removeBtn || document.activeElement === document.body) {
+            (addBtn.hidden ? showBtn : addBtn).focus({ preventScroll: true });
+        }
     });
     showBtn.addEventListener('click', () => {
         if (!isOpen) return;

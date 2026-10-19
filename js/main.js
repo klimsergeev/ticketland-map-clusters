@@ -43,7 +43,7 @@ let showLeaving = false;   // лайтбокс гаснет после «Пок�
 let pendingAdd = null;     // место из «Добавить в корзину», которое ещё не легло в заказ
 const photoToggle = createPhotoToggle({ parentEl: $('.app'), onChange: onPhotoButton });
 const photoTip = createPhotoTip({ parentEl: photoToggle.dockEl });
-const lightbox = createLightbox({ parentEl: $('.app'), onShow: showOnMap, onAdd: addFromPhoto, statusOf: seatStatus, addState: addButtonState });
+const lightbox = createLightbox({ parentEl: $('.app'), onShow: showOnMap, onAdd: addFromPhoto, onRemove: removeFromPhoto, statusOf: seatStatus, addState: addButtonState });
 
 /* Кнопка режима: подсветка кресла и тултип гаснут сразу, режим переключается как обычно */
 function onPhotoButton(on) {
@@ -260,12 +260,17 @@ function seatStatus(seat) {
     return seat.status === 'available' ? 'free' : 'busy';
 }
 
-/* «Добавить в корзину» в лайтбоксе: заказ полон — скрыта у всех мест, в том числе у места из заказа;
-   место в заказе — активна (переносит к месту, второй раз не добавляет); свободное — активна; занятое — неактивна */
+/* Главная кнопка лайтбокса: заказ полон — её нет ни у одного места, в том числе у места из заказа;
+   место в заказе — «Убрать из корзины»; свободное — активная «Добавить в корзину»; занятое — неактивная */
 function addButtonState(seat) {
     if (cart.length >= MAX_SEATS) return 'hidden';
-    if (seat.selected) return 'on';
+    if (seat.selected) return 'remove';
     return seat.status === 'available' ? 'on' : 'off';
+}
+
+/* «Убрать из корзины» в лайтбоксе: обычное снятие билета, лайтбокс остаётся открытым */
+function removeFromPhoto(node) {
+    removeSeat(node.seat);
 }
 
 /* Убрать место: снять selected, выкинуть из корзины, вернуть в дефолт.
@@ -375,8 +380,7 @@ function showOnMap(node) {
 /* «Добавить в корзину»: то же приближение, что у «Показать на схеме», без подсветки.
    Место ложится в заказ после остановки схемы — маркер появляется на уже приближенном кресле
    у человека на глазах; второго движения схемы нет. Касание во время приближения
-   добавляет место сразу (stopShowOnMap): тап по кнопке не теряется.
-   Место уже в заказе — только приближение: commitAdd второй раз его не добавляет */
+   добавляет место сразу (stopShowOnMap): тап по кнопке не теряется */
 function addFromPhoto(node) {
     pendingAdd = node.seat;
     leaveLightbox(node, commitAdd);
