@@ -131,10 +131,14 @@ const seatText = (s) => `${s.section.toLowerCase()}, ряд ${s.row}, место
 /* Лайтбокс с фото: галерея всех фото зала.
    open(node, list) — node из bindPhotos, list — узлы в порядке галереи (photoMap.gallery()).
    close(onDone) — onDone через LB_MS по таймеру, а не по transitionend: колбэк приходит, даже если переход не сыграл.
-   onShow(node) — кнопка «Показать на схеме» для открытого фото.
-   canAdd(seat) — можно ли добавить место открытого фото в заказ; да — вместо «Показать на схеме»
-   кнопка «Добавить в корзину» и onAdd(node). Пересчитывается при открытии и при каждом листании. */
-export function createLightbox({ parentEl, onShow, onAdd, canAdd = () => false }) {
+   Под фото «Добавить в корзину» → onAdd(node) и под ней «Показать на схеме» → onShow(node).
+   statusOf(seat) — 'free' | 'busy' | 'cart': подпись справа «Свободно» / «Занято» / «В корзине».
+   addState(seat) — 'on' | 'off' | 'hidden': «Добавить в корзину» активна, неактивна (disabled, не нажимается)
+   или скрыта — тогда под подписью одна «Показать на схеме».
+   Подпись и кнопки пересчитываются при открытии и при каждом листании. */
+const STATUS_TEXT = { free: 'Свободно', busy: 'Занято', cart: 'В корзине' };
+
+export function createLightbox({ parentEl, onShow, onAdd, statusOf = () => 'busy', addState = () => 'hidden' }) {
     const el = document.createElement('div');
     el.className = 'lb';
     el.setAttribute('role', 'dialog');
@@ -149,8 +153,14 @@ export function createLightbox({ parentEl, onShow, onAdd, canAdd = () => false }
         + `<button class="lb-arrow lb-arrow--next" type="button" aria-label="Следующее фото">${icoChevronRight24}</button>`
         + '</div>'
         + '<div class="lb-bottom">'
-        + '<div class="lb-info"><span class="lb-section"></span><span class="lb-seat"></span></div>'
+        + '<div class="lb-info">'
+        + '<div class="lb-place"><span class="lb-section"></span><span class="lb-seat"></span></div>'
+        + '<span class="lb-status"></span>'
+        + '</div>'
+        + '<div class="lb-actions">'
+        + '<button class="lb-add" type="button">Добавить в корзину</button>'
         + '<button class="lb-show" type="button">Показать на схеме</button>'
+        + '</div>'
         + '</div>';
     parentEl.appendChild(el);
 
@@ -167,8 +177,9 @@ export function createLightbox({ parentEl, onShow, onAdd, canAdd = () => false }
     const nextBtn = q('.lb-arrow--next');
     const sectionEl = q('.lb-section');
     const seatEl = q('.lb-seat');
-    const actionBtn = q('.lb-show');
-    let addMode = false;   // кнопка под текущим фото — «Добавить в корзину»; false — «Показать на схеме»
+    const statusEl = q('.lb-status');
+    const addBtn = q('.lb-add');
+    const showBtn = q('.lb-show');
 
     // Три слота ленты: предыдущее, текущее, следующее. После листания слоты переставляются,
     // а не перезаливаются: картинка на экране не мигает
@@ -216,10 +227,10 @@ export function createLightbox({ parentEl, onShow, onAdd, canAdd = () => false }
         const s = list[index].seat;
         sectionEl.textContent = s.section;
         seatEl.textContent = `Ряд ${s.row} место ${s.seat}`;
-        // свободное место не в заказе — «Добавить в корзину»; занятое или уже в заказе — «Показать на схеме»
-        addMode = !!(onAdd && canAdd(s));
-        actionBtn.textContent = addMode ? 'Добавить в корзину' : 'Показать на схеме';
-        actionBtn.classList.toggle('is-add', addMode);   // красная, как «Оформить»
+        statusEl.textContent = STATUS_TEXT[statusOf(s)] || '';
+        const add = onAdd ? addState(s) : 'hidden';
+        addBtn.hidden = add === 'hidden';
+        addBtn.disabled = add !== 'on';
         const first = index === 0;
         const last = index === list.length - 1;
         prevBtn.classList.toggle('is-edge', first);
@@ -461,15 +472,23 @@ export function createLightbox({ parentEl, onShow, onAdd, canAdd = () => false }
     prevBtn.addEventListener('click', () => go(-1));   // на крайнем фото go вернёт false — ничего
     nextBtn.addEventListener('click', () => go(1));
     q('.lb-close').addEventListener('click', () => close());
-    actionBtn.addEventListener('click', () => {
-        if (!isOpen) return;   // второй тап, пока лайтбокс гаснет, — ничего
-        const n = list[index];
-        const add = addMode;
-        // сначала пусто, потом текст: одна и та же фраза подряд зачитывается снова
+    // сначала пусто, потом текст: одна и та же фраза подряд зачитывается снова
+    function announce(text) {
         sr.textContent = '';
-        requestAnimationFrame(() => { sr.textContent = `${add ? 'Добавлено в корзину' : 'Показано'}: ${seatText(n.seat)}`; });
-        if (add) onAdd(n);
-        else onShow(n);
+        requestAnimationFrame(() => { sr.textContent = text; });
+    }
+    addBtn.addEventListener('click', () => {
+        if (!isOpen || addBtn.disabled || addBtn.hidden) return;   // второй тап, пока лайтбокс гаснет, — ничего
+        const n = list[index];
+        const inCart = statusOf(n.seat) === 'cart';
+        announce(`${inCart ? 'Уже в корзине' : 'Добавлено в корзину'}: ${seatText(n.seat)}`);
+        onAdd(n);
+    });
+    showBtn.addEventListener('click', () => {
+        if (!isOpen) return;
+        const n = list[index];
+        announce(`Показано: ${seatText(n.seat)}`);
+        onShow(n);
     });
 
     document.addEventListener('keydown', (e) => {

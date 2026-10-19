@@ -333,22 +333,46 @@
 .lb-arrow--next { right: 2px; }
 .lb-arrow.is-edge { opacity: .5; cursor: default; }
 
+/* Низ лайтбокса — макет, кадр 4417:12680 (состояния 4416:12158, 4416:12228, 4417:12642), ширина 360:
+   Button group — сверху 16, по бокам 20, между подписью и кнопками 20; снизу 16 — нижний отступ Content.
+   Подпись и кнопки тянутся по ширине рамки (в макете 320 = 360 − 2 × 20) */
 .lb-bottom {
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    padding: 16px 20px 20px;
+    gap: 20px;
+    padding: 16px 20px;
 }
+/* Info: слева секция и «Ряд N место M», справа статус по нижней строке; по бокам 8.
+   min-width: 0 у колонок — длинная секция переносится, а не распирает лайтбокс */
 .lb-info {
     display: flex;
-    flex-direction: column;
+    align-items: flex-end;
+    justify-content: space-between;
     padding: 0 8px;
     color: var(--text-inverted);            /* #FAFAFA — Text/Inverted */
     font: 400 14px/20px var(--font-sans);   /* P2 Regular Comp 14/20: Statika вместо MTS Compact */
-    text-align: center;
-    overflow-wrap: break-word;
+    overflow-wrap: anywhere;
 }
-.lb-section { font-weight: 500; }           /* Medium 14/20: Statika вместо MTS Compact */
+.lb-place {
+    display: flex;
+    flex: 1 0 0;
+    flex-direction: column;
+    min-width: 0;
+}
+.lb-section { font-weight: 500; }           /* P2 Medium Comp 14/20: Statika вместо MTS Compact */
+.lb-status {
+    flex: 1 0 0;
+    min-width: 0;
+    font-weight: 500;                       /* P2 Medium Comp 14/20 */
+    text-align: right;
+}
+/* Кнопки столбиком через 8 */
+.lb-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.lb-add,
 .lb-show {
     width: 100%;
     height: 44px;
@@ -356,14 +380,26 @@
     padding: 0 18px;                        /* 10 кнопки + 8 содержимого */
     border: 0;
     border-radius: var(--r-8);
-    background: var(--gs-0);                /* #FFFFFF — Constant/Greyscale 0 */
-    color: var(--gs-800);                   /* #1D2023 — Text/Primary макета; --text-primary не подходит */
-    font: 500 17px/24px var(--font-sans);   /* P1 Medium 17/24 */
+    font: 500 17px/24px var(--font-sans);   /* P1 Medium Comp 17/24: Statika вместо MTS Compact */
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
 }
-/* «Добавить в корзину» — цвета кнопки «Оформить» шторки заказа (.sheet-pay в css/styles.css) */
-.lb-show.is-add {
+.lb-add[hidden] { display: none; }
+/* «Добавить в корзину» — кадр «свободно» 4416:12169; те же цвета у «Оформить» (.sheet-pay в css/styles.css) */
+.lb-add {
     background: var(--brand-mts);           /* Controls/Primary Active #FF0032 */
     color: var(--gs-0);                     /* Constant/Greyscale 0 #FFFFFF */
+}
+/* Неактивная — кадр «занято» 4416:12241: заливка Controls/Inactive #BCC3D080 (--ctrl-inactive проекта другой),
+   текст Text/Tertiary #969FA8 (= --gs-400; --text-tertiary проекта другой), непрозрачность кнопки 0,6 */
+.lb-add:disabled {
+    background: #BCC3D080;
+    color: var(--gs-400);
+    opacity: .6;
+    cursor: default;
+}
+/* «Показать на схеме» — текстовая, кадр 4416:12187: без заливки, текст Text/Inverted #FAFAFA */
+.lb-show {
+    background: transparent;
+    color: var(--text-inverted);
 }
