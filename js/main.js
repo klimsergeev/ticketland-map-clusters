@@ -267,7 +267,7 @@ function focusSeat(seat) {
 }
 
 /* Тап по схеме → hit-test ближайшего места → выбрать/снять.
-   Серые (occupied/unknown) места некликабельны. */
+   Занятые и неизвестные (occupied/unknown) места некликабельны. */
 function findNearestSeat(sx, sy, maxR) {
     let best = null;
     let bestD = maxR;
@@ -409,7 +409,7 @@ viewportEl.addEventListener('wheel', () => photoTip.dismiss(), { capture: true, 
 // тап, пан, щипок, колесо по схеме — подсветка гаснет; жест идёт в hall.js как обычно
 viewportEl.addEventListener('pointerdown', stopShowOnMap, { capture: true });
 viewportEl.addEventListener('wheel', stopShowOnMap, { capture: true, passive: true });
-// касание шторки: крестик удаления снимает кресло, и стартовый размер волны сменился бы
+// касание шторки: крестик удаления меняет кресло в заказе, и контур, построенный под маркер, остался бы не по месту
 sheetEl.addEventListener('pointerdown', stopShowOnMap, { capture: true });
 // переключатель режима: подсветка гаснет при касании, а не по click; вызов в onPhotoButton — для клавиатуры
 photoToggle.btnEl.addEventListener('pointerdown', stopShowOnMap);

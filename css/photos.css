@@ -35,19 +35,25 @@
 }
 .ph-body svg { display: block; }
 
-/* Метка — макет «Photo / smooth», Selected=False, node 4340:30129: без подложки, только лупа 16 px
-   (Search, Size=16, Style=Outline). Рамка 16×16 стоит центром на кресле, лупа в ней — left 4, top −4:
-   на 4 px правее и на 4 px выше центра кресла. Цвет Icons/Primary #1D2023 — var(--gs-800), совпадает один в один.
-   .ph-body остаётся кругом 24 px по центру кресла — по нему считаются касание и наезд (MARKER_D в js/cluster.js) */
+/* Метка — макет «Photo / smooth», Selected=False, node 4340:30129: без подложки, только лупа
+   (Search, Style=Outline) ступенью 16 / 24 / 32 по размеру кресла на экране — js/photo-map.js.
+   .ph-body — точка 0×0 в центре кресла; рамка лупы стоит центром в ней и сдвинута вправо и вверх
+   на --ph-shift = max(b/4, s/2 − b/4) — его ставит js на слой. При s ≥ b рамка заходит на кресло
+   на 3/4 и выступает за правый верхний угол на 1/4 (как в макете: рамка 16 на кресле 16, left 4, top −4).
+   Опора дорастания при смене ступени (scale из js) — точка рамки 75% 25%, это правый верхний угол кресла.
+   Цвет Icons/Primary #1D2023 — var(--gs-800), совпадает один в один. Касание считает js по креслу и рамке */
 .ph--marker .ph-body {
-    width: 24px;
-    height: 24px;
+    position: relative;
+    width: 0;
+    height: 0;
     color: var(--gs-800);
 }
 .ph--marker .ph-body svg {
-    position: relative;
-    left: 4px;
-    top: -4px;
+    position: absolute;
+    left: 0;
+    top: 0;
+    translate: calc(-50% + var(--ph-shift, 4px)) calc(-50% - var(--ph-shift, 4px));
+    transform-origin: 75% 25%;
 }
 
 /* Кресло с фото в заказе: метку заменяет маркер выбранного места с галочкой (js/seats.js).
@@ -70,25 +76,27 @@
 
 .ph.is-pressed .ph-body { transform: scale(.9); }
 
-/* ---------- Подсветка кресла после «Показать на схеме»: одна расходящаяся волна цветом кресла —
-   color на .seat-pulse ставит js из fill кресла (тир или серый занятого).
-   Касаний не принимает: тап по волне — тап по креслу под ней. Размер — инлайн из js ---------- */
-.seat-pulse {
+/* ---------- Подсветка кресла после «Показать на схеме»: контур в форме кресла цветом кресла и один ореол.
+   color на .seat-hl ставит js: заливка кресла, оранжевый маркера у кресла в заказе.
+   Середина прозрачная — белый зазор между креслом и контуром это просвет схемы.
+   Касаний не принимает: тап сквозь контур — тап по креслу под ним.
+   Размер и радиус угла контура — инлайн из js ---------- */
+.seat-hl {
     position: absolute;
     left: 0;
     top: 0;
     pointer-events: none;
 }
-.seat-pulse-wave {
+.seat-hl-ring,
+.seat-hl-halo {
     position: absolute;
     left: 0;
     top: 0;
     box-sizing: border-box;
-    border: 4px solid currentColor;   /* = RING_LINE в photo-map.js */
-    border-radius: 50%;
+    border: 3px solid currentColor;   /* = HL_LINE в photo-map.js */
     transform: translate(-50%, -50%);
-    opacity: 0;
 }
+.seat-hl-halo { opacity: 0; }
 
 /* ---------- Режим фото: свободные кресла — цвет тира с непрозрачностью 50 %, за 200 мс в обе стороны.
    data-status="available" есть только у заливки свободного кресла; занятые, их обводки
