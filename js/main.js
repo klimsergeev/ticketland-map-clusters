@@ -38,11 +38,12 @@ const header = $('.header');
        fitHall() сразу вызывает onView, и обращение к photoMap ниже по файлу упало бы. --- */
 let photoMode = false;
 let photoMap = null;     // слой меток фото, появляется после загрузки схемы
-let showSeq = 0;           // номер текущего «Показать на схеме»; действие человека его сбивает
-let showLeaving = false;   // лайтбокс гаснет после «Показать на схеме»: касания схемы игнорируются
+let showSeq = 0;           // номер текущего ухода из лайтбокса на схему; действие человека его сбивает
+let showLeaving = false;   // лайтбокс гаснет после «Показать на схеме» или «Добавить в корзину»: касания схемы игнорируются
+let pendingAdd = null;     // место из «Добавить в корзину», которое ещё не легло в заказ
 const photoToggle = createPhotoToggle({ parentEl: $('.app'), onChange: onPhotoButton });
 const photoTip = createPhotoTip({ parentEl: photoToggle.dockEl });
-const lightbox = createLightbox({ parentEl: $('.app'), onShow: showOnMap });
+const lightbox = createLightbox({ parentEl: $('.app'), onShow: showOnMap, onAdd: addFromPhoto, canAdd: canAddSeat });
 
 /* Кнопка режима: подсветка кресла и тултип гаснут сразу, режим переключается как обычно */
 function onPhotoButton(on) {
@@ -238,13 +239,19 @@ function renderMarks() {
 }
 
 /* Добавить место: отметить selected, положить в заказ, обновить шторку,
-   центрировать схему на месте с приближением. Молча игнорируем 9-е место. */
-function addSeat(seat) {
+   центрировать схему на месте с приближением. Молча игнорируем 9-е место.
+   focus: false — схема уже стоит на месте (добавление из лайтбокса), второго движения нет. */
+function addSeat(seat, focus = true) {
     if (cart.length >= MAX_SEATS) return;
     seat.selected = true;
     cart.push(seat);
     refreshCart();
-    focusSeat(seat);
+    if (focus) focusSeat(seat);
+}
+
+/* Место можно добавить из лайтбокса: свободное, ещё не в заказе, в заказе есть место */
+function canAddSeat(seat) {
+    return seat.status === 'available' && !seat.selected && cart.length < MAX_SEATS;
 }
 
 /* Убрать место: снять selected, выкинуть из корзины, вернуть в дефолт.
@@ -316,9 +323,10 @@ function setPhotoMode(on) {
     if (!on) lightbox.close();           // выключение режима убирает открытый лайтбокс
 }
 
-/* «Показать на схеме»: лайтбокс гаснет и одновременно выключается режим фото,
-   после гашения лайтбокса схема приближается к креслу, после остановки кресло подсвечивается */
-function showOnMap(node) {
+/* Уход из лайтбокса на схему: лайтбокс гаснет и одновременно выключается режим фото,
+   после гашения лайтбокса схема приближается к креслу, после остановки — onArrive.
+   Касание схемы во время приближения сбивает showSeq — onArrive не приходит */
+function leaveLightbox(node, onArrive) {
     const seq = ++showSeq;
     showLeaving = true;
     // схема не реагирует на касания, пока гаснет лайтбокс: ни тап, ни пан, ни щипок, ни колесо
@@ -329,12 +337,8 @@ function showOnMap(node) {
         showLeaving = false;
         viewportEl.style.pointerEvents = '';
         hall.focusInBand(node.x, node.y, FOCUS_SCALE, () => {
-            if (seq !== showSeq || !photoMap) return;
-            try {
-                photoMap.highlightSeat(node.seatId);
-            } catch (e) {
-                console.error('Метки фото: подсветка кресла не показана', e);
-            }
+            if (seq !== showSeq) return;
+            onArrive();
         });
     });
     // режим выключается тем же, что вызывает кнопка режима; второй close() внутри — пустой
@@ -342,11 +346,40 @@ function showOnMap(node) {
     setPhotoMode(false);
 }
 
-/* Действие человека: подсветка гаснет за 150 мс, подсветка, которая ещё не началась, отменяется.
+/* «Показать на схеме»: после остановки схемы кресло подсвечивается контуром */
+function showOnMap(node) {
+    leaveLightbox(node, () => {
+        if (!photoMap) return;
+        try {
+            photoMap.highlightSeat(node.seatId);
+        } catch (e) {
+            console.error('Метки фото: подсветка кресла не показана', e);
+        }
+    });
+}
+
+/* «Добавить в корзину»: то же приближение, что у «Показать на схеме», без подсветки.
+   Место ложится в заказ после остановки схемы — маркер появляется на уже приближенном кресле
+   у человека на глазах; второго движения схемы нет. Касание во время приближения
+   добавляет место сразу (stopShowOnMap): тап по кнопке не теряется */
+function addFromPhoto(node) {
+    pendingAdd = node.seat;
+    leaveLightbox(node, commitAdd);
+}
+
+function commitAdd() {
+    const seat = pendingAdd;
+    pendingAdd = null;
+    if (seat && canAddSeat(seat)) addSeat(seat, false);
+}
+
+/* Действие человека: подсветка гаснет за 150 мс, подсветка, которая ещё не началась, отменяется;
+   место из «Добавить в корзину», которое ещё не легло в заказ, ложится сразу.
    Пока лайтбокс гаснет — ничего: сценарий доводится до конца */
 function stopShowOnMap() {
     if (showLeaving) return;
     showSeq++;
+    if (pendingAdd) commitAdd();
     if (photoMap) photoMap.hideHighlight();
 }
 

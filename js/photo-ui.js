@@ -131,8 +131,10 @@ const seatText = (s) => `${s.section.toLowerCase()}, ряд ${s.row}, место
 /* Лайтбокс с фото: галерея всех фото зала.
    open(node, list) — node из bindPhotos, list — узлы в порядке галереи (photoMap.gallery()).
    close(onDone) — onDone через LB_MS по таймеру, а не по transitionend: колбэк приходит, даже если переход не сыграл.
-   onShow(node) — кнопка «Показать на схеме» для открытого фото. */
-export function createLightbox({ parentEl, onShow }) {
+   onShow(node) — кнопка «Показать на схеме» для открытого фото.
+   canAdd(seat) — можно ли добавить место открытого фото в заказ; да — вместо «Показать на схеме»
+   кнопка «Добавить в корзину» и onAdd(node). Пересчитывается при открытии и при каждом листании. */
+export function createLightbox({ parentEl, onShow, onAdd, canAdd = () => false }) {
     const el = document.createElement('div');
     el.className = 'lb';
     el.setAttribute('role', 'dialog');
@@ -165,6 +167,8 @@ export function createLightbox({ parentEl, onShow }) {
     const nextBtn = q('.lb-arrow--next');
     const sectionEl = q('.lb-section');
     const seatEl = q('.lb-seat');
+    const actionBtn = q('.lb-show');
+    let addMode = false;   // кнопка под текущим фото — «Добавить в корзину»; false — «Показать на схеме»
 
     // Три слота ленты: предыдущее, текущее, следующее. После листания слоты переставляются,
     // а не перезаливаются: картинка на экране не мигает
@@ -212,6 +216,9 @@ export function createLightbox({ parentEl, onShow }) {
         const s = list[index].seat;
         sectionEl.textContent = s.section;
         seatEl.textContent = `Ряд ${s.row} место ${s.seat}`;
+        // свободное место не в заказе — «Добавить в корзину»; занятое или уже в заказе — «Показать на схеме»
+        addMode = !!(onAdd && canAdd(s));
+        actionBtn.textContent = addMode ? 'Добавить в корзину' : 'Показать на схеме';
         const first = index === 0;
         const last = index === list.length - 1;
         prevBtn.classList.toggle('is-edge', first);
@@ -453,13 +460,15 @@ export function createLightbox({ parentEl, onShow }) {
     prevBtn.addEventListener('click', () => go(-1));   // на крайнем фото go вернёт false — ничего
     nextBtn.addEventListener('click', () => go(1));
     q('.lb-close').addEventListener('click', () => close());
-    q('.lb-show').addEventListener('click', () => {
+    actionBtn.addEventListener('click', () => {
         if (!isOpen) return;   // второй тап, пока лайтбокс гаснет, — ничего
         const n = list[index];
+        const add = addMode;
         // сначала пусто, потом текст: одна и та же фраза подряд зачитывается снова
         sr.textContent = '';
-        requestAnimationFrame(() => { sr.textContent = `Показано: ${seatText(n.seat)}`; });
-        onShow(n);
+        requestAnimationFrame(() => { sr.textContent = `${add ? 'Добавлено в корзину' : 'Показано'}: ${seatText(n.seat)}`; });
+        if (add) onAdd(n);
+        else onShow(n);
     });
 
     document.addEventListener('keydown', (e) => {
