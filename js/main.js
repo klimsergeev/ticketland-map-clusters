@@ -225,12 +225,9 @@ sheetEl.addEventListener('pointerup', endSwipe);
 sheetEl.addEventListener('pointercancel', endSwipe);
 
 /* --- Корзина ↔ схема: выбор/снятие мест --- */
-/* Фотоаппарат вместо галочки: кресло с фото в заказе при включённом режиме фото */
-const cameraOnSeat = (s) => photoMode && photoMap !== null && photoMap.hasPhoto(s.id);
-
-/* Перерисовать маркеры выбранных мест: все одного размера, оранжевые, с галочкой или фотоаппаратом */
+/* Перерисовать маркеры выбранных мест: все одного размера, оранжевые, с галочкой */
 function renderMarks() {
-    if (renderSelection) renderSelection(seats, cameraOnSeat);
+    if (renderSelection) renderSelection(seats);
     // слой меток: метка кресла с фото в заказе прячется; ошибка здесь не мешает выбору мест
     if (!photoMap) return;
     try {
@@ -316,7 +313,6 @@ function setPhotoMode(on) {
     photoToggle.setOn(on);
     $('.hall-svg').classList.toggle('is-photo-mode', on);   // приглушение свободных кресел, см. css/photos.css
     if (photoMap) photoMap.setEnabled(on);
-    renderMarks();                       // галочка ↔ фотоаппарат на креслах с фото в заказе, сразу
     if (!on) lightbox.close();           // выключение режима убирает открытый лайтбокс
 }
 
@@ -374,7 +370,7 @@ function injectHall() {
             const svgEl = $('.hall-svg svg');
             // привязать к местам схемы данные (ряд/место/статус) + разметить DOM
             seats = buildSeats(svgEl);
-            // слой selected-отметок поверх мест (оранжевый + галочка или фотоаппарат)
+            // слой selected-отметок поверх мест (оранжевый + галочка)
             renderSelection = createSelectionLayer(svgEl);
             // цены мест: цвет тира → цена
             applySessionPrices(seats, new Map(TIER_COLORS.map((c, i) => [c.toUpperCase(), TIER_PRICES[i]])));
@@ -415,8 +411,8 @@ viewportEl.addEventListener('pointerdown', stopShowOnMap, { capture: true });
 viewportEl.addEventListener('wheel', stopShowOnMap, { capture: true, passive: true });
 // касание шторки: крестик удаления снимает кресло, и стартовый размер волны сменился бы
 sheetEl.addEventListener('pointerdown', stopShowOnMap, { capture: true });
-// кнопка режима: подсветка гаснет при касании, а не по click; вызов в onPhotoButton — для клавиатуры
-photoToggle.dockEl.querySelector('.photo-btn').addEventListener('pointerdown', stopShowOnMap);
+// переключатель режима: подсветка гаснет при касании, а не по click; вызов в onPhotoButton — для клавиатуры
+photoToggle.btnEl.addEventListener('pointerdown', stopShowOnMap);
 
 // вписать всю схему в кадр (contain) сразу и после первого лейаута
 fitHall();
@@ -441,7 +437,7 @@ hallReady.then(() => {
             hall, viewportEl: $('.map-viewport'), seats, nearestSeat: findNearestSeat, config: PHOTO_CONFIG,
         });
         photoMap.setEnabled(photoMode);
-        photoMap.load(PHOTO_CONFIG.dataUrl).then(renderMarks);   // режим к этому моменту может быть уже включён
+        photoMap.load(PHOTO_CONFIG.dataUrl).then(renderMarks);   // спрятать метки над креслами, уже выбранными в заказ
     } catch (e) {
         photoMap = null;
         console.error('Метки фото: слой не создан, схема работает без фото', e);
