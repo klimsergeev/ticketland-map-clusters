@@ -366,6 +366,8 @@
     font-weight: 500;                       /* P2 Medium Comp 14/20 */
     text-align: right;
 }
+/* «В корзине» — кадр 4417:12642, узел 4417:12653: Accent/Positive Inverted #74DF8B, токена в проекте нет */
+.lb-status.is-cart { color: #74DF8B; }
 /* Кнопки столбиком через 8 */
 .lb-actions {
     display: flex;

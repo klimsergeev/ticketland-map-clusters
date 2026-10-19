@@ -232,7 +232,9 @@ export function createLightbox({ parentEl, onShow, onAdd, onRemove, statusOf = (
         const s = list[index].seat;
         sectionEl.textContent = s.section;
         seatEl.textContent = `Ряд ${s.row} место ${s.seat}`;
-        statusEl.textContent = STATUS_TEXT[statusOf(s)] || '';
+        const status = statusOf(s);
+        statusEl.textContent = STATUS_TEXT[status] || '';
+        statusEl.classList.toggle('is-cart', status === 'cart');   // «В корзине» зелёным, по макету
         let add = addState(s);
         if ((add === 'remove' && !onRemove) || (add !== 'remove' && !onAdd)) add = 'hidden';
         addBtn.hidden = add === 'hidden' || add === 'remove';
