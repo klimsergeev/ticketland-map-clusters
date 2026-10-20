@@ -11,6 +11,7 @@ html, body {
     background: #d9dade;                 /* фон вокруг «телефона» */
     font-family: var(--font-sans);
     color: var(--text-primary);
+    /* сглаживание шрифта на весь текст прототипа: свойства наследуются от корня, нигде не перебиваются */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;

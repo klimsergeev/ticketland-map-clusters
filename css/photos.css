@@ -37,11 +37,11 @@
 }
 
 /* ---------- Карточка выбранного места — макет «seat-preview», инстанс «Ticket preview» 4570:16932.
-   328×96 в кадре 360 с отступами 16 — тянется по ширине экрана. Шрифт Statika вместо MTS Compact.
-   Над свёрнутой шторкой с зазором 8 (макет: низ карточки 668, верх шторки 676); bottom ставит js.
+   Компонент 4569:16646: 328×80 в кадре 360 с отступами 16 — тянется по ширине экрана. Шрифт Statika вместо MTS Compact.
+   Над свёрнутой шторкой с зазором 16 (макет: низ карточки 660, верх шторки 676; = CARD_GAP в js/photo-ui.js); bottom ставит js.
    Слой 14: над схемой (1) и шапкой (5), под затемнением (15), шторкой (16) и лайтбоксом (20).
    Спрятана — сдвинута вниз на свою высоту и зазор: верх вровень с верхом шторки, карточка целиком
-   за шторкой (124 > 96); visibility — иначе над шторкой выглядывала бы тень.
+   за шторкой (124 > 80); visibility — иначе над шторкой выглядывала бы тень.
    Выезд и уход — кривая и длительность шторки (.sheet в css/styles.css); в макете движения нет.
    overflow не обрезается: зона касания крестика выходит за край карточки ---------- */
 .seat-card {
@@ -52,38 +52,43 @@
     z-index: 14;
     display: flex;
     align-items: center;
-    height: 96px;
+    height: 80px;
     border-radius: var(--r-16);
-    background: var(--bg-modal);                                  /* Background/Modal #FFFFFF */
+    background: var(--bg-modal);                                 /* Background/Modal #FFFFFF */
     box-shadow: 0 8px 16px 0 #0000000A, 0 4px 24px 0 #0000000F;   /* Shadows/Middle; --shadow-middle проекта другой */
     color: var(--gs-800);                                         /* Text/Primary #1D2023; --text-primary проекта другой */
-    transform: translateY(calc(100% + 8px));
+    /* --seat-card-from — ещё ниже на путь выезжающей шторки: при первом билете карточка стартует вместе с ней */
+    transform: translateY(calc(100% + 16px + var(--seat-card-from, 0px)));
     visibility: hidden;
     pointer-events: none;
     transition: transform 250ms cubic-bezier(.2, .8, .2, 1), visibility 0s linear 250ms;
 }
-/* выезд из-под шторки; --seat-card-delay — ждать, пока выедет шторка */
+/* выезд из-под шторки; --seat-card-ms — длительность: при первом билете дольше шторки на столько же,
+   во сколько длиннее путь, — на старте карточка и шторка едут с одной скоростью */
 .seat-card.is-shown {
     transform: none;
     visibility: visible;
     pointer-events: auto;
     transition:
-        transform 250ms cubic-bezier(.2, .8, .2, 1) var(--seat-card-delay, 0ms),
-        visibility 0s linear var(--seat-card-delay, 0ms);
+        transform var(--seat-card-ms, 250ms) cubic-bezier(.2, .8, .2, 1),
+        visibility 0s;
 }
 /* мгновенный уход: шторка уезжает целиком */
 .seat-card.is-instant { transition: none; }
 
-/* Превью 144×96 (3:2, как фото 1440×960), скругление 16, фон Hall preview #FFFFFF — кнопка открытия лайтбокса */
+/* Превью 120×80 (3:2, как фото 1440×960), фон Hall preview #FFFFFF — кнопка открытия лайтбокса.
+   Своего скругления у превью в макете нет: левые углы срезает скругление карточки 16 (overflow-clip карточки).
+   У карточки overflow не обрезается — иначе обрезалась бы зона касания крестика, — поэтому срез повторён
+   скруглением левых углов превью: высота превью равна высоте карточки, углы совпадают */
 .seat-card-photo {
     position: relative;
     flex: none;
-    width: 144px;
-    height: 96px;
+    width: 120px;
+    height: 80px;
     margin: 0;
     padding: 0;
     border: 0;
-    border-radius: var(--r-16);
+    border-radius: var(--r-16) 0 0 var(--r-16);
     overflow: hidden;
     background: var(--gs-0);
     cursor: pointer;
@@ -110,13 +115,13 @@
 .seat-card-expand svg,
 .seat-card-close svg { display: block; }
 
-/* Тексты: по бокам 16, между строками 4; P2 Comp 14/20 */
+/* Тексты: по бокам 16, между строками 2; P2 Comp 14/20 */
 .seat-card-info {
     flex: 1 0 0;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
     padding: 0 16px;
     font: 400 14px/20px var(--font-sans);   /* P2 Regular Comp: Statika вместо MTS Compact */
     overflow-wrap: anywhere;

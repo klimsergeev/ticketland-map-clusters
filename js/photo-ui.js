@@ -30,7 +30,8 @@ const icoExpand24 =
     + '<path d="M20.9993 10.9991C21.0206 11.5516 20.5704 12 20.0169 12C19.4635 12 19.0164 11.5516 18.9934 10.9992C18.9317 9.5121 18.7453 8.05058 18.552 6.88023L11.7128 13.7155C11.3215 14.1064 10.687 14.1064 10.2956 13.7155C9.90428 13.3245 9.90428 12.6907 10.2956 12.2997L17.1485 5.45083C15.9713 5.25588 14.5044 5.06672 13.0019 5.00448C12.4489 4.98157 12 4.53492 12 3.98203C12 3.42915 12.4489 2.97944 13.0019 3.00073C14.7266 3.06712 16.3884 3.29006 17.6614 3.50669C18.76 3.69366 19.3093 3.78714 19.7607 4.23804C20.212 4.68894 20.3056 5.23769 20.4928 6.33519C20.7096 7.60682 20.9328 9.27623 20.9993 10.9991Z" fill="currentColor"/>'
     + '</svg>';
 
-const CARD_GAP = 8;         // карточка над свёрнутой шторкой: макет — низ карточки 668, верх шторки 676
+const CARD_GAP = 16;        // карточка над свёрнутой шторкой: макет — низ карточки 660, верх шторки 676; = 16px в .seat-card (css/photos.css)
+const SHEET_MS = 250;       // выезд шторки = transition .sheet в css/styles.css; по нему считается выезд карточки с первым билетом
 
 const RETURN_MS = 150;      // возврат фото после короткого свайпа
 const SWIPE_CLOSE = 80;     // px: свайп вниз дальше — закрытие
@@ -459,7 +460,7 @@ export function createLightbox({ parentEl, onShow, onAdd, onRemove, statusOf = (
 /* Карточка выбранного места над шторкой заказа — макет seat-preview, инстанс «Ticket preview» 4570:16932.
    onOpen(node) — тап по превью или значку «развернуть»; onClose() — крестик.
    Состояние — узел фото node: есть — карточка на экране или выезжает, нет — спрятана или уезжает.
-   → { show(node, delayMs), hide(instant), node(), setLift(px) } */
+   → { show(node, sheetPx), hide(instant), node(), setLift(px) } */
 export function createSeatCard({ parentEl, onOpen, onClose }) {
     const el = document.createElement('div');
     el.className = 'seat-card';
@@ -491,14 +492,27 @@ export function createSeatCard({ parentEl, onOpen, onClose }) {
         if (px > 0) el.style.bottom = `${px + CARD_GAP}px`;
     }
 
-    // выехать из-под шторки; delayMs — шторка ещё выезжает, карточка ждёт её
-    function reveal(delayMs = 0) {
-        el.style.setProperty('--seat-card-delay', `${delayMs}ms`);
+    /* Выехать из-под шторки. sheetPx — путь шторки, которая выезжает вместе с карточкой (первый билет); 0 — шторка стоит.
+       Шторка выезжает: карточка встаёт на старт шторки — ниже места покоя на путь шторки и свой путь — и едет
+       той же кривой. Длительность дольше шторки во столько раз, во сколько длиннее путь: на старте скорости равны,
+       карточка и шторка едут как одно целое, потом шторка встаёт, а карточка выходит из-под её верхнего края */
+    function reveal(sheetPx = 0) {
+        if (sheetPx > 0 && !el.classList.contains('is-shown')) {
+            const own = el.offsetHeight + CARD_GAP;   // свой путь карточки: высота и зазор над шторкой
+            el.classList.add('is-instant');
+            el.style.setProperty('--seat-card-from', `${sheetPx}px`);
+            void el.offsetWidth;   // встать на старт шторки без перехода, потом вернуть переходы
+            el.classList.remove('is-instant');
+            el.style.setProperty('--seat-card-ms', `${(SHEET_MS * (sheetPx + own)) / sheetPx}ms`);
+        }
         el.classList.add('is-shown');
     }
 
     // уехать под шторку; instant — шторка уезжает целиком, карточка пропадает сразу
     function conceal(instant = false) {
+        // уход — всегда обычный путь под шторку: старт и длительность выезда с первым билетом сбрасываются
+        el.style.removeProperty('--seat-card-from');
+        el.style.removeProperty('--seat-card-ms');
         if (!instant) { el.classList.remove('is-shown'); return; }
         el.classList.add('is-instant');
         el.classList.remove('is-shown');
@@ -507,8 +521,8 @@ export function createSeatCard({ parentEl, onOpen, onClose }) {
     }
 
     /* ---------- показ и скрытие ---------- */
-    // карточка места n; показана — меняются фото и тексты без движения
-    function show(n, delayMs = 0) {
+    // карточка места n; показана — меняются фото и тексты без движения; sheetPx — см. reveal
+    function show(n, sheetPx = 0) {
         node = n;
         const s = n.seat;
         sectionEl.textContent = s.section;
@@ -519,7 +533,7 @@ export function createSeatCard({ parentEl, onOpen, onClose }) {
             img.style.visibility = '';   // прошлое фото могло быть битым
             img.src = n.photo.url;
         }
-        reveal(delayMs);
+        reveal(sheetPx);
     }
 
     // без раннего выхода при node === null: уезжающую карточку тоже надо спрятать сразу, если уезжает шторка

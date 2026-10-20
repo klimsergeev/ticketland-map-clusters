@@ -42,7 +42,9 @@ let pendingAdd = null;     // место из «Добавить в корзин
 const lightbox = createLightbox({ parentEl: $('.app'), onShow: showOnMap, onAdd: addFromPhoto, onRemove: removeFromPhoto, statusOf: seatStatus, addState: addButtonState });
 // карточка выбранного места: до первого refreshCart(), который зовёт syncSheet → seatCard.setLift
 const seatCard = createSeatCard({ parentEl: $('.app'), onOpen: openFromCard, onClose: () => seatCard.hide() });
-const SHEET_MS = 250;   // = transition .sheet в css/styles.css: шторка выезжает, карточка ждёт
+// спрятанная шторка опущена ниже своей высоты ещё на 32 px — .sheet.is-hidden, translateY(calc(100% + 32px)) в css/styles.css;
+// путь выезжающей шторки = высота свёрнутой шторки + 32, с него при первом билете стартует и карточка
+const SHEET_HIDDEN_EXTRA = 32;
 
 /* --- Шапка: статичная (название, площадка, «Назад») --- */
 $('.ttl').textContent = EVENT.title;
@@ -168,10 +170,11 @@ function refreshCart() {
 }
 
 /* Карточка бывает только у последнего выбранного места: у места с фото — его карточка,
-   у места без фото — никакой, карточка прошлого места уезжает */
-function cardForLast(seat, delayMs) {
+   у места без фото — никакой, карточка прошлого места уезжает.
+   sheetPx — путь шторки, которая выезжает вместе с этим билетом; 0 — шторка уже стоит */
+function cardForLast(seat, sheetPx) {
     const node = photoMap ? photoMap.nodeOf(seat.id) : null;
-    if (node) seatCard.show(node, delayMs);
+    if (node) seatCard.show(node, sheetPx);
     else seatCard.hide();
 }
 
@@ -265,7 +268,7 @@ function addSeat(seat, focus = true) {
     seat.selected = true;
     cart.push(seat);
     refreshCart();
-    cardForLast(seat, sheetComing ? SHEET_MS : 0);
+    cardForLast(seat, sheetComing ? sheetLift() + SHEET_HIDDEN_EXTRA : 0);
     if (focus) focusSeat(seat);
 }
 
