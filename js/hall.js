@@ -19,7 +19,7 @@
    состояния. ppu (px на SVG-юнит) = cover(vp) * scale.
    ============================================================ */
 
-export const MAX_SCALE = 5;
+const MAX_SCALE = 5;
 
 /* Порог «тап vs drag»: если указатель за жест сместился меньше TAP_DIST px
    (и уложился в TAP_TIME), это тап — выбор места, а не пан. */
@@ -145,7 +145,7 @@ export class HallViewport {
         this.tx = cx;
         this.ty = cy;
         this._renderViewBox();
-        // слой меток фото: пересчёт на каждое изменение масштаба и пана (в т.ч. кадры _animateTo и refit)
+        // подсветка кресла: пересчёт на каждое изменение масштаба и пана (в т.ч. кадры _animateTo и refit)
         if (this.opts.onView) this.opts.onView();
     }
 
@@ -256,24 +256,6 @@ export class HallViewport {
         const ppu = cover * s;
         // экранY точки = VH/2 + ty - (BASE_H/2 - py) * ppu; нужно VH/2 + (top - bottom)/2
         this._animateTo(s, (BASE_W / 2 - px) * ppu, (BASE_H / 2 - py) * ppu + (top - bottom) / 2, onDone);
-    }
-
-    /* Тап по кластеру. box { minX, minY, maxX, maxY } — рамка по центрам кресел в SVG-юнитах.
-       Середина рамки → центр полосы между шапкой и нижним блоком; крайние кресла разнесены
-       на долю share ширины вьюпорта или высоты полосы — берётся масштаб, который приближает меньше.
-       Схема уже на этом масштабе или крупнее — приближение в step раз от текущего.
-       Не меньше текущего масштаба, не больше MAX_SCALE, пан в границах зала — это делает focusInBand. */
-    focusOnSvgBox(box, share, step) {
-        const { VW, VH, cover } = this._dims();
-        const band = Math.max(1, VH - this._inset('topInset') - this._inset('bottomInset'));
-        const w = box.maxX - box.minX;
-        const h = box.maxY - box.minY;
-        // на экране отрезок в d SVG-юнитов при масштабе s занимает d * cover * s px
-        const byW = w > 0 ? (share * VW) / (w * cover) : Infinity;   // кресла в одном столбце — ширина не ограничивает
-        const byH = h > 0 ? (share * band) / (h * cover) : Infinity; // кресла в одном ряду — высота не ограничивает
-        let s = Math.min(byW, byH);
-        if (s <= this.scale * 1.001) s = this.scale * step;          // кластер не распался на «60%» — шаг дальше
-        this.focusInBand((box.minX + box.maxX) / 2, (box.minY + box.maxY) / 2, s);
     }
 
     /* ---- pointer (мышь): drag-пан ---- */

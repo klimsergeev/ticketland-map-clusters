@@ -1,80 +1,7 @@
 /* ============================================================
-   Фото на схеме: метки, переключатель режима, тултип, лайтбокс с фото.
+   Подсветка кресла и лайтбокс с фото.
    Подключается после css/styles.css.
    ============================================================ */
-
-/* ---------- Слой меток: поверх схемы, события не принимает — попадание считает js/photo-map.js.
-   isolation — z-index меток и кластеров действуют только внутри слоя ---------- */
-.photo-layer {
-    position: absolute;
-    inset: 0;
-    isolation: isolate;
-    pointer-events: none;
-    user-select: none;
-    transition: opacity 200ms ease, visibility 0s linear 0s;
-}
-.photo-layer.is-off {
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 200ms ease, visibility 0s linear 200ms;
-}
-.ph {
-    position: absolute;
-    left: 0;
-    top: 0;
-    display: flex;
-    pointer-events: none;
-}
-.ph-anim { display: flex; }
-.ph-body {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: var(--r-full);
-    transition: transform 100ms ease;
-}
-.ph-body svg { display: block; }
-
-/* Метка — макет «Photo / smooth», Selected=False, node 4340:30129: без подложки, только лупа
-   (Search, Style=Outline) ступенью 16 / 24 / 32 по размеру кресла на экране — js/photo-map.js.
-   .ph-body — точка 0×0 в центре кресла; рамка лупы стоит центром в ней и сдвинута вправо и вверх
-   на --ph-shift = max(b/4, s/2 − b/4) — его ставит js на слой. При s ≥ b рамка заходит на кресло
-   на 3/4 и выступает за правый верхний угол на 1/4 (как в макете: рамка 16 на кресле 16, left 4, top −4).
-   Опора дорастания при смене ступени (scale из js) — точка рамки 75% 25%, это правый верхний угол кресла.
-   Цвет Icons/Primary #1D2023 — var(--gs-800), совпадает один в один. Касание считает js по креслу и рамке */
-.ph--marker .ph-body {
-    position: relative;
-    width: 0;
-    height: 0;
-    color: var(--gs-800);
-}
-.ph--marker .ph-body svg {
-    position: absolute;
-    left: 0;
-    top: 0;
-    translate: calc(-50% + var(--ph-shift, 4px)) calc(-50% - var(--ph-shift, 4px));
-    transform-origin: 75% 25%;
-}
-
-/* Кресло с фото в заказе: метку заменяет маркер выбранного места с галочкой (js/seats.js).
-   Сразу, без перехода; зона касания остаётся — её считает js/photo-map.js */
-.ph.is-selected { visibility: hidden; }
-
-/* Кластер — макет «Cluster / colors / smooth», node 4340:30101. Диаметр — инлайн из it.d (40 / 48 / 64 / 88 px).
-   Заливка #FAFBFF, токена нет; обводка 1 px внутрь круга (inset — диаметр не растёт) Background/Stroke #BCC3D080,
-   токена нет — --bg-stroke другой; одна на всех ступенях (макет Draft, node 4361:30444).
-   Тень Shadows/Middle макета: 0 8px 16px 0 #0000000A и 0 4px 24px 0 #0000000F —
-   --shadow-middle проекта другой. Число — MTS Compact Medium 14/24, Statika с теми же параметрами;
-   Text/Primary #231D1F — var(--text-primary), совпадает один в один */
-.ph--cluster .ph-body {
-    box-sizing: border-box;
-    background: #FAFBFF;
-    box-shadow: inset 0 0 0 1px #BCC3D080, 0 8px 16px 0 #0000000A, 0 4px 24px 0 #0000000F;
-    color: var(--text-primary);
-    font: 500 14px/24px var(--font-sans);
-}
-
-.ph.is-pressed .ph-body { transform: scale(.9); }
 
 /* ---------- Подсветка кресла после «Показать на схеме»: контур в форме кресла цветом кресла и один ореол.
    color на .seat-hl ставит js: заливка кресла, оранжевый маркера у кресла в заказе.
@@ -98,139 +25,6 @@
 }
 .seat-hl-halo { opacity: 0; }
 
-/* ---------- Режим фото: свободные кресла — цвет тира с непрозрачностью 50 %, за 200 мс в обе стороны.
-   data-status="available" есть только у заливки свободного кресла; занятые, их обводки
-   и маркеры выбранных мест (.sel-layer) не задеты ---------- */
-.hall-svg rect[data-status="available"] { transition: fill-opacity 200ms ease; }
-.hall-svg.is-photo-mode rect[data-status="available"] { fill-opacity: .5; }
-
-/* ---------- Док кнопки режима: правый нижний угол, над шапкой (z 5), под затемнением
-   и шторкой заказа (z 15, z 16) и лайтбоксом (z 20). Подъём над шторкой — translateY из js (setLift) ---------- */
-.photo-dock {
-    position: absolute;
-    right: 16px;
-    bottom: 16px;
-    z-index: 10;
-    pointer-events: none;
-    transition: transform 250ms cubic-bezier(.2, .8, .2, 1);
-}
-
-/* ---------- Переключатель «Фото с мест» — макет Draft, node 4361:30444: Frame 6 (выключен) и Frame 7 (включён).
-   Подпись слева, тумблер справа. Капсула по содержимому: 16 + подпись + 8 + тумблер 28 + 12;
-   высота 12 + 20 + 12 = 44 — она же зона касания. В макете высота 44 фиксирована, содержимое по центру.
-   Обводка 1 px Inside, «Strokes included in layout» выключено — inset-тенью поверх отступов, габарит не меняется.
-   Тени у капсулы нет. Переходы 200 мс — не по макету, в макете анимации нет ---------- */
-.photo-switch {
-    position: relative;
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    margin: 0;
-    padding: 12px 12px 12px 16px;
-    border: 0;
-    border-radius: var(--r-8);
-    background: var(--gs-100);              /* #F2F3F7 — Background/Secondary */
-    box-shadow: inset 0 0 0 1px #BCC3D080;  /* Background/Stroke, токена нет — --bg-stroke другой */
-    color: var(--gs-800);                   /* #1D2023 — Text/Primary макета; --text-primary не подходит */
-    font: 400 14px/20px var(--font-sans);   /* P2 Regular Comp 14/20: Statika вместо MTS Compact */
-    white-space: nowrap;
-    pointer-events: auto;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-    transition:
-        background-color 200ms cubic-bezier(.2, .8, .2, 1),
-        box-shadow 200ms cubic-bezier(.2, .8, .2, 1);
-}
-.photo-switch.is-on {
-    background: #E8FAEC;                    /* Constant/Lightest Apple, токена нет */
-    box-shadow: inset 0 0 0 1px #74DF8B;    /* Accent/Positive Inverted, токена нет */
-}
-
-/* Тумблер 28 × 16 по центру строки 20 (Padding-v макета) */
-.photo-switch-track {
-    position: relative;
-    flex: none;
-    width: 28px;
-    height: 16px;
-    margin: 2px 0;
-    border-radius: 80px;
-    background: #BCC3D080;                  /* Controls/Inactive; --ctrl-inactive другой */
-    overflow: hidden;
-    transition: background-color 200ms cubic-bezier(.2, .8, .2, 1);
-}
-.photo-switch.is-on .photo-switch-track { background: #26CD58; }   /* Accent/Positive; --accent-positive другой */
-
-/* Кружок 12 в 2 px от края тумблера; включён — сдвиг на 12: 28 − 2 − 12 = 2 + 12 */
-.photo-switch-knob {
-    position: absolute;
-    left: 2px;
-    top: 2px;
-    width: 12px;
-    height: 12px;
-    border-radius: 80px;
-    background: var(--gs-0);                /* #FFFFFF — Constant/Greyscale 0 */
-    box-shadow: 0 0 16px 0 #0000000A, 0 4px 16px 0 #0000000A;   /* Shadows/Low макета; --shadow-low другой */
-    transition: transform 200ms cubic-bezier(.2, .8, .2, 1);
-}
-.photo-switch.is-on .photo-switch-knob { transform: translateX(12px); }
-
-/* ---------- Тултип: коробка — ширина дока, то есть капсулы; проценты отступов ниже считаются от неё.
-   Плашка 240 px, правый край вровень с правым краем капсулы — плашка целиком на экране;
-   остриё в 4 px над капсулой, над центром тумблера. Едет вместе с доком ---------- */
-.photo-tip {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: calc(100% + 4px);
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    /* скрыт: ниже на 4 px — оттуда проявляется */
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(4px);
-    pointer-events: none;
-}
-.photo-tip.is-shown {
-    opacity: 1;
-    visibility: visible;
-    transform: none;
-    pointer-events: auto;
-    transition:
-        opacity 200ms cubic-bezier(.2, .8, .2, 1),
-        transform 200ms cubic-bezier(.2, .8, .2, 1),
-        visibility 0s linear 0s;
-}
-/* гаснет на месте, без движения; касания сразу проходят сквозь */
-.photo-tip.is-gone {
-    opacity: 0;
-    visibility: hidden;
-    transform: none;
-    pointer-events: none;
-    transition: opacity 150ms cubic-bezier(.4, 0, 1, 1), visibility 0s linear 150ms;
-}
-.photo-tip-body {
-    box-sizing: border-box;
-    width: 240px;
-    margin-left: calc(100% - 240px);        /* шире капсулы — уходит влево */
-    padding: 10px 12px;
-    border-radius: var(--r-8);
-    background: var(--bg-inverted);
-    color: var(--text-inverted);
-    font: 400 var(--fs-p3)/var(--lh-p3) var(--font-sans);
-}
-/* Хвостик вплотную под плашкой; остриё ассета на x = 42,5 из 60 — над центром тумблера:
-   правый отступ капсулы 12 + половина тумблера 14 = 26 px от правого края капсулы,
-   правый край ассета — в 26 − (60 − 42,5) = 8,5 px от него.
-   Основание хвостика x 32,5…52,5 — от 36 до 16 px от правого края плашки, скругление 8 не задевает */
-.photo-tip-arrow {
-    display: block;
-    align-self: flex-end;
-    margin-right: 8.5px;
-    color: var(--bg-inverted);
-}
-
 /* ---------- Строка для экранного диктора: в раскладке не видна ---------- */
 .photo-sr {
     position: absolute;
@@ -242,7 +36,111 @@
     white-space: nowrap;
 }
 
-/* ---------- Лайтбокс с фото: на весь экран поверх шапки (z 5), нижнего блока (z 4) и дока (z 10).
+/* ---------- Карточка выбранного места — макет «seat-preview», инстанс «Ticket preview» 4570:16932.
+   328×96 в кадре 360 с отступами 16 — тянется по ширине экрана. Шрифт Statika вместо MTS Compact.
+   Над свёрнутой шторкой с зазором 8 (макет: низ карточки 668, верх шторки 676); bottom ставит js.
+   Слой 14: над схемой (1) и шапкой (5), под затемнением (15), шторкой (16) и лайтбоксом (20).
+   Спрятана — сдвинута вниз на свою высоту и зазор: верх вровень с верхом шторки, карточка целиком
+   за шторкой (124 > 96); visibility — иначе над шторкой выглядывала бы тень.
+   Выезд и уход — кривая и длительность шторки (.sheet в css/styles.css); в макете движения нет.
+   overflow не обрезается: зона касания крестика выходит за край карточки ---------- */
+.seat-card {
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    bottom: 0;                                                    /* js: высота свёрнутой шторки + 8 */
+    z-index: 14;
+    display: flex;
+    align-items: center;
+    height: 96px;
+    border-radius: var(--r-16);
+    background: var(--bg-modal);                                  /* Background/Modal #FFFFFF */
+    box-shadow: 0 8px 16px 0 #0000000A, 0 4px 24px 0 #0000000F;   /* Shadows/Middle; --shadow-middle проекта другой */
+    color: var(--gs-800);                                         /* Text/Primary #1D2023; --text-primary проекта другой */
+    transform: translateY(calc(100% + 8px));
+    visibility: hidden;
+    pointer-events: none;
+    transition: transform 250ms cubic-bezier(.2, .8, .2, 1), visibility 0s linear 250ms;
+}
+/* выезд из-под шторки; --seat-card-delay — ждать, пока выедет шторка */
+.seat-card.is-shown {
+    transform: none;
+    visibility: visible;
+    pointer-events: auto;
+    transition:
+        transform 250ms cubic-bezier(.2, .8, .2, 1) var(--seat-card-delay, 0ms),
+        visibility 0s linear var(--seat-card-delay, 0ms);
+}
+/* мгновенный уход: шторка уезжает целиком */
+.seat-card.is-instant { transition: none; }
+
+/* Превью 144×96 (3:2, как фото 1440×960), скругление 16, фон Hall preview #FFFFFF — кнопка открытия лайтбокса */
+.seat-card-photo {
+    position: relative;
+    flex: none;
+    width: 144px;
+    height: 96px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-16);
+    overflow: hidden;
+    background: var(--gs-0);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.seat-card-img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+    -webkit-user-drag: none;
+}
+/* «Развернуть» 24 — в 8 от верхнего и правого края превью, Constant/Greyscale 0 #FFFFFF */
+.seat-card-expand {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    color: var(--gs-0);
+    pointer-events: none;
+}
+.seat-card-expand svg,
+.seat-card-close svg { display: block; }
+
+/* Тексты: по бокам 16, между строками 4; P2 Comp 14/20 */
+.seat-card-info {
+    flex: 1 0 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 0 16px;
+    font: 400 14px/20px var(--font-sans);   /* P2 Regular Comp: Statika вместо MTS Compact */
+    overflow-wrap: anywhere;
+}
+.seat-card-section { font-weight: 500; }    /* P2 Medium Comp */
+
+/* Крестик 24 — в 8 от верхнего и правого края карточки, Icons/Secondary #8D969F, токена нет */
+.seat-card-close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #8D969F;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.seat-card-close::after { content: ''; position: absolute; inset: -10px; }   /* зона касания 44 × 44, глазу не видна */
+
+/* ---------- Лайтбокс с фото: на весь экран поверх шапки (z 5) и нижнего блока (z 4).
    Значения — фрейм lightbox макета; MTS Compact заменён на Statika с параметрами макета ---------- */
 .lb {
     position: absolute;

@@ -5,8 +5,7 @@ import { EVENT, TIER_COLORS, TIER_PRICES, MAX_SEATS, formatPrice } from './data.
 import { HallViewport } from './hall.js';
 import { buildSeats, createSelectionLayer, applySessionPrices } from './seats.js';
 import { createPhotoMap } from './photo-map.js';
-import { createPhotoToggle, createLightbox, createPhotoTip } from './photo-ui.js';
-import { PHOTO_CONFIG } from './photo-config.js';
+import { createLightbox, createSeatCard } from './photo-ui.js';
 
 /* --- Иконки (инлайн SVG) --- */
 const icoChevronLeft =
@@ -34,23 +33,16 @@ const $ = (sel, root = document) => root.querySelector(sel);
 /* --- DOM-ссылки --- */
 const header = $('.header');
 
-/* --- Режим фото: при открытии схемы выключен. Объявлено до new HallViewport:
+/* --- Фото и подсветка кресла. Объявлено до new HallViewport:
        fitHall() сразу вызывает onView, и обращение к photoMap ниже по файлу упало бы. --- */
-let photoMode = false;
-let photoMap = null;     // слой меток фото, появляется после загрузки схемы
+let photoMap = null;       // фото на креслах и подсветка кресла, появляются после загрузки схемы
 let showSeq = 0;           // номер текущего ухода из лайтбокса на схему; действие человека его сбивает
 let showLeaving = false;   // лайтбокс гаснет после «Показать на схеме» или «Добавить в корзину»: касания схемы игнорируются
 let pendingAdd = null;     // место из «Добавить в корзину», которое ещё не легло в заказ
-const photoToggle = createPhotoToggle({ parentEl: $('.app'), onChange: onPhotoButton });
-const photoTip = createPhotoTip({ parentEl: photoToggle.dockEl });
 const lightbox = createLightbox({ parentEl: $('.app'), onShow: showOnMap, onAdd: addFromPhoto, onRemove: removeFromPhoto, statusOf: seatStatus, addState: addButtonState });
-
-/* Кнопка режима: подсветка кресла и тултип гаснут сразу, режим переключается как обычно */
-function onPhotoButton(on) {
-    stopShowOnMap();
-    photoTip.dismiss();
-    setPhotoMode(on);
-}
+// карточка выбранного места: до первого refreshCart(), который зовёт syncSheet → seatCard.setLift
+const seatCard = createSeatCard({ parentEl: $('.app'), onOpen: openFromCard, onClose: () => seatCard.hide() });
+const SHEET_MS = 250;   // = transition .sheet в css/styles.css: шторка выезжает, карточка ждёт
 
 /* --- Шапка: статичная (название, площадка, «Назад») --- */
 $('.ttl').textContent = EVENT.title;
@@ -99,7 +91,7 @@ function ticketWord(n) {
     return 'билетов';
 }
 
-/* Высота свёрнутой шторки — от неё поднимается кнопка режима и считается полоса схемы.
+/* Высота свёрнутой шторки — от неё считается полоса схемы.
    offsetHeight не видит transform, поэтому при пустом заказе 0 ставится явно */
 function sheetLift() {
     return cart.length ? totalEl.offsetHeight : 0;
@@ -117,6 +109,7 @@ function fitDetails() {
 
 function openSheet() {
     if (sheetOpen || !cart.length) return;
+    seatCard.hide();   // уезжает под растущую шторку; после сворачивания не возвращается
     sheetOpen = true;
     sheetEl.classList.add('is-open');
     scrimEl.classList.add('is-shown');
@@ -158,19 +151,43 @@ function renderList() {
     listEl.scrollTop = 0;
 }
 
-/* Показать или спрятать шторку по заказу и поднять над ней кнопку режима */
+/* Показать или спрятать шторку по заказу и поставить карточку над свёрнутой шторкой */
 function syncSheet() {
     if (!cart.length) closeSheet();
     sheetEl.classList.toggle('is-hidden', !cart.length);
-    photoToggle.setLift(sheetLift());
+    seatCard.setLift(sheetLift());
 }
 
-/* Перерисовать всё, что зависит от заказа: шторку, подъём кнопки режима, маркеры на схеме */
+/* Перерисовать всё, что зависит от заказа: шторку, карточку, маркеры на схеме */
 function refreshCart() {
     renderList();
     renderTotal();
+    dropCardIfGone();
     syncSheet();
     renderMarks();
+}
+
+/* Карточка бывает только у последнего выбранного места: у места с фото — его карточка,
+   у места без фото — никакой, карточка прошлого места уезжает */
+function cardForLast(seat, delayMs) {
+    const node = photoMap ? photoMap.nodeOf(seat.id) : null;
+    if (node) seatCard.show(node, delayMs);
+    else seatCard.hide();
+}
+
+/* Место карточки ушло из заказа — карточка уезжает под шторку.
+   Заказ опустел — шторка уезжает целиком, карточка пропадает сразу, даже если уже уезжала.
+   Вызывать до syncSheet */
+function dropCardIfGone() {
+    if (!cart.length) { seatCard.hide(true); return; }
+    const node = seatCard.node();
+    if (node && !node.seat.selected) seatCard.hide();
+}
+
+/* Превью или «развернуть» на карточке: лайтбокс на фото этого места, карточки при открытом лайтбоксе нет */
+function openFromCard(node) {
+    seatCard.hide();
+    lightbox.open(node, photoMap.gallery());
 }
 
 /* Крестик в строке билета: заказ меняется сразу, строка уходит анимацией */
@@ -229,12 +246,13 @@ sheetEl.addEventListener('pointercancel', endSwipe);
 /* Перерисовать маркеры выбранных мест: все одного размера, оранжевые, с галочкой */
 function renderMarks() {
     if (renderSelection) renderSelection(seats);
-    // слой меток: метка кресла с фото в заказе прячется; ошибка здесь не мешает выбору мест
+    // подсветка кресла: контур снимается, если кресло под ним вошло в заказ или вышло из него;
+    // ошибка здесь не мешает выбору мест
     if (!photoMap) return;
     try {
         photoMap.syncSelected();
     } catch (e) {
-        console.error('Метки фото: метки выбранных кресел не обновлены', e);
+        console.error('Подсветка кресла: не обновлена после смены заказа', e);
     }
 }
 
@@ -243,9 +261,11 @@ function renderMarks() {
    focus: false — схема уже стоит на месте (добавление из лайтбокса), второго движения нет. */
 function addSeat(seat, focus = true) {
     if (cart.length >= MAX_SEATS) return;
+    const sheetComing = !cart.length;   // шторка выезжает вместе с этим билетом
     seat.selected = true;
     cart.push(seat);
     refreshCart();
+    cardForLast(seat, sheetComing ? SHEET_MS : 0);
     if (focus) focusSeat(seat);
 }
 
@@ -309,18 +329,9 @@ function handleTap(clientX, clientY) {
     if (lightbox.isOpen()) { lightbox.close(); return; }   // лайтбокс перекрывает весь экран, тап до схемы не дойдёт; строка — страховка
     const p = hall.clientToSvg(clientX, clientY);
     if (!p) return;
-    // Режим фото: разбор тапа по правилам касания меток. Код фото упал — тап уходит креслам.
-    let hit = null;
-    try {
-        hit = photoMap ? photoMap.resolveTap(clientX, clientY) : null;
-    } catch (e) {
-        console.error('Метки фото: тап не разобран, он уходит креслам', e);
-    }
-    if (hit && hit.type === 'photo') { lightbox.open(hit.node, photoMap.gallery()); return; }
-    if (hit && hit.type === 'cluster') { photoMap.zoomToCluster(hit.item); return; }   // этап кластеризации
-    const seat = hit && hit.type === 'seat' ? hit.seat : findNearestSeat(p.x, p.y, 8);   // R=8 SVG-юнитов (место 8 + зазор)
-    // Попадание в ДОСТУПНОЕ место → выбрать/снять + подзум. В режиме фото место с фото в заказ не идёт.
-    if (seat && seat.status === 'available' && !(photoMode && photoMap && photoMap.hasPhoto(seat.id))) {
+    const seat = findNearestSeat(p.x, p.y, 8);   // R=8 SVG-юнитов (место 8 + зазор)
+    // Попадание в ДОСТУПНОЕ место, с фото или без → выбрать/снять + подзум
+    if (seat && seat.status === 'available') {
         if (seat.selected) { removeSeat(seat); return; }   // повторный тап — снять
         addSeat(seat);
         return;
@@ -333,25 +344,14 @@ function handleTap(clientX, clientY) {
     }
 }
 
-/* --- Режим фото: кнопка ↔ слой меток ↔ лайтбокс --- */
-function setPhotoMode(on) {
-    photoMode = on;
-    photoToggle.setOn(on);
-    $('.hall-svg').classList.toggle('is-photo-mode', on);   // приглушение свободных кресел, см. css/photos.css
-    if (photoMap) photoMap.setEnabled(on);
-    if (!on) lightbox.close();           // выключение режима убирает открытый лайтбокс
-}
-
-/* Уход из лайтбокса на схему: лайтбокс гаснет и одновременно выключается режим фото,
-   после гашения лайтбокса схема приближается к креслу, после остановки — onArrive.
-   Касание схемы во время приближения сбивает showSeq — onArrive не приходит */
+/* --- Лайтбокс ↔ схема --- */
+/* Уход из лайтбокса на схему: лайтбокс гаснет, после этого схема приближается к креслу,
+   после остановки — onArrive. Касание схемы во время приближения сбивает showSeq — onArrive не приходит */
 function leaveLightbox(node, onArrive) {
     const seq = ++showSeq;
     showLeaving = true;
     // схема не реагирует на касания, пока гаснет лайтбокс: ни тап, ни пан, ни щипок, ни колесо
     viewportEl.style.pointerEvents = 'none';
-    // сначала закрыть с колбэком: setPhotoMode(false) закрывает лайтбокс без колбэка,
-    // и после него close(cb) вызвал бы cb сразу — приближение пошло бы под лайтбоксом
     lightbox.close(() => {
         showLeaving = false;
         viewportEl.style.pointerEvents = '';
@@ -360,9 +360,6 @@ function leaveLightbox(node, onArrive) {
             onArrive();
         });
     });
-    // режим выключается тем же, что вызывает кнопка режима; второй close() внутри — пустой
-    photoTip.dismiss();
-    setPhotoMode(false);
 }
 
 /* «Показать на схеме»: после остановки схемы кресло подсвечивается контуром */
@@ -372,7 +369,7 @@ function showOnMap(node) {
         try {
             photoMap.highlightSeat(node.seatId);
         } catch (e) {
-            console.error('Метки фото: подсветка кресла не показана', e);
+            console.error('Подсветка кресла не показана', e);
         }
     });
 }
@@ -432,7 +429,7 @@ function injectHall() {
 
 /* --- Инициализация --- */
 const hallReady = injectHall();
-refreshCart();   // заказ пуст: шторка скрыта, подъём кнопки режима 0
+refreshCart();   // заказ пуст: шторка скрыта
 
 const hall = new HallViewport($('.map-viewport'), $('.map-content'), {
     // высоты плавающих оверлеев (шапка / свёрнутая шторка) — расширяют пан-слэк,
@@ -446,25 +443,20 @@ const hall = new HallViewport($('.map-viewport'), $('.map-content'), {
     restOffsetY: () => (cart.length === 0 && header ? header.getBoundingClientRect().height / 2 : 0),
     // тап по схеме (не пан) → выбрать/снять место под указателем
     onTap: (cx, cy) => handleTap(cx, cy),
-    // слой меток фото: ошибка в нём не должна ломать пан и зум
+    // подсветка кресла едет вместе со схемой; ошибка в ней не должна ломать пан и зум
     onView: () => {
         if (!photoMap) return;
-        try { photoMap.update(); } catch (e) { console.error('Метки фото: пересчёт не удался', e); }
+        try { photoMap.update(); } catch (e) { console.error('Подсветка кресла: пересчёт не удался', e); }
     },
 });
 
-/* Первое касание схемы гасит тултип; жест при этом идёт в hall.js как обычно.
-   Слушается ввод, а не onView: onView зовут и программные движения схемы — fitHall, refit, resize */
 const viewportEl = $('.map-viewport');
-viewportEl.addEventListener('pointerdown', () => photoTip.dismiss(), { capture: true });
-viewportEl.addEventListener('wheel', () => photoTip.dismiss(), { capture: true, passive: true });
-// тап, пан, щипок, колесо по схеме — подсветка гаснет; жест идёт в hall.js как обычно
+// тап, пан, щипок, колесо по схеме — подсветка гаснет; жест идёт в hall.js как обычно.
+// Слушается ввод, а не onView: onView зовут и программные движения схемы — fitHall, refit, resize
 viewportEl.addEventListener('pointerdown', stopShowOnMap, { capture: true });
 viewportEl.addEventListener('wheel', stopShowOnMap, { capture: true, passive: true });
 // касание шторки: крестик удаления меняет кресло в заказе, и контур, построенный под маркер, остался бы не по месту
 sheetEl.addEventListener('pointerdown', stopShowOnMap, { capture: true });
-// переключатель режима: подсветка гаснет при касании, а не по click; вызов в onPhotoButton — для клавиатуры
-photoToggle.btnEl.addEventListener('pointerdown', stopShowOnMap);
 
 // вписать всю схему в кадр (contain) сразу и после первого лейаута
 fitHall();
@@ -481,24 +473,16 @@ window.addEventListener('resize', () => {
 // SVG уже в DOM → отрисовать загрузочный viewBox через состояние (= min-зум)
 hallReady.then(fitHall);
 
-// слой меток фото — после загрузки схемы: нужна модель кресел с seat.id
+// фото и подсветка — после загрузки схемы: нужна модель кресел с seat.id
+const PHOTOS_URL = 'photos/photos-bug.json';   // набор фото; другие наборы лежат рядом в photos/
+
 hallReady.then(() => {
     if (!seats.length) return;   // схема не загрузилась — ошибка уже в консоли
     try {
-        photoMap = createPhotoMap({
-            hall, viewportEl: $('.map-viewport'), seats, nearestSeat: findNearestSeat, config: PHOTO_CONFIG,
-        });
-        photoMap.setEnabled(photoMode);
-        photoMap.load(PHOTO_CONFIG.dataUrl).then(renderMarks);   // спрятать метки над креслами, уже выбранными в заказ
+        photoMap = createPhotoMap({ hall, viewportEl, seats });
+        photoMap.load(PHOTOS_URL);
     } catch (e) {
         photoMap = null;
-        console.error('Метки фото: слой не создан, схема работает без фото', e);
+        console.error('Фото: слой не создан, схема работает без фото', e);
     }
-});
-
-// тултип: отсчёт 1 с с момента, когда схема на экране. Схема не загрузилась — подсказывать не к чему
-hallReady.then(() => {
-    if (!seats.length) return;
-    // два кадра: в первом применяется загрузочный viewBox, ко второму схема уже нарисована
-    requestAnimationFrame(() => requestAnimationFrame(() => photoTip.schedule()));
 });
