@@ -1,7 +1,6 @@
 /* ============================================================
-   Лайтбокс с фото (вид с места) и карточка выбранного места над шторкой заказа.
+   Лайтбокс с фото (вид с места).
    ============================================================ */
-import { formatPrice } from './data.js';
 
 // Иконки лайтбокса 24×24 — экспорт Figma, фрейм lightbox. Цвет — currentColor, задаёт CSS.
 // Крестик — компонент «Cross», node I4334:28383;3977:1542;3477:481;75180:415565;547:208314
@@ -21,17 +20,6 @@ const icoChevronRight24 =
     '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">'
     + '<path d="M9 5.01246C9 4.11226 10.0766 3.66144 10.7062 4.29798L13.8016 7.4273C15.9339 9.58289 17 10.6607 17 12C17 13.3393 15.9339 14.4171 13.8016 16.5727L10.7062 19.702C10.0766 20.3386 9 19.8877 9 18.9875C9 18.7196 9.1053 18.4625 9.29274 18.2731L12.3882 15.1437C13.4942 14.0255 14.1786 13.3276 14.6112 12.7544C15.0016 12.2371 15.0012 12.0565 15.001 12.0028L15.001 12L15.001 11.9973C15.0012 11.9435 15.0016 11.7629 14.6112 11.2456C14.1786 10.6724 13.4942 9.97446 12.3882 8.85627L9.29274 5.72695C9.1053 5.53745 9 5.28044 9 5.01246Z" fill="currentColor"/>'
     + '</svg>';
-
-// Значок «развернуть» 24×24 — экспорт Figma, макет seat-preview, инстанс Expand I4570:16932;4563:16635.
-// Цвет — currentColor, задаёт CSS. Крестик карточки — icoCross24 выше: контур совпадает с экспортом Close icon
-const icoExpand24 =
-    '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">'
-    + '<path d="M10.0021 4.16192C10.0021 3.5792 9.50549 3.11491 8.92679 3.18316C8.31313 3.25553 7.75022 3.34315 7.24958 3.4343C5.29166 3.79079 3.79078 5.29167 3.4343 7.24959C3.20608 8.50303 3 10.1468 3 12C3 13.8533 3.20608 15.497 3.4343 16.7504C3.79078 18.7083 5.29165 20.2092 7.24957 20.5657C8.50302 20.7939 10.1468 21 12 21C13.8532 21 15.497 20.7939 16.7504 20.5657C18.7083 20.2092 20.2092 18.7083 20.5657 16.7504C20.6567 16.2504 20.7443 15.6882 20.8166 15.0754C20.8849 14.4967 20.4206 14 19.8378 14C19.3179 14 18.884 14.3988 18.8215 14.9149C18.7564 15.4532 18.6788 15.9488 18.5981 16.3922C18.3907 17.5309 17.5309 18.3907 16.3922 18.5981C15.2298 18.8097 13.7083 19 12 19C10.2916 19 8.7702 18.8097 7.60782 18.5981C6.46909 18.3907 5.60928 17.5309 5.40195 16.3922C5.19032 15.2298 5 13.7084 5 12C5 10.2917 5.19032 8.77021 5.40195 7.60784C5.60928 6.4691 6.46909 5.60929 7.60783 5.40196C8.05176 5.32113 8.54806 5.24341 9.08715 5.17822C9.60332 5.11579 10.0021 4.68185 10.0021 4.16192Z" fill="currentColor"/>'
-    + '<path d="M20.9993 10.9991C21.0206 11.5516 20.5704 12 20.0169 12C19.4635 12 19.0164 11.5516 18.9934 10.9992C18.9317 9.5121 18.7453 8.05058 18.552 6.88023L11.7128 13.7155C11.3215 14.1064 10.687 14.1064 10.2956 13.7155C9.90428 13.3245 9.90428 12.6907 10.2956 12.2997L17.1485 5.45083C15.9713 5.25588 14.5044 5.06672 13.0019 5.00448C12.4489 4.98157 12 4.53492 12 3.98203C12 3.42915 12.4489 2.97944 13.0019 3.00073C14.7266 3.06712 16.3884 3.29006 17.6614 3.50669C18.76 3.69366 19.3093 3.78714 19.7607 4.23804C20.212 4.68894 20.3056 5.23769 20.4928 6.33519C20.7096 7.60682 20.9328 9.27623 20.9993 10.9991Z" fill="currentColor"/>'
-    + '</svg>';
-
-const CARD_GAP = 16;        // карточка над свёрнутой шторкой: макет — низ карточки 660, верх шторки 676; = 16px в .seat-card (css/photos.css)
-const SHEET_MS = 250;       // выезд шторки = transition .sheet в css/styles.css; по нему считается выезд карточки с первым билетом
 
 const RETURN_MS = 150;      // возврат фото после короткого свайпа
 const SWIPE_CLOSE = 80;     // px: свайп вниз дальше — закрытие
@@ -455,95 +443,4 @@ export function createLightbox({ parentEl, onShow, onAdd, onRemove, statusOf = (
         close,
         isOpen: () => isOpen,
     };
-}
-
-/* Карточка выбранного места над шторкой заказа — макет seat-preview, инстанс «Ticket preview» 4570:16932.
-   onOpen(node) — тап по превью или значку «развернуть»; onClose() — крестик.
-   Состояние — узел фото node: есть — карточка на экране или выезжает, нет — спрятана или уезжает.
-   → { show(node, sheetPx), hide(instant), node(), setLift(px) } */
-export function createSeatCard({ parentEl, onOpen, onClose }) {
-    const el = document.createElement('div');
-    el.className = 'seat-card';
-    el.innerHTML =
-        '<button class="seat-card-photo" type="button" aria-label="Открыть фото с места">'
-        + '<img class="seat-card-img" alt="" draggable="false">'
-        + `<span class="seat-card-expand">${icoExpand24}</span>`
-        + '</button>'
-        + '<div class="seat-card-info">'
-        + '<span class="seat-card-section"></span>'
-        + '<span class="seat-card-seat"></span>'
-        + '<span class="seat-card-price"></span>'
-        + '</div>'
-        + `<button class="seat-card-close" type="button" aria-label="Скрыть карточку">${icoCross24}</button>`;
-    parentEl.appendChild(el);
-
-    const q = (s) => el.querySelector(s);
-    const img = q('.seat-card-img');
-    const sectionEl = q('.seat-card-section');
-    const seatEl = q('.seat-card-seat');
-    const priceEl = q('.seat-card-price');
-    img.addEventListener('error', () => { img.style.visibility = 'hidden'; });   // битая картинка — белый фон превью
-
-    let node = null;
-
-    /* ---------- движение ---------- */
-    // высота свёрнутой шторки; 0 — шторка уехала целиком, карточка спрятана и остаётся на прежней высоте
-    function setLift(px) {
-        if (px > 0) el.style.bottom = `${px + CARD_GAP}px`;
-    }
-
-    /* Выехать из-под шторки. sheetPx — путь шторки, которая выезжает вместе с карточкой (первый билет); 0 — шторка стоит.
-       Шторка выезжает: карточка встаёт на старт шторки — ниже места покоя на путь шторки и свой путь — и едет
-       той же кривой. Длительность дольше шторки во столько раз, во сколько длиннее путь: на старте скорости равны,
-       карточка и шторка едут как одно целое, потом шторка встаёт, а карточка выходит из-под её верхнего края */
-    function reveal(sheetPx = 0) {
-        if (sheetPx > 0 && !el.classList.contains('is-shown')) {
-            const own = el.offsetHeight + CARD_GAP;   // свой путь карточки: высота и зазор над шторкой
-            el.classList.add('is-instant');
-            el.style.setProperty('--seat-card-from', `${sheetPx}px`);
-            void el.offsetWidth;   // встать на старт шторки без перехода, потом вернуть переходы
-            el.classList.remove('is-instant');
-            el.style.setProperty('--seat-card-ms', `${(SHEET_MS * (sheetPx + own)) / sheetPx}ms`);
-        }
-        el.classList.add('is-shown');
-    }
-
-    // уехать под шторку; instant — шторка уезжает целиком, карточка пропадает сразу
-    function conceal(instant = false) {
-        // уход — всегда обычный путь под шторку: старт и длительность выезда с первым билетом сбрасываются
-        el.style.removeProperty('--seat-card-from');
-        el.style.removeProperty('--seat-card-ms');
-        if (!instant) { el.classList.remove('is-shown'); return; }
-        el.classList.add('is-instant');
-        el.classList.remove('is-shown');
-        void el.offsetWidth;   // применить спрятанное состояние без перехода, потом вернуть переходы
-        el.classList.remove('is-instant');
-    }
-
-    /* ---------- показ и скрытие ---------- */
-    // карточка места n; показана — меняются фото и тексты без движения; sheetPx — см. reveal
-    function show(n, sheetPx = 0) {
-        node = n;
-        const s = n.seat;
-        sectionEl.textContent = s.section;
-        seatEl.textContent = `Ряд ${s.row} место ${s.seat}`;
-        priceEl.textContent = formatPrice(s.price);
-        img.alt = n.photo.caption || '';
-        if (img.getAttribute('src') !== n.photo.url) {
-            img.style.visibility = '';   // прошлое фото могло быть битым
-            img.src = n.photo.url;
-        }
-        reveal(sheetPx);
-    }
-
-    // без раннего выхода при node === null: уезжающую карточку тоже надо спрятать сразу, если уезжает шторка
-    function hide(instant = false) {
-        node = null;
-        conceal(instant);
-    }
-
-    q('.seat-card-photo').addEventListener('click', () => { if (node) onOpen(node); });
-    q('.seat-card-close').addEventListener('click', () => onClose());
-
-    return { show, hide, node: () => node, setLift };
 }

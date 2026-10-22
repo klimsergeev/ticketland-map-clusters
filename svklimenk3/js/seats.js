@@ -125,13 +125,20 @@ export const SEL_RADIUS = 4;
 
 const CHECK = `<path fill-rule="evenodd" clip-rule="evenodd" d="${CHECK_D}" fill="white"/>`;
 
-/* Маркер выбранного места: все выбранные места одного размера, с галочкой. */
-function selectedGroup(x, y) {
+/* Маркер места активного билета крупнее остальных во столько раз (как в прототипе схемы зала). */
+export const ACTIVE_SCALE = 1.4;
+
+/* Маркер выбранного места с галочкой. scale — множитель размера вокруг ЦЕНТРА места
+   (x+4, y+4): translate(cx,cy) scale(k) translate(-92,-20) при k=1 даёт translate(x-88,y-16). */
+function selectedGroup(x, y, scale = 1) {
     const inner =
         `<rect x="88" y="16" width="8" height="8" rx="2.5" fill="${SEL_COLOR}"/>`
         + `<rect x="88" y="16" width="8" height="8" rx="2.5" stroke="${SEL_COLOR}" stroke-width="3"/>`
         + CHECK;
-    return `<g transform="translate(${x - 88} ${y - 16})">${inner}</g>`;
+    const t = scale === 1
+        ? `translate(${x - 88} ${y - 16})`
+        : `translate(${x + 4} ${y + 4}) scale(${scale}) translate(-92 -20)`;
+    return `<g transform="${t}">${inner}</g>`;
 }
 
 /* ============================================================
@@ -165,15 +172,19 @@ export function createFilterLayer(svgRoot) {
     };
 }
 
-/* Создать слой выбора и вернуть функцию его перерисовки под список мест. */
+/* Создать слой выбора и вернуть функцию его перерисовки под список мест.
+   activeSeat — место активного билета: рисуется последним (поверх всех) и крупнее (ACTIVE_SCALE). */
 export function createSelectionLayer(svgRoot) {
     const layer = document.createElementNS(SVG_NS, 'g');
     layer.setAttribute('class', 'sel-layer');
     svgRoot.appendChild(layer);
-    return function render(seats) {
-        layer.innerHTML = seats
-            .filter((s) => s.selected)
-            .map((s) => selectedGroup(+s.el.getAttribute('x'), +s.el.getAttribute('y')))
-            .join('');
+    return function render(seats, activeSeat) {
+        const parts = seats
+            .filter((s) => s.selected && s !== activeSeat)
+            .map((s) => selectedGroup(+s.el.getAttribute('x'), +s.el.getAttribute('y')));
+        if (activeSeat && activeSeat.selected) {
+            parts.push(selectedGroup(+activeSeat.el.getAttribute('x'), +activeSeat.el.getAttribute('y'), ACTIVE_SCALE));
+        }
+        layer.innerHTML = parts.join('');
     };
 }

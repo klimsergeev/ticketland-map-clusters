@@ -1,38 +1,29 @@
 /* ============================================================
-   Точка входа: собирает экран, связывает схему ↔ корзину ↔ шторку заказа.
+   Точка входа: собирает экран, связывает схему ↔ корзину ↔ карусель билетов.
    ============================================================ */
 import { EVENT, TIER_COLORS, TIER_PRICES, MAX_SEATS, formatPrice } from './data.js';
 import { HallViewport } from './hall.js';
 import { buildSeats, createSelectionLayer, applySessionPrices, createFilterLayer } from './seats.js';
 import { createPhotoMap } from './photo-map.js';
-import { createLightbox, createSeatCard } from './photo-ui.js';
+import { createLightbox } from './photo-ui.js';
 
 /* --- Иконки (инлайн SVG) --- */
 const icoChevronLeft =
     '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3 L5 8 L10 13"/></svg>';
-/* Иконки шторки — экспорт из Figma, фрейм bottomsheet: пути и заливки как в макете */
-const icoTicket =
-    '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">'
-    + '<path d="M16.4561 11.5C16.4561 10.8096 15.8964 10.25 15.2061 10.25C14.5157 10.25 13.9561 10.8096 13.9561 11.5V12.5C13.9561 13.1904 14.5157 13.75 15.2061 13.75C15.8964 13.75 16.4561 13.1904 16.4561 12.5V11.5Z" fill="#8D969F"/>'
-    + '<path fill-rule="evenodd" clip-rule="evenodd" d="M19.206 4.41375C20.5888 4.5936 21.5979 5.72006 21.7575 7.10538L21.9922 9.14211C22.0566 9.7016 21.7111 10.155 21.362 10.6129C21.0357 11.0412 20.7062 11.4733 20.7062 12C20.7062 12.5267 21.0357 12.9588 21.362 13.3871C21.7111 13.845 22.0566 14.2984 21.9922 14.8579L21.7732 16.7586C21.606 18.21 20.5111 19.3799 19.0612 19.5593C17.8964 19.7034 16.3883 19.8546 14.7062 19.9371C13.9062 19.9763 13.0668 20 12.2062 20C9.53604 20 7.06955 19.7718 5.35074 19.5592C3.90082 19.3799 2.80646 18.21 2.63925 16.7586L2.42027 14.8579C2.35582 14.2984 2.70139 13.845 3.05042 13.3871C3.37681 12.9588 3.70623 12.5267 3.70623 12C3.70623 11.4733 3.37681 11.0412 3.05042 10.6129C2.70139 10.155 2.35582 9.7016 2.42027 9.14211L2.65492 7.10537C2.81452 5.72006 3.82309 4.59369 5.20592 4.41383C6.77815 4.20933 9.13709 4 12.2062 4C13.1005 4 13.9345 4.01777 14.7062 4.04802C16.5829 4.12156 18.0919 4.26886 19.206 4.41375ZM12.2062 18C9.64288 18 7.2626 17.7805 5.59627 17.5743C5.11903 17.5153 4.69433 17.1219 4.62611 16.5297L4.43563 14.8763C4.47219 14.8241 4.52647 14.75 4.60798 14.6429L4.64787 14.5907C4.79406 14.3997 5.03959 14.0789 5.23587 13.7257C5.46824 13.3077 5.70623 12.7223 5.70623 12C5.70623 11.2777 5.46824 10.6923 5.23587 10.2743C5.03958 9.92113 4.79405 9.60033 4.64787 9.40933L4.60799 9.35713C4.52648 9.25003 4.47219 9.1759 4.43563 9.12368L4.64178 7.33428C4.70717 6.76664 5.08307 6.44665 5.46388 6.39712C6.95545 6.20311 9.22812 6 12.2062 6C12.8197 6 13.4032 6.00862 13.9561 6.024V7C13.9561 7.69036 14.5157 8.25 15.2061 8.25C15.8964 8.25 16.4561 7.69036 16.4561 7V6.14819C17.4414 6.21997 18.2744 6.30943 18.9481 6.39705C19.3293 6.44663 19.7053 6.76709 19.7707 7.33428L19.9768 9.12368C19.9403 9.1759 19.886 9.25003 19.8045 9.35713L19.7646 9.40933C19.6184 9.60033 19.3729 9.92113 19.1766 10.2743C18.9442 10.6923 18.7062 11.2777 18.7062 12C18.7062 12.7223 18.9442 13.3077 19.1766 13.7257C19.3729 14.0789 19.6184 14.3997 19.7646 14.5907L19.8045 14.6429C19.886 14.75 19.9403 14.8241 19.9768 14.8763L19.7864 16.5297C19.7182 17.1215 19.2933 17.5153 18.8157 17.5744C18.1371 17.6583 17.3385 17.7447 16.4561 17.8175V17C16.4561 16.3096 15.8964 15.75 15.2061 15.75C14.5157 15.75 13.9561 16.3096 13.9561 17V17.9674C13.3864 17.9882 12.8009 18 12.2062 18Z" fill="#8D969F"/>'
-    + '</svg>';
-const icoChevronUp =
-    '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">'
-    + '<path d="M3.75215 9.83591C3.08356 9.83591 2.74873 9.02805 3.22149 8.55558L4.98125 6.7969C6.40434 5.37468 7.11589 4.66357 8.00009 4.66357C8.88429 4.66357 9.59583 5.37469 11.0189 6.79691L12.7787 8.55558C13.2514 9.02805 12.9166 9.83591 12.248 9.83591C12.049 9.83591 11.8581 9.75689 11.7174 9.61624L9.95762 7.85757C9.21607 7.11647 8.76441 6.6696 8.39699 6.38944C8.22741 6.26013 8.12382 6.20503 8.06699 6.18135C8.02404 6.16345 8.00888 6.16353 8.00109 6.16357L8.00009 6.16357L7.99908 6.16357C7.99129 6.16353 7.97613 6.16345 7.93319 6.18135C7.87636 6.20503 7.77276 6.26013 7.60318 6.38944C7.23576 6.6696 6.78411 7.11647 6.04256 7.85757L4.2828 9.61624C4.14206 9.75689 3.95118 9.83591 3.75215 9.83591Z" fill="#1D2023"/>'
-    + '</svg>';
-// Cross 24 из макета: у крестика закрытия заливка #1D2023, у крестика удаления — #8D969F
-const icoCross24 = (fill) =>
-    '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">'
-    + `<path d="M6.29289 16.2929C5.90237 16.6834 5.90237 17.3166 6.29289 17.7071C6.68342 18.0976 7.31658 18.0976 7.70711 17.7071L11.9999 13.4143L16.2929 17.7073C16.6834 18.0978 17.3166 18.0978 17.7071 17.7073C18.0976 17.3167 18.0976 16.6836 17.7071 16.293L13.4141 12.0001L17.7071 7.70711C18.0976 7.31658 18.0976 6.68342 17.7071 6.29289C17.3166 5.90237 16.6834 5.90237 16.2929 6.29289L11.9999 10.5859L7.70711 6.29304C7.31658 5.90252 6.68342 5.90252 6.2929 6.29304C5.90237 6.68357 5.90237 7.31673 6.29289 7.70726L10.5857 12.0001L6.29289 16.2929Z" fill="${fill}"/>`
-    + '</svg>';
-const icoClose = icoCross24('#1D2023');
-const icoClear = icoCross24('#8D969F');
+const icoChevronRight =
+    '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5 L15 12 L9 19"/></svg>';
+const icoCross =
+    '<svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 5 L15 15 M15 5 L5 15"/></svg>';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
 /* --- DOM-ссылки --- */
 const header = $('.header');
 const legendEl = $('.legend');
+const sliderEl = $('.slider');
+const trackEl = $('.slider-track', sliderEl);
+const ctaEl = $('.cta');
+const floatingEl = $('.floating');
 
 /* --- Фото и подсветка кресла. Объявлено до new HallViewport:
        fitHall() сразу вызывает onView, и обращение к photoMap ниже по файлу упало бы. --- */
@@ -40,12 +31,8 @@ let photoMap = null;       // фото на креслах и подсветка
 let showSeq = 0;           // номер текущего ухода из лайтбокса на схему; действие человека его сбивает
 let showLeaving = false;   // лайтбокс гаснет после «Показать на схеме» или «Добавить в корзину»: касания схемы игнорируются
 let pendingAdd = null;     // место из «Добавить в корзину», которое ещё не легло в заказ
+// Лайтбокс пока без входа: превью фото переедет на карточки билетов следующим этапом
 const lightbox = createLightbox({ parentEl: $('.app'), onShow: showOnMap, onAdd: addFromPhoto, onRemove: removeFromPhoto, statusOf: seatStatus, addState: addButtonState });
-// карточка выбранного места: до первого refreshCart(), который зовёт syncSheet → seatCard.setLift
-const seatCard = createSeatCard({ parentEl: $('.app'), onOpen: openFromCard, onClose: () => seatCard.hide() });
-// спрятанная шторка опущена ниже своей высоты ещё на 32 px — .sheet.is-hidden, translateY(calc(100% + 32px)) в css/styles.css;
-// путь выезжающей шторки = высота свёрнутой шторки + 32, с него при первом билете стартует и карточка
-const SHEET_HIDDEN_EXTRA = 32;
 
 /* --- Шапка: статичная (название, площадка, «Назад») --- */
 $('.ttl').textContent = EVENT.title;
@@ -76,199 +63,400 @@ function renderLegend() {
        .seat/.row/.price/.selected. Максимум MAX_SEATS мест. --- */
 const cart = [];
 
-/* --- Шторка заказа --- */
-const appEl = $('.app');
-const sheetEl = $('.sheet');
-const scrimEl = $('.sheet-scrim');
-const detailsEl = $('.sheet-details', sheetEl);
-const headEl = $('.sheet-head', sheetEl);
-const listEl = $('.sheet-list', sheetEl);
-const totalEl = $('.sheet-total', sheetEl);
-const sumBtn = $('.sheet-sum', sheetEl);
+/* --- Галерея билетов: КАРУСЕЛЬ (перенесена из прототипа схемы зала). Карточки едут
+       по горизонтали. Якорь активной карточки зависит от её позиции в списке:
+       первая → ЛЕВЫЙ край (peek справа), последняя → ПРАВЫЙ край (peek слева),
+       середина → ЦЕНТР (peek с обеих сторон). Drag тянет трек за пальцем 1:1, по
+       отпусканию — пружинный снап (учёт скорости флика). Активная = последний
+       выбранный на схеме билет; ручной свайп это переопределяет.
+       Ширина карточек переменная (hug): неактивная узкая, активная шире, поэтому
+       геометрию считаем по фактическим offsetWidth (см. measureCards). --- */
+const TICKET_GAP = 8;             // зазор между билетами (Figma: gap в карусели)
 
-$('.sheet-title').textContent = EVENT.title;
-$('.sheet-date').textContent = EVENT.date;
-$('.sheet-venue').textContent = EVENT.venue;
-$('.sheet-close').innerHTML = icoClose;
-$('.sheet-ico').innerHTML = icoTicket;
-$('.sheet-chevron').innerHTML = icoChevronUp;
+let activeTicket = 0;
+const ticketEls = [];
+let cardW = [];                   // фактическая ширина каждой карточки (offsetWidth)
+let cardStart = [];               // X левого края карточки i внутри трека (кумулятивно)
+let trackX = 0;                   // текущий сдвиг трека по X
+let stopSpring = null;            // отмена активной пружины
+let cardDX = [];                  // покадровый сдвиг каждой карточки по X (FLIP-реколл при удалении)
+let reflowSpring = null;          // отмена пружины реколла соседей
+let deleting = false;             // идёт анимация удаления — блок повторного удаления/драга
 
-const DETAILS_PAD_TOP = 24;   // отступ над заголовком развёрнутой шторки (макет)
-const SHEET_MAX = 718;        // максимум высоты развёрнутой шторки (макет, экран 800)
-const SHEET_TOP_GAP = 82;     // 800 − 718: просвет над развёрнутой шторкой на любом экране
-const ROW_OUT_MS = 150;       // строка удалённого билета гаснет
-const SWIPE_START = 8;        // px: меньше — это тап, а не свайп
-const SWIPE_CLOSE_PX = 80;    // протянули дальше — сворачиваем
-const SWIPE_CLOSE_V = 0.5;    // px/ms: флик быстрее — сворачиваем
-
-let sheetOpen = false;
-
-const seatLabel = (s) => `${s.section}, ряд ${s.row}, место ${s.seat}`;
-
-function ticketWord(n) {
-    const d = n % 10;
-    const dd = n % 100;
-    if (d === 1 && dd !== 11) return 'билет';
-    if (d >= 2 && d <= 4 && (dd < 12 || dd > 14)) return 'билета';
-    return 'билетов';
+/* Проставить класс active по текущему activeTicket. Вызывать ПЕРЕД measureCards:
+   активная карточка шире, measureCards должен прочитать уже финальные offsetWidth. */
+function applyActiveClass() {
+    ticketEls.forEach((el, i) => el.classList.toggle('active', i === activeTicket));
 }
 
-/* Высота свёрнутой шторки — от неё считается полоса схемы.
-   offsetHeight не видит transform, поэтому при пустом заказе 0 ставится явно */
-function sheetLift() {
-    return cart.length ? totalEl.offsetHeight : 0;
-}
-
-/* Высота верхней части развёрнутой шторки: по содержимому, но шторка целиком не выше предела.
-   Не влезло — список получает прокрутку. scrollHeight даёт полную высоту списка и при overflow: hidden */
-function fitDetails() {
-    if (!sheetOpen) return;
-    const natural = DETAILS_PAD_TOP + headEl.offsetHeight + listEl.scrollHeight;
-    const max = Math.max(0, Math.min(SHEET_MAX, appEl.clientHeight - SHEET_TOP_GAP) - totalEl.offsetHeight);
-    listEl.classList.toggle('is-scroll', natural > max);
-    detailsEl.style.height = `${Math.min(natural, max)}px`;
-}
-
-function openSheet() {
-    if (sheetOpen || !cart.length) return;
-    seatCard.hide();   // уезжает под растущую шторку; после сворачивания не возвращается
-    sheetOpen = true;
-    sheetEl.classList.add('is-open');
-    scrimEl.classList.add('is-shown');
-    sumBtn.setAttribute('aria-expanded', 'true');
-    fitDetails();
-}
-
-function closeSheet() {
-    if (!sheetOpen) return;
-    sheetOpen = false;
-    swipe = null;
-    sheetEl.classList.remove('is-open', 'is-dragging');
-    scrimEl.classList.remove('is-shown');
-    sumBtn.setAttribute('aria-expanded', 'false');
-    sheetEl.style.transform = '';          // после свайпа шторка возвращается вместе со сворачиванием
-    detailsEl.style.height = '0px';
-}
-
-function renderTotal() {
-    const total = cart.reduce((acc, s) => acc + (s.price || 0), 0);
-    $('.sheet-count').textContent = `${cart.length} ${ticketWord(cart.length)}`;
-    $('.sheet-amount').textContent = formatPrice(total);
-}
-
-function renderList() {
-    listEl.innerHTML = '';
-    cart.forEach((seat) => {
-        const row = document.createElement('div');
-        row.className = 'sheet-row';
-        row.innerHTML =
-            `<span class="sheet-seat">${seatLabel(seat)}</span>`
-            + '<span class="sheet-row-end">'
-            + `<span class="sheet-price">${formatPrice(seat.price)}</span>`
-            + `<button class="sheet-clear" type="button" aria-label="Убрать билет">${icoClear}</button>`
-            + '</span>';
-        row.querySelector('.sheet-clear').addEventListener('click', () => dropTicket(seat, row));
-        listEl.appendChild(row);
-    });
-    listEl.scrollTop = 0;
-}
-
-/* Показать или спрятать шторку по заказу и поставить карточку над свёрнутой шторкой */
-function syncSheet() {
-    if (!cart.length) closeSheet();
-    sheetEl.classList.toggle('is-hidden', !cart.length);
-    seatCard.setLift(sheetLift());
-}
-
-/* Перерисовать всё, что зависит от заказа: шторку, карточку, маркеры на схеме */
-function refreshCart() {
-    renderList();
-    renderTotal();
-    dropCardIfGone();
-    syncSheet();
-    renderMarks();
-}
-
-/* Карточка бывает только у последнего выбранного места: у места с фото — его карточка,
-   у места без фото — никакой, карточка прошлого места уезжает.
-   sheetPx — путь шторки, которая выезжает вместе с этим билетом; 0 — шторка уже стоит */
-function cardForLast(seat, sheetPx) {
-    const node = photoMap ? photoMap.nodeOf(seat.id) : null;
-    if (node) seatCard.show(node, sheetPx);
-    else seatCard.hide();
-}
-
-/* Место карточки ушло из заказа — карточка уезжает под шторку.
-   Заказ опустел — шторка уезжает целиком, карточка пропадает сразу, даже если уже уезжала.
-   Вызывать до syncSheet */
-function dropCardIfGone() {
-    if (!cart.length) { seatCard.hide(true); return; }
-    const node = seatCard.node();
-    if (node && !node.seat.selected) seatCard.hide();
-}
-
-/* Превью или «развернуть» на карточке: лайтбокс на фото этого места, карточки при открытом лайтбоксе нет */
-function openFromCard(node) {
-    seatCard.hide();
-    lightbox.open(node, photoMap.gallery());
-}
-
-/* Крестик в строке билета: заказ меняется сразу, строка уходит анимацией */
-function dropTicket(seat, row) {
-    if (!seat.selected) return;            // повторный тап по гаснущей строке
-    seat.selected = false;
-    cart.splice(cart.indexOf(seat), 1);
-    renderTotal();
-    renderMarks();
-    if (!cart.length) { syncSheet(); return; }   // последний билет: шторка уезжает вниз целиком
-    row.classList.add('is-leaving');
-    setTimeout(() => { row.remove(); fitDetails(); }, ROW_OUT_MS);
-}
-
-sumBtn.addEventListener('click', () => (sheetOpen ? closeSheet() : openSheet()));
-$('.sheet-close').addEventListener('click', closeSheet);
-scrimEl.addEventListener('click', closeSheet);
-
-/* Свайп вниз по развёрнутой шторке. Захват указателя — только после сдвига на SWIPE_START:
-   до этого тапы по кнопкам внутри шторки работают как обычно, после — click до кнопки не дойдёт */
-let swipe = null;
-sheetEl.addEventListener('pointerdown', (e) => {
-    if (!sheetOpen) return;
-    if (listEl.contains(e.target) && listEl.classList.contains('is-scroll')) return;   // жест прокрутки списка
-    swipe = { pid: e.pointerId, y0: e.clientY, dy: 0, t: performance.now(), v: 0, on: false };
-});
-sheetEl.addEventListener('pointermove', (e) => {
-    if (!swipe || e.pointerId !== swipe.pid) return;
-    if (!e.buttons) { swipe = null; return; }   // мышь отпустили за пределами шторки, pointerup сюда не пришёл
-    const dy = Math.max(0, e.clientY - swipe.y0);
-    if (!swipe.on) {
-        if (dy < SWIPE_START) return;
-        swipe.on = true;
-        sheetEl.setPointerCapture(e.pointerId);
-        sheetEl.classList.add('is-dragging');
+/* Замер фактических ширин карточек и X их левых краёв в треке (как flex с gap). */
+function measureCards() {
+    cardW = ticketEls.map((el) => el.offsetWidth);
+    cardStart = new Array(cardW.length);
+    let x = 0;
+    for (let i = 0; i < cardW.length; i++) {
+        cardStart[i] = x;
+        x += cardW[i] + TICKET_GAP;
     }
-    const now = performance.now();
-    if (now > swipe.t) swipe.v = (dy - swipe.dy) / (now - swipe.t);
-    swipe.dy = dy;
-    swipe.t = now;
-    sheetEl.style.transform = `translateY(${dy}px)`;
-});
-function endSwipe(e) {
-    if (!swipe || e.pointerId !== swipe.pid) return;
-    const s = swipe;
-    swipe = null;
-    if (!s.on) return;
-    if (s.dy > SWIPE_CLOSE_PX || s.v > SWIPE_CLOSE_V) { closeSheet(); return; }
-    sheetEl.classList.remove('is-dragging');
-    sheetEl.style.transform = '';
 }
-sheetEl.addEventListener('pointerup', endSwipe);
-sheetEl.addEventListener('pointercancel', endSwipe);
 
-/* --- Корзина ↔ схема: выбор/снятие мест --- */
-/* Перерисовать маркеры выбранных мест: все одного размера, оранжевые, с галочкой */
+/* X левого края карточки i во вьюпорте галереи в её «домашней» позиции:
+   первая — левый край, последняя — правый, середина — центр. */
+function anchorOffset(i) {
+    const n = ticketEls.length;
+    if (i <= 0) return 0;
+    const W = sliderEl.clientWidth;
+    const w = cardW[i] || 0;
+    if (i >= n - 1) return W - w;
+    return (W - w) / 2;
+}
+
+/* Суммарная ширина контента карусели = правый край последней карточки в треке. */
+function contentWidth() {
+    const n = cardW.length;
+    if (n === 0) return 0;
+    return (cardStart[n - 1] || 0) + (cardW[n - 1] || 0);
+}
+
+/* Переполнение = контент шире галереи хотя бы на 1px. */
+function isOverflow() {
+    return contentWidth() > sliderEl.clientWidth;
+}
+
+/* Позиция трека, при которой карточка i стоит в своём якоре. Без переполнения —
+   всегда 0: группа прижата влево, смена активного ленту не двигает. */
+function targetXFor(i) {
+    if (!isOverflow()) return 0;
+    return anchorOffset(i) - (cardStart[i] || 0);
+}
+
+function setTrackX(px) {
+    trackX = px;
+    trackEl.style.transform = `translateX(${px}px)`;
+    paintDepth();
+}
+
+/* Глубина + active-состояние. Z «веером» от активного: z строго убывает с расстоянием
+   |i − activeTicket|; активный (100) выше кнопки CTA → его тень ложится поверх соседей и кнопки.
+   Scale не используем: видимый зазор должен быть ровно TICKET_GAP. */
+function paintDepth() {
+    ticketEls.forEach((el, i) => {
+        el.style.transform = `translateX(${cardDX[i] || 0}px)`;
+        el.style.zIndex = String(100 - Math.abs(i - activeTicket));
+        el.classList.toggle('active', i === activeTicket);
+    });
+}
+
+/* Снап пружиной: карточку i — в её якорь (velocity — инерция флика) */
+function snapTo(i, velocity = 0) {
+    activeTicket = clamp(i, 0, ticketEls.length - 1);
+    applyActiveClass();
+    measureCards();
+    if (stopSpring) { stopSpring(); stopSpring = null; }
+    stopSpring = spring({
+        from: trackX, to: targetXFor(activeTicket), velocity,
+        onUpdate: (x) => setTrackX(x),
+        onDone: () => { stopSpring = null; },
+    });
+}
+
+/* ЕДИНАЯ ТОЧКА «смена активного билета → маркер ×1,4 + схема на его место».
+   Зум только при фактической смене индекса: снап обратно на тот же билет схему не двигает.
+   Тап по уже активному идёт мимо (прямой focusSeat в onTicketUp), добавление места — тоже
+   (addSeat зовёт focusSeat сам). */
+function activateTicket(i, velocity = 0) {
+    const prev = activeTicket;
+    snapTo(i, velocity);
+    if (activeTicket !== prev) {
+        renderSelectionActive();
+        focusTicket(activeTicket);
+    }
+}
+
+/* Схема на место билета i (если есть) */
+function focusTicket(i) {
+    const seat = cart[i];
+    if (seat) focusSeat(seat);
+}
+
+/* Рецентрирование без анимации (resize) */
+function recenterTickets() {
+    if (deleting) return;                         // не сбивать FLIP-реколл во время удаления
+    if (!ticketEls.length) return;
+    applyActiveClass();
+    measureCards();
+    setTrackX(targetXFor(activeTicket));
+}
+
+function renderTickets(opts = {}) {
+    trackEl.innerHTML = '';
+    ticketEls.length = 0;
+    cardDX = new Array(cart.length).fill(0);   // FLIP-сдвиги обнуляются на каждом ререндере
+    cart.forEach((tk) => {
+        const card = document.createElement('div');
+        card.className = 'ticket';
+        card.innerHTML =
+            `<span class="t-text">` +
+                `<span class="t-seat">${tk.row} ряд, ${tk.seat} место</span>` +
+                `<span class="t-price">${formatPrice(tk.price)}</span>` +
+            `</span>` +
+            `<button class="t-x" type="button" aria-label="Убрать">${icoCross}</button>`;
+        card.addEventListener('pointerdown', (e) => onTicketDown(e, card));
+        card.addEventListener('pointermove', onTicketMove);
+        card.addEventListener('pointerup', onTicketUp);
+        card.addEventListener('pointercancel', onTicketUp);
+        // × виден только у активного: удаляет его; у неактивного (только программно) — активирует.
+        // Глушим pointerdown, чтобы кнопка не стартовала drag карточки
+        const xBtn = card.querySelector('.t-x');
+        xBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+        xBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const i = ticketEls.indexOf(card);   // актуальный индекс на момент клика
+            if (i === activeTicket) deleteActiveTicket(i);
+            else activateTicket(i);
+        });
+        ticketEls.push(card);
+        trackEl.appendChild(card);
+    });
+    if (ticketEls.length === 0) { cardW = []; cardStart = []; setTrackX(0); return; }
+    // клампим активную в новые границы (активной остаётся позиция в списке)
+    activeTicket = clamp(activeTicket, 0, ticketEls.length - 1);
+    applyActiveClass();
+    measureCards();
+    // instant — мгновенно в целевую позицию: при удалении поверх лейаута идёт FLIP-реколл соседей
+    if (opts.instant) setTrackX(targetXFor(activeTicket));
+    else snapTo(activeTicket);
+}
+
+/* --- drag галереи: тянем трек за пальцем 1:1, по отпусканию — снап/флик.
+       drag по карточке → карусель; drag по пустоте → пан схемы. --- */
+let tDrag = null;
+const TICKET_TAP = 8;             // px: движение меньше — это tap, а не drag
+/* Правая зона активного билета: крестик (padding-right 12 + иконка 24) + буфер ~8px = 44px.
+   Тап в ней схему не двигает (× удаляет своим хендлером, буфер — no-op). */
+const TICKET_X_ZONE = 44;
+
+function inTicketXZone(index, clientX) {
+    const el = ticketEls[index];
+    if (!el) return false;
+    const r = el.getBoundingClientRect();
+    return clientX >= r.right - TICKET_X_ZONE;
+}
+
+function onTicketDown(e, el) {
+    if (deleting) return;
+    if (e.target.closest('.t-x')) return;
+    if (stopSpring) { stopSpring(); stopSpring = null; }
+    const t0 = performance.now();
+    tDrag = {
+        startX: e.clientX, startY: e.clientY,
+        startTrack: trackX, pid: e.pointerId,
+        // окно последних сэмплов {t,x} для робастной оценки скорости флика
+        samples: [{ t: t0, x: e.clientX }],
+        index: ticketEls.indexOf(el),
+    };
+    try { el.setPointerCapture(e.pointerId); } catch {}
+    sliderEl.classList.add('grabbing');
+    e.preventDefault();
+}
+
+function onTicketMove(e) {
+    if (!tDrag || e.pointerId !== tDrag.pid) return;
+    const now = performance.now();
+    tDrag.samples.push({ t: now, x: e.clientX });
+    const cutoff = now - VX_WINDOW;
+    let k = 0;
+    while (k < tDrag.samples.length - 1 && tDrag.samples[k + 1].t < cutoff) k++;
+    if (k > 0) tDrag.samples.splice(0, k);
+
+    let x = tDrag.startTrack + (e.clientX - tDrag.startX);   // follow-the-finger 1:1
+    // резина за краями
+    const min = targetXFor(ticketEls.length - 1);
+    const max = targetXFor(0);
+    if (x > max) x = max + (x - max) * 0.35;
+    if (x < min) x = min + (x - min) * 0.35;
+    setTrackX(x);
+}
+
+/* Скорость отпускания — средняя по последним VX_WINDOW мс (последний сегмент занижает флик). */
+const VX_WINDOW = 70;             // мс
+function windowedVX(samples, now) {
+    if (!samples || samples.length < 2) return 0;
+    const cutoff = now - VX_WINDOW;
+    let i = samples.length - 1;
+    while (i > 0 && samples[i - 1].t >= cutoff) i--;
+    const a = samples[i], b = samples[samples.length - 1];
+    const dt = b.t - a.t;
+    return dt > 0 ? (b.x - a.x) / dt * 1000 : 0;
+}
+
+/* «Сила жеста → число шагов»: тормозной путь флика |vx|·VX_TAU в шагах неактивной карточки.
+     • INTENT_FRACTION — доля пути до соседа: прошли её → жест намеренный;
+     • INTENT_VX — либо короткий, но быстрый флик тоже намеренный;
+     • VX_TAU — тормозное время инерции, с. */
+const INTENT_FRACTION = 0.32;
+const INTENT_VX = 250;
+const VX_TAU = 0.26;
+
+/* Дискретный выбор целевого индекса: направление — по знаку жеста, дальность — по скорости. */
+function chooseTicketTarget({ cur, n, deltaX, vx, stepDist, pitch }) {
+    let dir = deltaX < 0 ? 1 : deltaX > 0 ? -1 : 0;
+    if (dir === 0) dir = vx < 0 ? 1 : vx > 0 ? -1 : 0;
+    if (dir === 0) return cur;
+
+    const travel = Math.abs(deltaX);
+    const speed = Math.abs(vx);
+    const intentional = travel >= stepDist * INTENT_FRACTION || speed >= INTENT_VX;
+
+    const P = pitch > 0 ? pitch : (stepDist > 0 ? stepDist : 1);
+    let steps = Math.round(speed * VX_TAU / P);
+    if (!intentional && steps < 1) return cur;        // слабый свайп → снап на текущий
+    if (steps < 1) steps = 1;                         // намеренный → минимум сосед
+    return clamp(cur + dir * steps, 0, n - 1);
+}
+
+function onTicketUp(e) {
+    if (!tDrag || e.pointerId !== tDrag.pid) return;
+    const d = tDrag;
+    tDrag = null;
+    sliderEl.classList.remove('grabbing');
+    const moved = Math.hypot(e.clientX - d.startX, e.clientY - d.startY);
+    if (moved < TICKET_TAP) {
+        // tap по неактивной карточке → активировать + схема на её место
+        if (d.index !== -1 && d.index !== activeTicket) { activateTicket(d.index); return; }
+        // лента могла уехать за пальцем на несколько px — вернуть её в якорь
+        // (в прототипе схемы зала этого не было: после «почти тапа» лента оставалась сдвинутой)
+        snapTo(activeTicket);
+        // tap по активной вне зоны × → схема снова на её место; корзина не меняется
+        if (d.index === activeTicket && !inTicketXZone(d.index, e.clientX)) {
+            const seat = cart[d.index];
+            if (seat) focusSeat(seat);
+        }
+        return;
+    }
+    // свайп: целевой индекс дискретно от текущего активного
+    const cur = activeTicket;
+    const n = ticketEls.length;
+    const deltaX = e.clientX - d.startX;
+    const vxWin = windowedVX(d.samples, performance.now());
+    const dirGuess = deltaX < 0 ? 1 : deltaX > 0 ? -1 : (vxWin < 0 ? 1 : -1);
+    const nb = clamp(cur + dirGuess, 0, n - 1);
+    const stepDist = Math.abs(targetXFor(nb) - targetXFor(cur)) || ((cardW[cur] || 0) + TICKET_GAP);
+    const pitch = ((cardW[nb] || cardW[cur] || 0) + TICKET_GAP);
+    const target = chooseTicketTarget({ cur, n, deltaX, vx: vxWin, stepDist, pitch });
+    activateTicket(target, vxWin);
+}
+
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+/* Перерисовать слой выбранных мест: место активного билета крупнее (×1,4) и поверх остальных. */
+function renderSelectionActive() {
+    if (renderSelection) renderSelection(seats, cart[activeTicket]);
+}
+
+/* ============================================================
+   Удаление активного билета крестиком — «fade».
+     • exit-клон уходящей карточки: scale 1→.2 + opacity 1→0 на месте, 140ms,
+       cubic-bezier(.4,0,1,1); рисуется поверх слайдера вне потока;
+     • реколл соседей: FLIP + пружина (stiffness 940 / damping 41).
+   Активным становится билет на той же позиции (у последнего — левый сосед), схема едет на его место.
+   deleting-флаг блокирует повторное удаление, драг и тапы по схеме во время анимации. */
+const EXIT_MS = 140;
+const EXIT_EASING = 'cubic-bezier(.4,0,1,1)';
+
+function spawnExit(leavingEl) {
+    const sr = sliderEl.getBoundingClientRect();
+    const lr = leavingEl.getBoundingClientRect();
+    const clone = leavingEl.cloneNode(true);
+    clone.classList.add('exit-clone');
+    if (leavingEl.classList.contains('active')) clone.classList.add('active');
+    clone.style.left = (lr.left - sr.left) + 'px';
+    clone.style.top = (lr.top - sr.top) + 'px';
+    clone.style.width = lr.width + 'px';
+    clone.style.height = lr.height + 'px';
+    clone.style.transformOrigin = 'center center';
+    clone.style.transition = `transform ${EXIT_MS}ms ${EXIT_EASING}, opacity ${EXIT_MS}ms ${EXIT_EASING}`;
+    sliderEl.appendChild(clone);
+    requestAnimationFrame(() => {
+        clone.style.transform = 'scale(.2)';
+        clone.style.opacity = '0';
+    });
+    setTimeout(() => clone.remove(), EXIT_MS + 60);
+}
+
+function deleteActiveTicket(idx) {
+    if (deleting) return;
+    const seat = cart[idx];
+    if (!seat) return;
+    deleting = true;
+    if (stopSpring) { stopSpring(); stopSpring = null; }   // погасить возможный снап
+    const leavingEl = ticketEls[idx];
+
+    // FLIP: запомнить X оставшихся карточек ДО удаления (ключ — объект-место)
+    const firstMap = new Map();
+    ticketEls.forEach((el, i) => { if (i !== idx) firstMap.set(cart[i], el.getBoundingClientRect().left); });
+
+    spawnExit(leavingEl);
+
+    seat.selected = false;              // место схемы → дефолт
+    cart.splice(idx, 1);
+    renderCTA();
+
+    if (cart.length === 0) {
+        renderTickets();
+        renderMarks();
+        // exit-клон живёт внутри .floating, поэтому блок прячем ПОСЛЕ exit-анимации
+        setTimeout(syncFloating, EXIT_MS + 60);
+        deleting = false;
+        return;
+    }
+
+    activeTicket = clamp(idx, 0, cart.length - 1);
+    renderMarks();                      // увеличенным становится место нового активного
+    renderTickets({ instant: true });   // мгновенный лейаут без пружины
+    focusTicket(activeTicket);          // схема на место нового активного
+
+    // FLIP invert: сдвинуть каждую карточку обратно к её прежней позиции
+    const dx0 = ticketEls.map((el, i) => {
+        const f = firstMap.get(cart[i]);
+        const l = el.getBoundingClientRect().left;
+        return f == null ? 0 : (f - l);
+    });
+    cardDX = dx0.slice();
+    setTrackX(trackX);
+
+    // play: пружина ведёт сдвиги к 0 — соседи плавно закрывают зазор
+    if (reflowSpring) reflowSpring();
+    reflowSpring = spring({
+        from: 1, to: 0, stiffness: 940, damping: 41,
+        onUpdate: (p) => { for (let i = 0; i < cardDX.length; i++) cardDX[i] = dx0[i] * p; setTrackX(trackX); },
+        onDone: () => { cardDX = cardDX.map(() => 0); setTrackX(trackX); reflowSpring = null; deleting = false; },
+    });
+}
+
+/* --- Подложка нижнего блока: видна только при непустой корзине. Пустая корзина →
+   display:none, чтобы белый градиент не рисовался и высота не резервировалась. --- */
+function syncFloating() {
+    floatingEl.style.display = cart.length === 0 ? 'none' : '';
+}
+
+/* --- CTA: сумма = сумме цен выбранных мест. Пустая корзина → кнопки нет. --- */
+function renderCTA() {
+    if (cart.length === 0) {
+        ctaEl.style.display = 'none';
+        ctaEl.innerHTML = '';
+        return;
+    }
+    const total = cart.reduce((acc, s) => acc + (s.price || 0), 0);
+    ctaEl.style.display = '';
+    ctaEl.innerHTML =
+        `<span>Оформить: ${formatPrice(total)}</span>` +
+        `<span class="cta-ico">${icoChevronRight}</span>`;
+}
+
+/* Перерисовать маркеры выбранных мест (активное — крупнее) и всё, что от них зависит */
 function renderMarks() {
-    if (renderSelection) renderSelection(seats);
+    renderSelectionActive();
     renderFilter();   // место вошло в заказ — увеличенная копия снимается, вышло — возвращается
     // подсветка кресла: контур снимается, если кресло под ним вошло в заказ или вышло из него;
     // ошибка здесь не мешает выбору мест
@@ -280,16 +468,23 @@ function renderMarks() {
     }
 }
 
-/* Добавить место: отметить selected, положить в заказ, обновить шторку,
-   центрировать схему на месте с приближением. Молча игнорируем 9-е место.
+/* Перерисовать всё, что зависит от корзины: карусель, CTA, подложку, маркеры на схеме */
+function refreshCart() {
+    renderTickets();
+    renderCTA();
+    syncFloating();
+    renderMarks();
+}
+
+/* Добавить место: отметить selected, положить в корзину, показать билет активным,
+   поставить место в центр видимой полосы. Молча игнорируем 9-е место.
    focus: false — схема уже стоит на месте (добавление из лайтбокса), второго движения нет. */
 function addSeat(seat, focus = true) {
     if (cart.length >= MAX_SEATS) return;
-    const sheetComing = !cart.length;   // шторка выезжает вместе с этим билетом
     seat.selected = true;
     cart.push(seat);
+    activeTicket = cart.length - 1;     // новый билет — активная карточка
     refreshCart();
-    cardForLast(seat, sheetComing ? sheetLift() + SHEET_HIDDEN_EXTRA : 0);
     if (focus) focusSeat(seat);
 }
 
@@ -318,7 +513,8 @@ function removeFromPhoto(node) {
 }
 
 /* Убрать место: снять selected, выкинуть из корзины, вернуть в дефолт.
-   Тап по месту на схеме. Крестик в строке билета идёт через dropTicket (строка гаснет анимацией). */
+   Мгновенный путь (тап по месту на схеме). Активной остаётся позиция в списке, как в
+   прототипе схемы зала. Удаление крестиком активного билета — deleteActiveTicket (с анимацией). */
 function removeSeat(seat) {
     const i = cart.indexOf(seat);
     if (i === -1) return;
@@ -327,13 +523,14 @@ function removeSeat(seat) {
     refreshCart();
 }
 
-/* Центрировать+приблизить схему к месту (центр rect'а = x+4, y+4 в SVG-юнитах) */
+/* Поставить место в центр видимой полосы между шапкой и нижним блоком и приблизить
+   (центр rect'а = x+4, y+4 в SVG-юнитах). Зум не меньше текущего. */
 const FOCUS_SCALE = 1.8;   // уровень приближения при выборе (мягкий: место видно + видны соседи, без гипер-зума)
 function focusSeat(seat) {
     if (!hall) return;
     const x = +seat.el.getAttribute('x') + 4;
     const y = +seat.el.getAttribute('y') + 4;
-    hall.focusOnSvgPoint(x, y, FOCUS_SCALE);
+    hall.focusInBand(x, y, FOCUS_SCALE);
 }
 
 /* Тап по схеме → hit-test ближайшего места → выбрать/снять.
@@ -351,6 +548,7 @@ function findNearestSeat(sx, sy, maxR) {
 }
 function handleTap(clientX, clientY) {
     if (lightbox.isOpen()) { lightbox.close(); return; }   // лайтбокс перекрывает весь экран, тап до схемы не дойдёт; строка — страховка
+    if (deleting) return;                                   // не трогаем корзину во время анимации удаления
     const p = hall.clientToSvg(clientX, clientY);
     if (!p) return;
     const seat = findNearestSeat(p.x, p.y, 8);   // R=8 SVG-юнитов (место 8 + зазор)
@@ -362,7 +560,7 @@ function handleTap(clientX, clientY) {
     }
     // Промах (пустая область ИЛИ серое/недоступное место): только на МИНИМАЛЬНОМ
     // масштабе подзумливаем по точке тапа, как при выборе места, но БЕЗ выбора
-    // (корзина не меняется). Если уже подзумлен — ничего не делаем (как раньше).
+    // (корзина не меняется). Если уже подзумлен — ничего не делаем.
     if (hall.atMinScale()) {
         hall.focusOnSvgPoint(p.x, p.y, FOCUS_SCALE);
     }
@@ -399,9 +597,8 @@ function showOnMap(node) {
 }
 
 /* «Добавить в корзину»: то же приближение, что у «Показать на схеме», без подсветки.
-   Место ложится в заказ после остановки схемы — маркер появляется на уже приближенном кресле
-   у человека на глазах; второго движения схемы нет. Касание во время приближения
-   добавляет место сразу (stopShowOnMap): тап по кнопке не теряется */
+   Место ложится в заказ после остановки схемы — второго движения схемы нет. Касание во время
+   приближения добавляет место сразу (stopShowOnMap): тап по кнопке не теряется */
 function addFromPhoto(node) {
     pendingAdd = node.seat;
     leaveLightbox(node, commitAdd);
@@ -434,10 +631,10 @@ function fitHall() {
 /* --- Инлайн-SVG схемы (вектор в DOM, чёткий на зуме) --- */
 let seats = [];            // модель мест (ряд/место/цена/секция/статус), см. js/seats.js
 let hallSvgEl = null;      // корневой <svg> схемы (для класса бледнения .filtering)
-let renderSelection = null; // fn(seats) — перерисовать слой выбранных мест
+let renderSelection = null; // fn(seats, activeSeat) — перерисовать слой выбранных мест
 let renderFilterLayer = null; // fn(items) — перерисовать слой увеличения по фильтру цены
 
-/* пружина (velocity-based, rAF) — анимация увеличения мест по фильтру цены.
+/* пружина (velocity-based, rAF) — карусель билетов и увеличение мест по фильтру цены.
    stiffness 840, damping 44 → ζ≈0.76: лёгкий overshoot ~2.5% (еле заметный баунс) */
 function spring({ from, to, velocity = 0, stiffness = 840, damping = 44, mass = 1, onUpdate, onDone }) {
     let x = from, v = velocity, last = performance.now(), raf;
@@ -478,7 +675,9 @@ function spring({ from, to, velocity = 0, stiffness = 840, damping = 44, mass = 
 
    Места в заказе не увеличиваются: их показывает маркер выбора, а копия в цвет тира
    торчала бы из-под маркера цветным кольцом. Кресло с фото увеличивается вместе
-   с кружком фото (photoMap.dotOf). */
+   с кружком фото (photoMap.dotOf).
+   Смена активного билета ставит схему на место через hall.focusInBand → onInteract →
+   clearFilters: фильтр сбрасывается, как при любом взаимодействии со схемой. */
 const TARGET_PX = 18;                // целевой экранный размер увеличенного места, px
 const filterTiers = new Map();
 
@@ -532,10 +731,8 @@ function toggleTierFilter(color) {
 /* Бледнение при активном фильтре. Активен ≥1 тир (target===1) → на корневой
    <svg> вешаем класс .filtering: CSS приглушает ВСЕ базовые 8×8-места и кружки фото,
    а места активных тиров помечаем классом .tier-active (CSS возвращает им полный цвет).
-   Занятые (не активного тира) бледнеют обоими rect'ами (заливка + белая обводка,
-   обе width=8). Слои .filter-layer/.sel-layer из бледнения исключены в CSS, поэтому
-   увеличенные копии и оранжевый маркер остаются в полном цвете. Нет активных тиров
-   → класс снимается, все .tier-active очищаются (полный цвет у всех). */
+   Слои .filter-layer/.sel-layer из бледнения исключены в CSS, поэтому
+   увеличенные копии и оранжевый маркер остаются в полном цвете. */
 function updateFade() {
     if (!hallSvgEl) return;
     const active = new Set();
@@ -593,22 +790,20 @@ function injectHall() {
 /* --- Инициализация --- */
 const hallReady = injectHall();
 renderLegend();
-refreshCart();   // заказ пуст: шторка скрыта
+refreshCart();   // заказ пуст: нижнего блока нет
 
 const hall = new HallViewport($('.map-viewport'), $('.map-content'), {
-    // высоты плавающих оверлеев (шапка / свёрнутая шторка) — расширяют пан-слэк,
-    // чтобы верхние/нижние места можно было вывести ИЗ-ПОД оверлеев
+    // высоты плавающих оверлеев (шапка с фильтрами / нижний блок) — расширяют пан-слэк,
+    // чтобы верхние/нижние места можно было вывести ИЗ-ПОД оверлеев; по ним же focusInBand
+    // считает видимую полосу. Пустая корзина → .floating display:none → 0.
     topInset: () => (header ? header.getBoundingClientRect().height : 0),
-    bottomInset: () => sheetLift(),
-    // Оффсет покоя: при ПУСТОЙ корзине (загрузка — снизу нет кнопки) опускаем
-    // вписанную схему на половину высоты шапки, чтобы вертикальный
-    // воздух распределился симметрично, а не сваливался весь вниз. Есть билеты
-    // (кнопка снизу) → 0 → композиция как раньше.
+    bottomInset: () => floatingEl.getBoundingClientRect().height,
+    // Оффсет покоя: при ПУСТОЙ корзине (снизу нет блока) опускаем вписанную схему
+    // на половину высоты шапки, чтобы вертикальный воздух распределился симметрично.
     restOffsetY: () => (cart.length === 0 && header ? header.getBoundingClientRect().height / 2 : 0),
     // тап по схеме (не пан) → выбрать/снять место под указателем
     onTap: (cx, cy) => handleTap(cx, cy),
-    // любое взаимодействие со схемой (pan/zoom/tap/фокус) → сброс фильтра цены:
-    // активные пилюли гаснут, увеличенные места возвращаются к обычному размеру
+    // любое взаимодействие со схемой (pan/zoom/tap/фокус) → сброс фильтра цены
     onInteract: () => clearFilters(),
     // подсветка кресла едет вместе со схемой; ошибка в ней не должна ломать пан и зум
     onView: () => {
@@ -622,8 +817,8 @@ const viewportEl = $('.map-viewport');
 // Слушается ввод, а не onView: onView зовут и программные движения схемы — fitHall, refit, resize
 viewportEl.addEventListener('pointerdown', stopShowOnMap, { capture: true });
 viewportEl.addEventListener('wheel', stopShowOnMap, { capture: true, passive: true });
-// касание шторки: крестик удаления меняет кресло в заказе, и контур, построенный под маркер, остался бы не по месту
-sheetEl.addEventListener('pointerdown', stopShowOnMap, { capture: true });
+// касание карусели или кнопки: карусель двигает схему, контур остался бы не по месту
+floatingEl.addEventListener('pointerdown', stopShowOnMap, { capture: true });
 // касание фильтра цены: под контуром кресло могло побледнеть или увеличиться, контур остался бы не по креслу
 legendEl.addEventListener('pointerdown', stopShowOnMap, { capture: true });
 
@@ -631,13 +826,14 @@ legendEl.addEventListener('pointerdown', stopShowOnMap, { capture: true });
 fitHall();
 requestAnimationFrame(fitHall);
 
-// пересчёт при смене размеров вьюпорта: высота развёрнутой шторки + фит схемы,
+// пересчёт при смене размеров вьюпорта: рецентрирование карусели + фит схемы,
 // затем переприменить viewBox под новые размеры коробки
 window.addEventListener('resize', () => {
-    fitDetails();
+    recenterTickets();
     fitHall();
     hall.panTo(hall.tx, hall.ty);   // реклампинг + перерисовка viewBox
 });
+requestAnimationFrame(recenterTickets);   // добор после первого лейаута
 
 // SVG уже в DOM → отрисовать загрузочный viewBox через состояние (= min-зум)
 hallReady.then(fitHall);

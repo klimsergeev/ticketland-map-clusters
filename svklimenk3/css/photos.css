@@ -36,115 +36,6 @@
     white-space: nowrap;
 }
 
-/* ---------- Карточка выбранного места — макет «seat-preview», инстанс «Ticket preview» 4570:16932.
-   Компонент 4569:16646: 328×80 в кадре 360 с отступами 16 — тянется по ширине экрана. Шрифт Statika вместо MTS Compact.
-   Над свёрнутой шторкой с зазором 16 (макет: низ карточки 660, верх шторки 676; = CARD_GAP в js/photo-ui.js); bottom ставит js.
-   Слой 14: над схемой (1) и шапкой (5), под затемнением (15), шторкой (16) и лайтбоксом (20).
-   Спрятана — сдвинута вниз на свою высоту и зазор: верх вровень с верхом шторки, карточка целиком
-   за шторкой (124 > 80); visibility — иначе над шторкой выглядывала бы тень.
-   Выезд и уход — кривая и длительность шторки (.sheet в css/styles.css); в макете движения нет.
-   overflow не обрезается: зона касания крестика выходит за край карточки ---------- */
-.seat-card {
-    position: absolute;
-    left: 16px;
-    right: 16px;
-    bottom: 0;                                                    /* js: высота свёрнутой шторки + 8 */
-    z-index: 14;
-    display: flex;
-    align-items: center;
-    height: 80px;
-    border-radius: var(--r-16);
-    background: var(--bg-modal);                                 /* Background/Modal #FFFFFF */
-    box-shadow: 0 8px 16px 0 #0000000A, 0 4px 24px 0 #0000000F;   /* Shadows/Middle; --shadow-middle проекта другой */
-    color: var(--gs-800);                                         /* Text/Primary #1D2023; --text-primary проекта другой */
-    /* --seat-card-from — ещё ниже на путь выезжающей шторки: при первом билете карточка стартует вместе с ней */
-    transform: translateY(calc(100% + 16px + var(--seat-card-from, 0px)));
-    visibility: hidden;
-    pointer-events: none;
-    transition: transform 250ms cubic-bezier(.2, .8, .2, 1), visibility 0s linear 250ms;
-}
-/* выезд из-под шторки; --seat-card-ms — длительность: при первом билете дольше шторки на столько же,
-   во сколько длиннее путь, — на старте карточка и шторка едут с одной скоростью */
-.seat-card.is-shown {
-    transform: none;
-    visibility: visible;
-    pointer-events: auto;
-    transition:
-        transform var(--seat-card-ms, 250ms) cubic-bezier(.2, .8, .2, 1),
-        visibility 0s;
-}
-/* мгновенный уход: шторка уезжает целиком */
-.seat-card.is-instant { transition: none; }
-
-/* Превью 120×80 (3:2, как фото 1440×960), фон Hall preview #FFFFFF — кнопка открытия лайтбокса.
-   Своего скругления у превью в макете нет: левые углы срезает скругление карточки 16 (overflow-clip карточки).
-   У карточки overflow не обрезается — иначе обрезалась бы зона касания крестика, — поэтому срез повторён
-   скруглением левых углов превью: высота превью равна высоте карточки, углы совпадают */
-.seat-card-photo {
-    position: relative;
-    flex: none;
-    width: 120px;
-    height: 80px;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    border-radius: var(--r-16) 0 0 var(--r-16);
-    overflow: hidden;
-    background: var(--gs-0);
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-}
-.seat-card-img {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    pointer-events: none;
-    -webkit-user-drag: none;
-}
-/* «Развернуть» 24 — в 8 от верхнего и правого края превью, Constant/Greyscale 0 #FFFFFF */
-.seat-card-expand {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    width: 24px;
-    height: 24px;
-    color: var(--gs-0);
-    pointer-events: none;
-}
-.seat-card-expand svg,
-.seat-card-close svg { display: block; }
-
-/* Тексты: по бокам 16, между строками 2; P2 Comp 14/20 */
-.seat-card-info {
-    flex: 1 0 0;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 0 16px;
-    font: 400 14px/20px var(--font-sans);   /* P2 Regular Comp: Statika вместо MTS Compact */
-    overflow-wrap: anywhere;
-}
-.seat-card-section { font-weight: 500; }    /* P2 Medium Comp */
-
-/* Крестик 24 — в 8 от верхнего и правого края карточки, Icons/Secondary #8D969F, токена нет */
-.seat-card-close {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    width: 24px;
-    height: 24px;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: #8D969F;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-}
-.seat-card-close::after { content: ''; position: absolute; inset: -10px; }   /* зона касания 44 × 44, глазу не видна */
-
 /* ---------- Лайтбокс с фото: на весь экран поверх шапки (z 5) и нижнего блока (z 4).
    Значения — фрейм lightbox макета; MTS Compact заменён на Statika с параметрами макета ---------- */
 .lb {
@@ -292,7 +183,7 @@
 }
 .lb-add[hidden],
 .lb-remove[hidden] { display: none; }
-/* «Добавить в корзину» — кадр «свободно» 4416:12169; те же цвета у «Оформить» (.sheet-pay в css/styles.css) */
+/* «Добавить в корзину» — кадр «свободно» 4416:12169 */
 .lb-add {
     background: var(--brand-mts);           /* Controls/Primary Active #FF0032 */
     color: var(--gs-0);                     /* Constant/Greyscale 0 #FFFFFF */
