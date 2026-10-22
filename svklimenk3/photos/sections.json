@@ -1,14 +1,14 @@
 {
-    "parter-left": { "url": "photos/photo-4.jpg", "caption": "Вид из партера, левая сторона" },
-    "parter-center": { "url": "photos/photo-5.jpg", "caption": "Вид из партера, центр" },
-    "parter-right": { "url": "photos/photo-1.jpg", "caption": "Вид из партера, правая сторона" },
-    "amphitheatre-left": { "url": "photos/photo-2.jpg", "caption": "Вид из амфитеатра, левая сторона" },
-    "amphitheatre-center": { "url": "photos/photo-5.jpg", "caption": "Вид из амфитеатра, центр" },
-    "amphitheatre-right": { "url": "photos/photo-1.jpg", "caption": "Вид из амфитеатра, правая сторона" },
-    "beletage-left": { "url": "photos/photo-2.jpg", "caption": "Вид из бельэтажа, левая сторона" },
-    "beletage-center": { "url": "photos/photo-5.jpg", "caption": "Вид из бельэтажа, центр" },
-    "beletage-right": { "url": "photos/photo-3.jpg", "caption": "Вид из бельэтажа, правая сторона" },
-    "balcony-left": { "url": "photos/photo-2.jpg", "caption": "Вид с балкона, левая сторона" },
-    "balcony-center": { "url": "photos/photo-5.jpg", "caption": "Вид с балкона, центр" },
-    "balcony-right": { "url": "photos/photo-3.jpg", "caption": "Вид с балкона, правая сторона" }
+    "parter-left": { "url": "photos/low-left.jpg", "caption": "Вид из партера, левая сторона" },
+    "parter-center": { "url": "photos/low-center.jpg", "caption": "Вид из партера, центр" },
+    "parter-right": { "url": "photos/low-right.jpg", "caption": "Вид из партера, правая сторона" },
+    "amphitheatre-left": { "url": "photos/low-left.jpg", "caption": "Вид из амфитеатра, левая сторона" },
+    "amphitheatre-center": { "url": "photos/low-center.jpg", "caption": "Вид из амфитеатра, центр" },
+    "amphitheatre-right": { "url": "photos/low-right.jpg", "caption": "Вид из амфитеатра, правая сторона" },
+    "beletage-left": { "url": "photos/high-left.jpg", "caption": "Вид из бельэтажа, левая сторона" },
+    "beletage-center": { "url": "photos/high-center.jpg", "caption": "Вид из бельэтажа, центр" },
+    "beletage-right": { "url": "photos/high-right.jpg", "caption": "Вид из бельэтажа, правая сторона" },
+    "balcony-left": { "url": "photos/high-left.jpg", "caption": "Вид с балкона, левая сторона" },
+    "balcony-center": { "url": "photos/high-center.jpg", "caption": "Вид с балкона, центр" },
+    "balcony-right": { "url": "photos/high-right.jpg", "caption": "Вид с балкона, правая сторона" }
 }
