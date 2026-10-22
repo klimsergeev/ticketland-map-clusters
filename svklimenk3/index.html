@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <title>Схема зала — TLND-15971</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <link rel="stylesheet" href="css/colors_and_type.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/photos.css">
+</head>
+<body>
+<div class="app">
+    <!-- 1. Шапка -->
+    <header class="header">
+        <!-- заголовок -->
+        <div class="title">
+            <button class="icon-btn" type="button" aria-label="Назад"></button>
+            <div class="title-text">
+                <div class="ttl"></div>
+                <div class="sub"></div>
+            </div>
+        </div>
+        <!-- легенда цен = фильтр по ценам -->
+        <div class="legend"></div>
+    </header>
+
+    <!-- 2. Схема зала (пан/зум) -->
+    <div class="map-viewport">
+        <div class="map-content">
+            <!-- инлайн-SVG схемы инжектится из assets/hall.svg (вектор в DOM) -->
+            <div class="hall-svg" role="img" aria-label="Схема зала"></div>
+        </div>
+    </div>
+
+    <!-- 3. Шторка заказа: свёрнута — итог и «Оформить»; развёрнута — событие и список билетов над затемнением -->
+    <div class="sheet-scrim"></div>
+    <div class="sheet is-hidden">
+        <div class="sheet-details">
+            <div class="sheet-details-in">
+                <button class="sheet-close" type="button" aria-label="Свернуть"></button>
+                <div class="sheet-head">
+                    <div class="sheet-title"></div>
+                    <div class="sheet-meta">
+                        <div class="sheet-date"></div>
+                        <div class="sheet-venue"></div>
+                    </div>
+                </div>
+                <div class="sheet-list"></div>
+            </div>
+        </div>
+        <div class="sheet-total">
+            <button class="sheet-sum" type="button" aria-expanded="false">
+                <span class="sheet-tickets">
+                    <span class="sheet-ico"></span>
+                    <span class="sheet-count"></span>
+                    <span class="sheet-chevron"></span>
+                </span>
+                <span class="sheet-amount"></span>
+            </button>
+            <button class="sheet-pay" type="button"><span>Оформить</span></button>
+        </div>
+    </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

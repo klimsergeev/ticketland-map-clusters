@@ -1,6 +1,6 @@
 /* ============================================================
-   Фото на креслах и подсветка кресла после «Показать на схеме».
-   Фото: набор загружается и раскладывается по креслам, галерея — в порядке зала.
+   Фото на креслах, их метки-кружки и подсветка кресла после «Показать на схеме».
+   Фото: набор загружается и раскладывается по креслам, галерея — в порядке зала; на каждом кресле с фото — кружок в SVG схемы.
    Подсветка — HTML-слой поверх схемы: размер контура в px экрана, касаний не принимает.
    ============================================================ */
 import { loadPhotos, bindPhotos } from './photos.js';
@@ -24,18 +24,23 @@ const HL_HALO_OPACITY = 0.5;
 const HL_OFF_MS = 150;           // гашение по касанию
 const HL_EASE = 'cubic-bezier(.33, 1, .68, 1)';   // быстрый старт, мягкая остановка
 
-/* Видимая фигура кресла в единицах схемы: полусторона h и радиус угла r.
-   Кресло в заказе — маркер выбора (js/seats.js). Занятое кресло в hall.svg — заливка и поверх неё rect
-   с теми же x, y и белой обводкой: обводка по центру края съедает stroke-width / 2 с каждой стороны. */
-function seatShape(seat) {
-    if (seat.selected) return { h: SEL_HALF, r: SEL_RADIUS };
-    const el = seat.el;
-    const rx = +el.getAttribute('rx') || 0;
+/* Сколько единиц схемы с каждой стороны кресла съедает белая обводка. Занятое кресло в hall.svg — заливка
+   и поверх неё rect с теми же x, y и белой обводкой: обводка по центру края съедает stroke-width / 2. У свободного 0 */
+function coverInset(el) {
     const cover = el.nextElementSibling;
     const covered = cover && cover.getAttribute('stroke') === 'white'
         && cover.getAttribute('x') === el.getAttribute('x')
         && cover.getAttribute('y') === el.getAttribute('y');
-    const inset = covered ? (+cover.getAttribute('stroke-width') || 0) / 2 : 0;
+    return covered ? (+cover.getAttribute('stroke-width') || 0) / 2 : 0;
+}
+
+/* Видимая фигура кресла в единицах схемы: полусторона h и радиус угла r.
+   Кресло в заказе — маркер выбора (js/seats.js) */
+function seatShape(seat) {
+    if (seat.selected) return { h: SEL_HALF, r: SEL_RADIUS };
+    const el = seat.el;
+    const rx = +el.getAttribute('rx') || 0;
+    const inset = coverInset(el);
     return { h: SEAT_UNITS / 2 - inset, r: Math.max(0, rx - inset) };
 }
 
@@ -45,6 +50,25 @@ function ringBox({ h, r }, k) {
 }
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* Метка фото — кружок по центру кресла с фото, свободного и занятого. Рисуется в SVG схемы,
+   поэтому растёт вместе с креслом при зуме; касаний не принимает — SVG схемы pointer-events: none */
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const DOT_SHARE = 6 / 16; // диаметр кружка — доля видимой стороны кресла: макет «Photo / centered-mg» 4598:17215 — кружок 6 на кресле 16
+const DOT_DARKEN = 20;    // кружок темнее заливки кресла: яркость B в HSB меньше на 20 пунктов, H и S те же
+                          // (макет: кресло #FA7E31, B 98 → кружок #C76427, B 78)
+
+/* #RRGGBB → тот же тон и насыщенность с яркостью B (HSB) меньше на points пунктов.
+   B — доля самого яркого канала; при тех же H и S все каналы меняются в одной пропорции newB / B */
+function darkenHsb(hex, points) {
+    if (!/^#[0-9a-f]{6}$/i.test(hex || '')) return hex;
+    const n = parseInt(hex.slice(1), 16);
+    const rgb = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    const b = Math.max(...rgb) / 255;
+    if (!b) return hex;
+    const k = Math.max(0, b - points / 100) / b;
+    return '#' + rgb.map((c) => Math.round(c * k).toString(16).padStart(2, '0')).join('').toUpperCase();
+}
 
 /* hall — HallViewport; viewportEl — .map-viewport; seats — модель мест из buildSeats. */
 export function createPhotoMap({ hall, viewportEl, seats }) {
@@ -72,10 +96,29 @@ export function createPhotoMap({ hall, viewportEl, seats }) {
                 bySeat = new Map(nodes.map((n) => [n.seatId, n]));
                 // y растёт от сцены назад и от партера к балкону, x — слева направо; у кресел одного ряда y одинаковый
                 gallery = [...nodes].sort((a, b) => a.y - b.y || a.x - b.x);
+                drawDots(nodes);
             } catch (e) {
                 console.error('Фото: данные не разложены по креслам', e);
             }
         });
+    }
+
+    /* Кружки меток в SVG схемы: центр — центр кресла (node.x, node.y), диаметр — DOT_SHARE видимой стороны кресла
+       (у занятого белая обводка съедает края: видимая сторона 8 − 3 = 5), цвет — заливка кресла темнее на DOT_DARKEN.
+       Слой — сразу под слоем маркеров выбора: маркер выбранного места (11 единиц) закрывает кружок */
+    let dotsEl = null;
+    function drawDots(nodes) {
+        const svg = seats.length ? seats[0].el.ownerSVGElement : null;
+        if (!svg) return;
+        if (dotsEl) dotsEl.remove();
+        dotsEl = document.createElementNS(SVG_NS, 'g');
+        dotsEl.setAttribute('class', 'photo-dots');
+        dotsEl.innerHTML = nodes.map((n) => {
+            const r = (SEAT_UNITS / 2 - coverInset(n.seat.el)) * DOT_SHARE;
+            const fill = darkenHsb(n.seat.el.getAttribute('fill'), DOT_DARKEN);
+            return `<circle cx="${n.x}" cy="${n.y}" r="${r}" fill="${fill}"/>`;
+        }).join('');
+        svg.insertBefore(dotsEl, svg.querySelector('.sel-layer'));   // нет слоя выбора — в конец
     }
 
     /* Из hall.opts.onView: контур подсветки едет вместе со схемой */
