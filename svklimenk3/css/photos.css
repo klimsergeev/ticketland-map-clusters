@@ -1,29 +1,7 @@
 /* ============================================================
-   Подсветка кресла и лайтбокс с фото.
+   Лайтбокс с фото секций.
    Подключается после css/styles.css.
    ============================================================ */
-
-/* ---------- Подсветка кресла после «Показать на схеме»: контур в форме кресла цветом кресла и один ореол.
-   color на .seat-hl ставит js: заливка кресла, оранжевый маркера у кресла в заказе.
-   Середина прозрачная — белый зазор между креслом и контуром это просвет схемы.
-   Касаний не принимает: тап сквозь контур — тап по креслу под ним.
-   Размер и радиус угла контура — инлайн из js ---------- */
-.seat-hl {
-    position: absolute;
-    left: 0;
-    top: 0;
-    pointer-events: none;
-}
-.seat-hl-ring,
-.seat-hl-halo {
-    position: absolute;
-    left: 0;
-    top: 0;
-    box-sizing: border-box;
-    border: 3px solid currentColor;   /* = HL_LINE в photo-map.js */
-    transform: translate(-50%, -50%);
-}
-.seat-hl-halo { opacity: 0; }
 
 /* ---------- Строка для экранного диктора: в раскладке не видна ---------- */
 .photo-sr {
@@ -128,16 +106,16 @@
 .lb-arrow.is-edge { opacity: .5; cursor: default; }
 
 /* Низ лайтбокса — макет, кадр 4417:12680 (состояния 4416:12158, 4416:12228, 4417:12642), ширина 360:
-   Button group — сверху 16, по бокам 20, между подписью и кнопками 20; снизу 16 — нижний отступ Content.
-   Подпись и кнопки тянутся по ширине рамки (в макете 320 = 360 − 2 × 20) */
+   Button group — сверху 16, по бокам 20; снизу 16 — нижний отступ Content. Кнопок в режиме фото секций нет,
+   остаётся одна подпись; тянется по ширине рамки (в макете 320 = 360 − 2 × 20) */
 .lb-bottom {
     display: flex;
     flex-direction: column;
     gap: 20px;
     padding: 16px 20px;
 }
-/* Info: слева секция и «Ряд N место M», справа статус по нижней строке; по бокам 8.
-   min-width: 0 у колонок — длинная секция переносится, а не распирает лайтбокс */
+/* Info: подпись секции («Партер, левая сторона») на месте строки с местом; по бокам 8.
+   min-width: 0 у колонки — длинная подпись переносится, а не распирает лайтбокс */
 .lb-info {
     display: flex;
     align-items: flex-end;
@@ -152,58 +130,4 @@
     flex: 1 0 0;
     flex-direction: column;
     min-width: 0;
-}
-.lb-section { font-weight: 500; }           /* P2 Medium Comp 14/20: Statika вместо MTS Compact */
-.lb-status {
-    flex: 1 0 0;
-    min-width: 0;
-    font-weight: 500;                       /* P2 Medium Comp 14/20 */
-    text-align: right;
-}
-/* «В корзине» — кадр 4417:12642, узел 4417:12653: Accent/Positive Inverted #74DF8B, токена в проекте нет */
-.lb-status.is-cart { color: #74DF8B; }
-/* Кнопки столбиком через 8 */
-.lb-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-.lb-add,
-.lb-remove,
-.lb-show {
-    width: 100%;
-    height: 44px;
-    margin: 0;
-    padding: 0 18px;                        /* 10 кнопки + 8 содержимого */
-    border: 0;
-    border-radius: var(--r-8);
-    font: 500 17px/24px var(--font-sans);   /* P1 Medium Comp 17/24: Statika вместо MTS Compact */
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-}
-.lb-add[hidden],
-.lb-remove[hidden] { display: none; }
-/* «Добавить в корзину» — кадр «свободно» 4416:12169 */
-.lb-add {
-    background: var(--brand-mts);           /* Controls/Primary Active #FF0032 */
-    color: var(--gs-0);                     /* Constant/Greyscale 0 #FFFFFF */
-}
-/* Неактивная — кадр «занято» 4416:12241: заливка Controls/Inactive #BCC3D080 (--ctrl-inactive проекта другой),
-   текст Text/Tertiary #969FA8 (= --gs-400; --text-tertiary проекта другой), непрозрачность кнопки 0,6 */
-.lb-add:disabled {
-    background: #BCC3D080;
-    color: var(--gs-400);
-    opacity: .6;
-    cursor: default;
-}
-/* «Убрать из корзины» — кадр «в корзине», инстанс 4417:12655: заливка Constant/Greyscale 0 #FFFFFF,
-   текст Text/Primary #1D2023 (= --gs-800; --text-primary проекта другой) */
-.lb-remove {
-    background: var(--gs-0);
-    color: var(--gs-800);
-}
-/* «Показать на схеме» — текстовая, кадр 4416:12187: без заливки, текст Text/Inverted #FAFAFA */
-.lb-show {
-    background: transparent;
-    color: var(--text-inverted);
 }

@@ -12,8 +12,6 @@ const icoChevronLeft =
     '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3 L5 8 L10 13"/></svg>';
 const icoChevronRight =
     '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5 L15 12 L9 19"/></svg>';
-const icoCross =
-    '<svg width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 5 L15 15 M15 5 L5 15"/></svg>';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -25,14 +23,10 @@ const trackEl = $('.slider-track', sliderEl);
 const ctaEl = $('.cta');
 const floatingEl = $('.floating');
 
-/* --- Фото и подсветка кресла. Объявлено до new HallViewport:
-       fitHall() сразу вызывает onView, и обращение к photoMap ниже по файлу упало бы. --- */
-let photoMap = null;       // фото секций и подсветка кресла, появляются после загрузки схемы
-let showSeq = 0;           // номер текущего ухода из лайтбокса на схему; действие человека его сбивает
-let showLeaving = false;   // лайтбокс гаснет после «Показать на схеме» или «Добавить в корзину»: касания схемы игнорируются
-let pendingAdd = null;     // место из «Добавить в корзину», которое ещё не легло в заказ
-// Лайтбокс пока без входа: превью фото переедет на карточки билетов следующим этапом
-const lightbox = createLightbox({ parentEl: $('.app'), onShow: showOnMap, onAdd: addFromPhoto, onRemove: removeFromPhoto, statusOf: seatStatus, addState: addButtonState });
+/* --- Фото секций и лайтбокс --- */
+let photoMap = null;       // фото секций, появляются после загрузки схемы
+// лайтбокс: все фото секций, открывается тапом по фото активной карточки билета (openSectionPhotos)
+const lightbox = createLightbox({ parentEl: $('.app') });
 
 /* --- Шапка: статичная (название, площадка, «Назад») --- */
 $('.ttl').textContent = EVENT.title;
@@ -69,8 +63,8 @@ const cart = [];
        середина → ЦЕНТР (peek с обеих сторон). Drag тянет трек за пальцем 1:1, по
        отпусканию — пружинный снап (учёт скорости флика). Активная = последний
        выбранный на схеме билет; ручной свайп это переопределяет.
-       Ширина карточек переменная (hug): неактивная узкая, активная шире, поэтому
-       геометрию считаем по фактическим offsetWidth (см. measureCards). --- */
+       Ширина карточек разная: 280 с фото, 192 без фото (в одной ленте бывают обе), один билет — на всю ширину;
+       поэтому геометрию считаем по фактическим offsetWidth (см. measureCards). --- */
 const TICKET_GAP = 8;             // зазор между билетами (Figma: gap в карусели)
 
 let activeTicket = 0;
@@ -188,19 +182,59 @@ function recenterTickets() {
     setTrackX(targetXFor(activeTicket));
 }
 
+/* --- Карточка билета: макет «Ticket preview / svklimenk3-cards» 4767:11622 ---
+   Три типа позиции заказа:
+     • место — объект-место из seats.js (у него есть .el): часть зала, «Ряд N место M», цена;
+       фото — фото секции места (photoMap.photoOf), если есть;
+     • секция без места — { kind: 'seatless', name, price, photo? }: название секции, цена;
+     • доп. инвентарь — { kind: 'extra', name, sort, price }: название, вид, цена; фото нет никогда.
+   Сейчас в заказ попадают только места; секция без места и инвентарь умеют только рисоваться. */
+const ICON_CROSS_CIRCLE = 'assets/ticket-cross-circle-24.svg';   // Cross Circle 24, #BBC1C7 — экспорт макета
+const ICON_SEARCH = 'assets/ticket-search-16.svg';               // Search 16, белая — экспорт макета
+
+const escHtml = (v) => String(v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/* Что показать на карточке: тип, строки текста (первая — заголовок), фото или null */
+function ticketView(tk) {
+    if (tk.kind === 'seatless') {
+        return { type: 'seatless', lines: [tk.name, formatPrice(tk.price)], photo: tk.photo || null };
+    }
+    if (tk.kind === 'extra') {
+        return { type: 'extra', lines: [tk.name, tk.sort, formatPrice(tk.price)], photo: null };
+    }
+    const photo = photoMap ? photoMap.photoOf(tk) : null;
+    return { type: 'seat', lines: [tk.section, `Ряд ${tk.row} место ${tk.seat}`, formatPrice(tk.price)], photo };
+}
+
+/* Собрать карточку позиции tk в элементе card (класс, фото, тексты, крестик) */
+function fillTicketCard(card, tk) {
+    const v = ticketView(tk);
+    card.className = `ticket type-${v.type}` + (v.photo ? ' has-photo' : '');
+    const photoHtml = v.photo
+        ? '<span class="t-photo">'
+            + `<img class="t-photo-img" src="${escHtml(v.photo.url)}" alt="${escHtml(v.photo.caption || '')}" draggable="false">`
+            + `<span class="t-zoom" aria-hidden="true"><img src="${ICON_SEARCH}" alt="" width="16" height="16" draggable="false"></span>`
+            + '</span>'
+        : '';
+    const lines = v.lines.map((text, i) => `<span class="t-line${i === 0 ? ' t-title' : ''}">${escHtml(text)}</span>`).join('');
+    card.innerHTML =
+        photoHtml
+        + `<span class="t-text">${lines}</span>`
+        + `<button class="t-x" type="button" aria-label="Убрать"><img src="${ICON_CROSS_CIRCLE}" alt="" width="24" height="24" draggable="false"></button>`;
+    // битое фото — пустой фон превью, как у карточки места раньше
+    const img = card.querySelector('.t-photo-img');
+    if (img) img.addEventListener('error', () => { img.style.visibility = 'hidden'; });
+}
+
 function renderTickets(opts = {}) {
     trackEl.innerHTML = '';
     ticketEls.length = 0;
+    // один билет — карточка на всю ширину слайдера; ставится до measureCards, ширины читаются уже итоговые
+    trackEl.classList.toggle('is-single', cart.length === 1);
     cardDX = new Array(cart.length).fill(0);   // FLIP-сдвиги обнуляются на каждом ререндере
     cart.forEach((tk) => {
         const card = document.createElement('div');
-        card.className = 'ticket';
-        card.innerHTML =
-            `<span class="t-text">` +
-                `<span class="t-seat">${tk.row} ряд, ${tk.seat} место</span>` +
-                `<span class="t-price">${formatPrice(tk.price)}</span>` +
-            `</span>` +
-            `<button class="t-x" type="button" aria-label="Убрать">${icoCross}</button>`;
+        fillTicketCard(card, tk);
         card.addEventListener('pointerdown', (e) => onTicketDown(e, card));
         card.addEventListener('pointermove', onTicketMove);
         card.addEventListener('pointerup', onTicketUp);
@@ -232,8 +266,8 @@ function renderTickets(opts = {}) {
        drag по карточке → карусель; drag по пустоте → пан схемы. --- */
 let tDrag = null;
 const TICKET_TAP = 8;             // px: движение меньше — это tap, а не drag
-/* Правая зона активного билета: крестик (padding-right 12 + иконка 24) + буфер ~8px = 44px.
-   Тап в ней схему не двигает (× удаляет своим хендлером, буфер — no-op). */
+/* Правая зона активного билета: колонка под крестиком (у текста справа отступ 40) + буфер = 44px.
+   Тап в ней схему не двигает (× удаляет своим хендлером, остальное — no-op). */
 const TICKET_X_ZONE = 44;
 
 function inTicketXZone(index, clientX) {
@@ -254,6 +288,7 @@ function onTicketDown(e, el) {
         // окно последних сэмплов {t,x} для робастной оценки скорости флика
         samples: [{ t: t0, x: e.clientX }],
         index: ticketEls.indexOf(el),
+        onPhoto: !!e.target.closest('.t-photo'),   // фото или лупа: тап по активной открывает лайтбокс
     };
     try { el.setPointerCapture(e.pointerId); } catch {}
     sliderEl.classList.add('grabbing');
@@ -327,6 +362,8 @@ function onTicketUp(e) {
         // лента могла уехать за пальцем на несколько px — вернуть её в якорь
         // (в прототипе схемы зала этого не было: после «почти тапа» лента оставалась сдвинутой)
         snapTo(activeTicket);
+        // tap по фото активной → лайтбокс фото секций; схема не двигается
+        if (d.index === activeTicket && d.onPhoto) { openSectionPhotos(cart[d.index]); return; }
         // tap по активной вне зоны × → схема снова на её место; корзина не меняется
         if (d.index === activeTicket && !inTicketXZone(d.index, e.clientX)) {
             const seat = cart[d.index];
@@ -458,14 +495,6 @@ function renderCTA() {
 function renderMarks() {
     renderSelectionActive();
     renderFilter();   // место вошло в заказ — увеличенная копия снимается, вышло — возвращается
-    // подсветка кресла: контур снимается, если кресло под ним вошло в заказ или вышло из него;
-    // ошибка здесь не мешает выбору мест
-    if (!photoMap) return;
-    try {
-        photoMap.syncSelected();
-    } catch (e) {
-        console.error('Подсветка кресла: не обновлена после смены заказа', e);
-    }
 }
 
 /* Перерисовать всё, что зависит от корзины: карусель, CTA, подложку, маркеры на схеме */
@@ -477,39 +506,14 @@ function refreshCart() {
 }
 
 /* Добавить место: отметить selected, положить в корзину, показать билет активным,
-   поставить место в центр видимой полосы. Молча игнорируем 9-е место.
-   focus: false — схема уже стоит на месте (добавление из лайтбокса), второго движения нет. */
-function addSeat(seat, focus = true) {
+   поставить место в центр видимой полосы. Молча игнорируем 9-е место. */
+function addSeat(seat) {
     if (cart.length >= MAX_SEATS) return;
     seat.selected = true;
     cart.push(seat);
     activeTicket = cart.length - 1;     // новый билет — активная карточка
     refreshCart();
-    if (focus) focusSeat(seat);
-}
-
-/* Место можно добавить из лайтбокса: свободное, ещё не в заказе, в заказе есть место */
-function canAddSeat(seat) {
-    return seat.status === 'available' && !seat.selected && cart.length < MAX_SEATS;
-}
-
-/* Статус места в подписи лайтбокса: в заказе — 'cart', свободное — 'free', занятое и неизвестное — 'busy' */
-function seatStatus(seat) {
-    if (seat.selected) return 'cart';
-    return seat.status === 'available' ? 'free' : 'busy';
-}
-
-/* Главная кнопка лайтбокса: заказ полон — её нет ни у одного места, в том числе у места из заказа;
-   место в заказе — «Убрать из корзины»; свободное — активная «Добавить в корзину»; занятое — неактивная */
-function addButtonState(seat) {
-    if (cart.length >= MAX_SEATS) return 'hidden';
-    if (seat.selected) return 'remove';
-    return seat.status === 'available' ? 'on' : 'off';
-}
-
-/* «Убрать из корзины» в лайтбоксе: обычное снятие билета, лайтбокс остаётся открытым */
-function removeFromPhoto(node) {
-    removeSeat(node.seat);
+    focusSeat(seat);
 }
 
 /* Убрать место: снять selected, выкинуть из корзины, вернуть в дефолт.
@@ -527,7 +531,7 @@ function removeSeat(seat) {
    (центр rect'а = x+4, y+4 в SVG-юнитах). Зум не меньше текущего. */
 const FOCUS_SCALE = 1.8;   // уровень приближения при выборе (мягкий: место видно + видны соседи, без гипер-зума)
 function focusSeat(seat) {
-    if (!hall) return;
+    if (!hall || !seat.el) return;   // у секции без места и инвентаря кресла на схеме нет
     const x = +seat.el.getAttribute('x') + 4;
     const y = +seat.el.getAttribute('y') + 4;
     hall.focusInBand(x, y, FOCUS_SCALE);
@@ -566,58 +570,15 @@ function handleTap(clientX, clientY) {
     }
 }
 
-/* --- Лайтбокс ↔ схема --- */
-/* Уход из лайтбокса на схему: лайтбокс гаснет, после этого схема приближается к креслу,
-   после остановки — onArrive. Касание схемы во время приближения сбивает showSeq — onArrive не приходит */
-function leaveLightbox(node, onArrive) {
-    const seq = ++showSeq;
-    showLeaving = true;
-    // схема не реагирует на касания, пока гаснет лайтбокс: ни тап, ни пан, ни щипок, ни колесо
-    viewportEl.style.pointerEvents = 'none';
-    lightbox.close(() => {
-        showLeaving = false;
-        viewportEl.style.pointerEvents = '';
-        hall.focusInBand(node.x, node.y, FOCUS_SCALE, () => {
-            if (seq !== showSeq) return;
-            onArrive();
-        });
-    });
-}
-
-/* «Показать на схеме»: после остановки схемы кресло подсвечивается контуром */
-function showOnMap(node) {
-    leaveLightbox(node, () => {
-        if (!photoMap) return;
-        try {
-            photoMap.highlightSeat(node.seatId);
-        } catch (e) {
-            console.error('Подсветка кресла не показана', e);
-        }
-    });
-}
-
-/* «Добавить в корзину»: то же приближение, что у «Показать на схеме», без подсветки.
-   Место ложится в заказ после остановки схемы — второго движения схемы нет. Касание во время
-   приближения добавляет место сразу (stopShowOnMap): тап по кнопке не теряется */
-function addFromPhoto(node) {
-    pendingAdd = node.seat;
-    leaveLightbox(node, commitAdd);
-}
-
-function commitAdd() {
-    const seat = pendingAdd;
-    pendingAdd = null;
-    if (seat && canAddSeat(seat)) addSeat(seat, false);
-}
-
-/* Действие человека: подсветка гаснет за 150 мс, подсветка, которая ещё не началась, отменяется;
-   место из «Добавить в корзину», которое ещё не легло в заказ, ложится сразу.
-   Пока лайтбокс гаснет — ничего: сценарий доводится до конца */
-function stopShowOnMap() {
-    if (showLeaving) return;
-    showSeq++;
-    if (pendingAdd) commitAdd();
-    if (photoMap) photoMap.hideHighlight();
+/* --- Карточка билета → лайтбокс ---
+   Тап по фото (или лупе) активной карточки: лайтбокс со всеми фото секций, начиная с фото секции
+   этого билета. Схема, карусель и фильтр не меняются ни при открытии, ни при закрытии. */
+function openSectionPhotos(tk) {
+    if (!photoMap || !tk) return;
+    const items = photoMap.gallery();
+    const start = items.findIndex((it) => it.key === photoMap.keyOf(tk));
+    if (start === -1) return;   // у секции билета нет фото — на карточке и фото нет
+    lightbox.open(items, start);
 }
 
 /* --- Пересчёт схемы под размеры вьюпорта ---
@@ -804,22 +765,7 @@ const hall = new HallViewport($('.map-viewport'), $('.map-content'), {
     onTap: (cx, cy) => handleTap(cx, cy),
     // любое взаимодействие со схемой (pan/zoom/tap/фокус) → сброс фильтра цены
     onInteract: () => clearFilters(),
-    // подсветка кресла едет вместе со схемой; ошибка в ней не должна ломать пан и зум
-    onView: () => {
-        if (!photoMap) return;
-        try { photoMap.update(); } catch (e) { console.error('Подсветка кресла: пересчёт не удался', e); }
-    },
 });
-
-const viewportEl = $('.map-viewport');
-// тап, пан, щипок, колесо по схеме — подсветка гаснет; жест идёт в hall.js как обычно.
-// Слушается ввод, а не onView: onView зовут и программные движения схемы — fitHall, refit, resize
-viewportEl.addEventListener('pointerdown', stopShowOnMap, { capture: true });
-viewportEl.addEventListener('wheel', stopShowOnMap, { capture: true, passive: true });
-// касание карусели или кнопки: карусель двигает схему, контур остался бы не по месту
-floatingEl.addEventListener('pointerdown', stopShowOnMap, { capture: true });
-// касание фильтра цены: под контуром кресло могло побледнеть или увеличиться, контур остался бы не по креслу
-legendEl.addEventListener('pointerdown', stopShowOnMap, { capture: true });
 
 // вписать всю схему в кадр (contain) сразу и после первого лейаута
 fitHall();
@@ -837,16 +783,19 @@ requestAnimationFrame(recenterTickets);   // добор после первог�
 // SVG уже в DOM → отрисовать загрузочный viewBox через состояние (= min-зум)
 hallReady.then(fitHall);
 
-// фото секций и подсветка — после загрузки схемы: нужна модель кресел с секцией и стороной
+// фото секций — после загрузки схемы: нужна модель кресел с секцией и стороной
 const PHOTOS_URL = 'photos/sections.json';   // одно фото на секцию: { "<часть>-<сторона>": { url, caption } }
 
 hallReady.then(() => {
     if (!seats.length) return;   // схема не загрузилась — ошибка уже в консоли
     try {
-        photoMap = createPhotoMap({ hall, viewportEl, seats });
-        photoMap.load(PHOTOS_URL);
+        photoMap = createPhotoMap({ seats });
+        // фото секций пришли — карточки билетов, уже лежащих в заказе, получают фото (ширина 192 → 280)
+        photoMap.load(PHOTOS_URL).then(() => {
+            if (cart.length && !deleting) renderTickets();
+        });
     } catch (e) {
         photoMap = null;
-        console.error('Фото: слой не создан, схема работает без фото', e);
+        console.error('Фото секций: не созданы, карточки без фото', e);
     }
 });
