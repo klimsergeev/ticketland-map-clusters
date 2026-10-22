@@ -261,6 +261,7 @@ html, body {
      • секция без места (Type=Seatless 4770:14091 / 14105 / 14099 / 14112): название секции
        (переносится на вторую строку), цена;
      • доп. инвентарь (Type=Gift 4770:14033 / 14046): название, вид, цена; фото нет никогда.
+   Неактивная — белая с обводкой 1px rgba(162,162,162,.5) снаружи; активная — белая с тенью Shadows/Middle.
    Высота 80 у обоих состояний, радиус 16, содержимое обрезается по скруглению.
    Ширина фиксированная: 280 с фото (.has-photo), 192 без фото.
    MTS Compact заменён на Statika с размерами и начертаниями макета. */
@@ -276,8 +277,10 @@ html, body {
     height: 80px;                         /* 80 у обоих состояний */
     border-radius: 16px;
     overflow: hidden;                     /* overflow-clip карточки */
-    background: #f5f4f2;                  /* Selected=False: Background/Secondary #F5F4F2 (= --bg-secondary) */
-    box-shadow: none;                     /* Selected=False: без тени */
+    background: #ffffff;                  /* Selected=False: Background/Modal #FFFFFF */
+    /* Selected=False: обводка Background/Stroke rgba(162,162,162,.5), 1px снаружи — рендер узла 282×82 при размере 280×80;
+       тенью-кольцом: снаружи рамки, раскладку не меняет, повторяет скругление */
+    box-shadow: 0 0 0 1px rgba(162, 162, 162, .5);
     cursor: grab;
     user-select: none;
     /* transform/opacity правит JS покадрово — их НЕ анимируем; размеры у состояний одинаковые */
