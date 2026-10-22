@@ -10,8 +10,6 @@ import { createLightbox } from './photo-ui.js';
 /* --- Иконки (инлайн SVG) --- */
 const icoChevronLeft =
     '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3 L5 8 L10 13"/></svg>';
-const icoChevronRight =
-    '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5 L15 12 L9 19"/></svg>';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -477,18 +475,63 @@ function syncFloating() {
     floatingEl.style.display = cart.length === 0 ? 'none' : '';
 }
 
-/* --- CTA: сумма = сумме цен выбранных мест. Пустая корзина → кнопки нет. --- */
+/* --- CTA «Оформить» с таймером брони (макет «Timer button» 4810:34469) ---
+   Таймер запускается с первым билетом в заказе с 4:59 и идёт, пока заказ не пуст: добавление и
+   удаление билетов его не сбрасывают. Заказ опустел — кнопка скрыта, таймер остановлен; следующий
+   первый билет запускает его заново с 4:59. На 0:00 таймер останавливается и стоит на 0:00 —
+   экрана «время брони вышло» в макете нет, билеты остаются в заказе.
+   Остаток считается от момента окончания (Date.now), а не числом тиков: таймер не отстаёт, когда
+   вкладка в фоне и браузер реже будит таймеры. */
+const ORDER_HOLD_S = 4 * 60 + 59;     // старт отсчёта — 4:59, как в макете
+ctaEl.innerHTML =
+    '<span class="cta-label">Оформить</span>'
+    + '<span class="cta-timer" role="timer" aria-label="Время брони">'
+    + '<span class="cta-min"></span><span>:</span><span class="cta-sec"></span>'
+    + '</span>';
+const ctaMinEl = $('.cta-min', ctaEl);
+const ctaSecEl = $('.cta-sec', ctaEl);
+let holdEnd = 0;                      // момент окончания брони, мс (Date.now); 0 — таймер стоит
+let holdTimer = null;
+
+/* Показать остаток: минуты без ведущего нуля, секунды двумя цифрами — «4:59», «4:09», «0:00» */
+function paintHold() {
+    const left = Math.max(0, Math.ceil((holdEnd - Date.now()) / 1000));
+    ctaMinEl.textContent = String(Math.floor(left / 60));
+    ctaSecEl.textContent = String(left % 60).padStart(2, '0');
+    return left;
+}
+
+/* Тик к ближайшей смене секунды */
+function tickHold() {
+    holdTimer = null;
+    if (!holdEnd) return;
+    if (paintHold() === 0) return;    // 0:00 — стоп
+    const ms = (holdEnd - Date.now()) % 1000;
+    holdTimer = setTimeout(tickHold, (ms > 0 ? ms : 1000) + 5);
+}
+
+function startHold() {
+    if (holdEnd) return;              // уже идёт — не сбрасываем
+    holdEnd = Date.now() + ORDER_HOLD_S * 1000;
+    paintHold();
+    holdTimer = setTimeout(tickHold, 1000);
+}
+
+function stopHold() {
+    holdEnd = 0;
+    clearTimeout(holdTimer);
+    holdTimer = null;
+}
+
+/* Пустая корзина → кнопки нет, таймер остановлен; есть билеты → кнопка, таймер идёт */
 function renderCTA() {
     if (cart.length === 0) {
         ctaEl.style.display = 'none';
-        ctaEl.innerHTML = '';
+        stopHold();
         return;
     }
-    const total = cart.reduce((acc, s) => acc + (s.price || 0), 0);
     ctaEl.style.display = '';
-    ctaEl.innerHTML =
-        `<span>Оформить: ${formatPrice(total)}</span>` +
-        `<span class="cta-ico">${icoChevronRight}</span>`;
+    startHold();
 }
 
 /* Перерисовать маркеры выбранных мест (активное — крупнее) и всё, что от них зависит */
