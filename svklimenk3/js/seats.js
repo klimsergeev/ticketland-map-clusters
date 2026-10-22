@@ -10,16 +10,34 @@
    (У занятого места в SVG два rect: заливка + белая обводка — обводочный
     rect без атрибута fill, поэтому фильтр по fill его отсеивает, дублей нет.)
 
+   Секции (части зала) по порядку от сцены: партер, амфитеатр, бельэтаж, балкон.
+     • граница частей — разрыв между соседними рядами не меньше SECTION_GAP
+       (в схеме 61 при шаге ряда 14); разрывы меньше — проходы внутри части,
+       как проход 24 внутри балкона, они части не делят;
+     • номера рядов: партер, амфитеатр и бельэтаж — сквозные от сцены (1–14),
+       балкон — свой счёт с 1. Общий счёт задаёт поле rows в SECTIONS.
+   Сторона места side — 'left' | 'center' | 'right': ось — середина продольного
+   прохода (самый широкий разрыв между соседними местами ряда, в схеме x 260…276 → 268).
+   Центр — места, чей центр не дальше от оси, чем треть полуширины части зала
+   (партер — по 4 места с каждой стороны прохода, бельэтаж — по 5, амфитеатр и балкон — по 7).
+
    buildSeats() размечает rect'ы data-атрибутами (data-section/row/seat/
-   price/tier/status) — данные «привязаны к местам» прямо в DOM — и
+   side/price/tier/status) — данные «привязаны к местам» прямо в DOM — и
    возвращает массив объектов-мест.
    ============================================================ */
 import { TIER_COLORS } from './data.js';
 
 const OCCUPIED = '#D8E0E8';
-const SECTION_GAP = 40;   // разрыв по Y больше этого = граница секций
-const SECTIONS = ['Партер', 'Балкон'];
-const SECTION_KEYS = ['parter', 'balcony'];   // секция латиницей для seatId, порядок как в SECTIONS
+const SEAT = 8;           // сторона места в единицах схемы
+const SECTION_GAP = 40;   // разрыв по Y не меньше этого = граница частей зала
+/* Части зала по порядку от сцены. key — латиницей для seatId и ключа фото секции,
+   rows — счёт рядов: у частей с одинаковым rows номера рядов сквозные */
+const SECTIONS = [
+    { name: 'Партер', key: 'parter', rows: 'hall' },
+    { name: 'Амфитеатр', key: 'amphitheatre', rows: 'hall' },
+    { name: 'Бельэтаж', key: 'beletage', rows: 'hall' },
+    { name: 'Балкон', key: 'balcony', rows: 'balcony' },
+];
 
 /* множество цветов-тиров (цены задаёт applySessionPrices) */
 const TIER_SET = new Set(TIER_COLORS.map((c) => c.toUpperCase()));
@@ -33,7 +51,7 @@ export function buildSeats(svgRoot) {
     const rects = [...svgRoot.querySelectorAll('rect[width="8"][height="8"]')]
         .filter((r) => r.getAttribute('fill'));
 
-    // разбить ряды (уникальные Y) на секции по крупному вертикальному разрыву
+    // разбить ряды (уникальные Y, от сцены) на части зала: разрыв не меньше SECTION_GAP — следующая часть
     const ys = [...new Set(rects.map((r) => +r.getAttribute('y')))].sort((a, b) => a - b);
     const sectionOfY = new Map();
     let sec = 0;
@@ -42,15 +60,16 @@ export function buildSeats(svgRoot) {
         sectionOfY.set(y, sec);
     });
 
-    // номер ряда внутри секции: меньший Y (ближе к сцене) = ряд 1
-    const rowsBySection = {};                       // sec → отсортированные Y
+    // номер ряда: от сцены с 1, сквозной по частям с одним счётом рядов (SECTIONS[].rows).
+    // Часть сверх списка SECTIONS считает ряды сама
+    const rowCount = new Map();   // счёт → сколько рядов уже пронумеровано
+    const rowNumberOfY = new Map();
     ys.forEach((y) => {
         const s = sectionOfY.get(y);
-        (rowsBySection[s] ||= []).push(y);
-    });
-    const rowNumberOfY = new Map();
-    Object.values(rowsBySection).forEach((list) => {
-        list.sort((a, b) => a - b).forEach((y, i) => rowNumberOfY.set(y, i + 1));
+        const counter = SECTIONS[s] ? SECTIONS[s].rows : `section-${s + 1}`;
+        const n = (rowCount.get(counter) || 0) + 1;
+        rowCount.set(counter, n);
+        rowNumberOfY.set(y, n);
     });
 
     // сгруппировать по Y, внутри ряда пронумеровать места слева направо (по X)
@@ -59,16 +78,39 @@ export function buildSeats(svgRoot) {
         const y = +r.getAttribute('y');
         (byY.get(y) || byY.set(y, []).get(y)).push(r);
     });
+    byY.forEach((list) => list.sort((a, b) => +a.getAttribute('x') - +b.getAttribute('x')));
+
+    // ось продольного прохода: середина самого широкого разрыва между соседними местами ряда
+    let axis = 0;
+    let widest = -Infinity;
+    byY.forEach((list) => {
+        for (let i = 1; i < list.length; i++) {
+            const right = +list[i - 1].getAttribute('x') + SEAT;   // правый край левого соседа
+            const left = +list[i].getAttribute('x');               // левый край правого соседа
+            if (left - right > widest) { widest = left - right; axis = (right + left) / 2; }
+        }
+    });
+
+    // полуширина секции от оси: самое дальнее от оси место
+    const center = (r) => +r.getAttribute('x') + SEAT / 2;
+    const halfWidth = new Map();   // индекс секции → полуширина
+    byY.forEach((list, y) => {
+        const s = sectionOfY.get(y);
+        list.forEach((r) => halfWidth.set(s, Math.max(halfWidth.get(s) || 0, Math.abs(center(r) - axis))));
+    });
 
     const seats = [];
     byY.forEach((list, y) => {
-        list.sort((a, b) => +a.getAttribute('x') - +b.getAttribute('x'));
-        const section = SECTIONS[sectionOfY.get(y)] || `Секция ${sectionOfY.get(y) + 1}`;
-        const sectionKey = SECTION_KEYS[sectionOfY.get(y)] || `section-${sectionOfY.get(y) + 1}`;
+        const s = sectionOfY.get(y);
+        const section = SECTIONS[s] ? SECTIONS[s].name : `Секция ${s + 1}`;
+        const sectionKey = SECTIONS[s] ? SECTIONS[s].key : `section-${s + 1}`;
         const row = rowNumberOfY.get(y);
+        const band = halfWidth.get(s) / 3;   // центр — средняя треть ширины секции вокруг оси
         list.forEach((r, i) => {
             const seatNo = i + 1;
             const id = `${sectionKey}-${row}-${seatNo}`;   // стабильный ID кресла: <секция>-<ряд>-<место>
+            const d = center(r) - axis;
+            const side = Math.abs(d) <= band ? 'center' : (d < 0 ? 'left' : 'right');
             const color = norm(r.getAttribute('fill'));
             const occupied = color === OCCUPIED;
             const available = !occupied && TIER_SET.has(color);
@@ -80,10 +122,11 @@ export function buildSeats(svgRoot) {
             r.setAttribute('data-section', section);
             r.setAttribute('data-row', row);
             r.setAttribute('data-seat', seatNo);
+            r.setAttribute('data-side', side);
             r.setAttribute('data-status', status);
             if (available) r.setAttribute('data-tier', color);
 
-            seats.push({ id, el: r, section, row, seat: seatNo, price: null, tier: available ? color : null, status, selected: false });
+            seats.push({ id, el: r, section, sectionKey, side, row, seat: seatNo, price: null, tier: available ? color : null, status, selected: false });
         });
     });
 
@@ -107,7 +150,7 @@ export function applySessionPrices(seats, priceByColor) {
 /* ============================================================
    Selected-вид места (Figma-нода 4902-80205).
    Выбранное место = оранжевый #FF5005 + белый значок, ПЕРЕКРЫВАЕТ цвет тира.
-   Значок — белая галочка у любого выбранного места, в том числе у кресла с фото.
+   Значок — белая галочка у любого выбранного места.
    Оригинальный rect места (8×8) не трогаем — рисуем поверх отдельный слой
    <g class="sel-layer"> в конце <svg> (document order = сверху всех мест).
    Разметка галочки взята дословно из макета для 8px-варианта с
@@ -146,11 +189,9 @@ function selectedGroup(x, y, scale = 1) {
    тиров. Рисуется отдельным <g> ПОД слоем выбора (создаётся раньше в
    document order), чтобы оранжевый маркер выбранного места оставался сверху.
 
-   render(items) — items: [{ s, sc, dot }], где sc — множитель размера места вокруг
+   render(items) — items: [{ s, sc }], где sc — множитель размера места вокруг
    ЕГО центра (x+4, y+4): центр на месте, растёт только размер. Заливка берётся
-   из текущего fill места (цвет тира). dot — кружок фото кресла { r, fill } в единицах
-   схемы или null: рисуется в той же группе и растёт вместе с копией, как кружок на кресле
-   при зуме. sc и список задаёт вызывающий (main.js): sc считается обратно
+   из текущего fill места (цвет тира). sc и список задаёт вызывающий (main.js): sc считается обратно
    пропорционально текущему зуму, чтобы экранный размер увеличенного места был
    постоянным при любом масштабе схемы. */
 export function createFilterLayer(svgRoot) {
@@ -159,14 +200,13 @@ export function createFilterLayer(svgRoot) {
     layer.setAttribute('pointer-events', 'none');
     svgRoot.appendChild(layer);
     return function render(items) {
-        const parts = items.map(({ s, sc, dot }) => {
+        const parts = items.map(({ s, sc }) => {
             const x = +s.el.getAttribute('x');
             const y = +s.el.getAttribute('y');
             const cx = x + 4, cy = y + 4;
             const fill = s.el.getAttribute('fill');
             const t = `translate(${cx} ${cy}) scale(${sc}) translate(${-cx} ${-cy})`;
-            const circle = dot ? `<circle cx="${cx}" cy="${cy}" r="${dot.r}" fill="${dot.fill}"/>` : '';
-            return `<g transform="${t}"><rect x="${x}" y="${y}" width="8" height="8" rx="3" fill="${fill}"/>${circle}</g>`;
+            return `<g transform="${t}"><rect x="${x}" y="${y}" width="8" height="8" rx="3" fill="${fill}"/></g>`;
         });
         layer.innerHTML = parts.join('');
     };

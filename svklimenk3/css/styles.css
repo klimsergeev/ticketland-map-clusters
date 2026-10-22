@@ -186,16 +186,12 @@ html, body {
 /* --- Фильтр цены: бледнение невыбранных мест ---
    Активен ≥1 тир → на <svg> класс .filtering (см. updateFade в js/main.js).
    Бледнеют базовые 8×8-места схемы: доступные НЕ активных тиров и ВСЕ
-   занятые (у занятого — оба rect: заливка + белая обводка, обе width=8),
-   и вместе с ними кружки фото на этих креслах (.photo-dots).
-   Места активного тира помечены .tier-active → остаются в полном цвете;
-   их кружки закрыты увеличенными копиями, у копий свой кружок.
+   занятые (у занятого — оба rect: заливка + белая обводка, обе width=8).
+   Места активного тира помечены .tier-active → остаются в полном цвете.
    Слои увеличения (.filter-layer) и выбора (.sel-layer) из бледнения ИСКЛЮЧЕНЫ,
    поэтому увеличенные копии и оранжевый маркер выбора не приглушаются. */
-.map-content .hall-svg svg rect[width="8"],
-.map-content .hall-svg svg .photo-dots circle { transition: opacity .18s ease; }
-.map-content .hall-svg svg.filtering rect[width="8"],
-.map-content .hall-svg svg.filtering .photo-dots circle { opacity: .25; }
+.map-content .hall-svg svg rect[width="8"] { transition: opacity .18s ease; }
+.map-content .hall-svg svg.filtering rect[width="8"] { opacity: .25; }
 .map-content .hall-svg svg.filtering rect[width="8"].tier-active { opacity: 1; }
 .map-content .hall-svg svg.filtering .filter-layer rect[width="8"],
 .map-content .hall-svg svg.filtering .sel-layer rect[width="8"] { opacity: 1; }

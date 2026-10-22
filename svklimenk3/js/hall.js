@@ -26,9 +26,9 @@ const MAX_SCALE = 5;
 const TAP_DIST = 6;
 const TAP_TIME = 500;
 
-/* Базовый viewBox схемы (из assets/hall.svg): 0 0 536 442 */
+/* Базовый viewBox схемы (из assets/hall.svg): 0 0 536 526 */
 const BASE_W = 536;
-const BASE_H = 442;
+const BASE_H = 526;
 
 /* Небольшой отступ клэмпа пана (экранные px): до крайних мест можно
    доехать с этим зазором, но без гигантского пустого поля. */

@@ -1,9 +1,9 @@
 /* ============================================================
-   Фото на креслах, их метки-кружки и подсветка кресла после «Показать на схеме».
-   Фото: набор загружается и раскладывается по креслам, галерея — в порядке зала; на каждом кресле с фото — кружок в SVG схемы.
+   Фото секций и подсветка кресла после «Показать на схеме».
+   Фото: одно на секцию (часть зала и сторона), photoOf(seat) отдаёт фото секции места; на схеме фото не отмечаются.
    Подсветка — HTML-слой поверх схемы: размер контура в px экрана, касаний не принимает.
    ============================================================ */
-import { loadPhotos, bindPhotos } from './photos.js';
+import { loadSectionPhotos, sectionKeyOf } from './photos.js';
 import { SEL_HALF, SEL_RADIUS, SEL_COLOR } from './seats.js';
 
 const SEAT_UNITS = 8;  // сторона кресла в SVG-юнитах: rect 8×8 (js/seats.js)
@@ -51,25 +51,6 @@ function ringBox({ h, r }, k) {
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/* Метка фото — кружок по центру кресла с фото, свободного и занятого. Рисуется в SVG схемы,
-   поэтому растёт вместе с креслом при зуме; касаний не принимает — SVG схемы pointer-events: none */
-const SVG_NS = 'http://www.w3.org/2000/svg';
-const DOT_SHARE = 6 / 16; // диаметр кружка — доля видимой стороны кресла: макет «Photo / centered-mg» 4598:17215 — кружок 6 на кресле 16
-const DOT_DARKEN = 20;    // кружок темнее заливки кресла: яркость B в HSB меньше на 20 пунктов, H и S те же
-                          // (макет: кресло #FA7E31, B 98 → кружок #C76427, B 78)
-
-/* #RRGGBB → тот же тон и насыщенность с яркостью B (HSB) меньше на points пунктов.
-   B — доля самого яркого канала; при тех же H и S все каналы меняются в одной пропорции newB / B */
-function darkenHsb(hex, points) {
-    if (!/^#[0-9a-f]{6}$/i.test(hex || '')) return hex;
-    const n = parseInt(hex.slice(1), 16);
-    const rgb = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-    const b = Math.max(...rgb) / 255;
-    if (!b) return hex;
-    const k = Math.max(0, b - points / 100) / b;
-    return '#' + rgb.map((c) => Math.round(c * k).toString(16).padStart(2, '0')).join('').toUpperCase();
-}
-
 /* hall — HallViewport; viewportEl — .map-viewport; seats — модель мест из buildSeats. */
 export function createPhotoMap({ hall, viewportEl, seats }) {
     const seatsById = new Map(seats.map((s) => [s.id, s]));
@@ -85,46 +66,19 @@ export function createPhotoMap({ hall, viewportEl, seats }) {
     const haloEl = hlEl.firstElementChild;
     const ringEl = hlEl.lastElementChild;
 
-    let bySeat = new Map();     // seatId → узел из bindPhotos
-    let gallery = [];           // узлы в порядке галереи: секция, ряд от сцены, место слева направо
+    /* ---------- фото секций ---------- */
+    let sectionPhotos = new Map();   // ключ секции → { url, caption }
 
-    /* ---------- фото ---------- */
+    /* Загрузить фото секций. Ключ, которого нет ни у одного места схемы, — предупреждение;
+       секция без фото — не ошибка: у её мест фото нет */
     function load(url) {
-        return loadPhotos(url).then((list) => {
-            try {
-                const nodes = bindPhotos(list, seatsById);
-                bySeat = new Map(nodes.map((n) => [n.seatId, n]));
-                // y растёт от сцены назад и от партера к балкону, x — слева направо; у кресел одного ряда y одинаковый
-                gallery = [...nodes].sort((a, b) => a.y - b.y || a.x - b.x);
-                drawDots(nodes);
-            } catch (e) {
-                console.error('Фото: данные не разложены по креслам', e);
-            }
+        return loadSectionPhotos(url).then((map) => {
+            const known = new Set(seats.map(sectionKeyOf));
+            map.forEach((_, key) => {
+                if (!known.has(key)) console.warn(`Фото секции ${key}: такой секции нет на схеме`);
+            });
+            sectionPhotos = map;
         });
-    }
-
-    /* Кружки меток в SVG схемы: центр — центр кресла (node.x, node.y), диаметр — DOT_SHARE видимой стороны кресла
-       (у занятого белая обводка съедает края: видимая сторона 8 − 3 = 5), цвет — заливка кресла темнее на DOT_DARKEN.
-       Слой — под слоем увеличения фильтра цены и слоем маркеров выбора: увеличенная копия кресла
-       и маркер выбранного места (11 единиц) закрывают кружок */
-    let dotsEl = null;
-    let dots = new Map();   // seatId → { r, fill } — кружок кресла, его же рисует увеличенная копия фильтра цены
-    function drawDots(nodes) {
-        const svg = seats.length ? seats[0].el.ownerSVGElement : null;
-        if (!svg) return;
-        if (dotsEl) dotsEl.remove();
-        dots = new Map(nodes.map((n) => [n.seatId, {
-            r: (SEAT_UNITS / 2 - coverInset(n.seat.el)) * DOT_SHARE,
-            fill: darkenHsb(n.seat.el.getAttribute('fill'), DOT_DARKEN),
-        }]));
-        dotsEl = document.createElementNS(SVG_NS, 'g');
-        dotsEl.setAttribute('class', 'photo-dots');
-        dotsEl.innerHTML = nodes.map((n) => {
-            const { r, fill } = dots.get(n.seatId);
-            return `<circle cx="${n.x}" cy="${n.y}" r="${r}" fill="${fill}"/>`;
-        }).join('');
-        // нет слоя увеличения — под слой выбора, нет и его — в конец
-        svg.insertBefore(dotsEl, svg.querySelector('.filter-layer') || svg.querySelector('.sel-layer'));
     }
 
     /* Из hall.opts.onView: контур подсветки едет вместе со схемой */
@@ -217,11 +171,8 @@ export function createPhotoMap({ hall, viewportEl, seats }) {
 
     return {
         load,
-        // узел фото кресла; null — у кресла нет фото или набор ещё не загружен
-        nodeOf: (seatId) => bySeat.get(seatId) || null,
-        // кружок фото кресла { r, fill } в единицах схемы; null — у кресла нет фото
-        dotOf: (seatId) => dots.get(seatId) || null,
-        gallery: () => gallery,
+        // фото секции места { url, caption }; null — у секции нет фото или фото ещё не загружены
+        photoOf: (seat) => (seat ? sectionPhotos.get(sectionKeyOf(seat)) || null : null),
         update,
         syncSelected,
         highlightSeat,

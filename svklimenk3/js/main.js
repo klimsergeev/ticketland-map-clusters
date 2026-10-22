@@ -27,7 +27,7 @@ const floatingEl = $('.floating');
 
 /* --- Фото и подсветка кресла. Объявлено до new HallViewport:
        fitHall() сразу вызывает onView, и обращение к photoMap ниже по файлу упало бы. --- */
-let photoMap = null;       // фото на креслах и подсветка кресла, появляются после загрузки схемы
+let photoMap = null;       // фото секций и подсветка кресла, появляются после загрузки схемы
 let showSeq = 0;           // номер текущего ухода из лайтбокса на схему; действие человека его сбивает
 let showLeaving = false;   // лайтбокс гаснет после «Показать на схеме» или «Добавить в корзину»: касания схемы игнорируются
 let pendingAdd = null;     // место из «Добавить в корзину», которое ещё не легло в заказ
@@ -552,7 +552,7 @@ function handleTap(clientX, clientY) {
     const p = hall.clientToSvg(clientX, clientY);
     if (!p) return;
     const seat = findNearestSeat(p.x, p.y, 8);   // R=8 SVG-юнитов (место 8 + зазор)
-    // Попадание в ДОСТУПНОЕ место, с фото или без → выбрать/снять + подзум
+    // Попадание в ДОСТУПНОЕ место → выбрать/снять + подзум
     if (seat && seat.status === 'available') {
         if (seat.selected) { removeSeat(seat); return; }   // повторный тап — снять
         addSeat(seat);
@@ -674,8 +674,7 @@ function spring({ from, to, velocity = 0, stiffness = 840, damping = 44, mass = 
    уменьшаем). Итоговый размер с анимацией: 1 + (sc − 1) * p.
 
    Места в заказе не увеличиваются: их показывает маркер выбора, а копия в цвет тира
-   торчала бы из-под маркера цветным кольцом. Кресло с фото увеличивается вместе
-   с кружком фото (photoMap.dotOf).
+   торчала бы из-под маркера цветным кольцом.
    Смена активного билета ставит схему на место через hall.focusInBand → onInteract →
    clearFilters: фильтр сбрасывается, как при любом взаимодействии со схемой. */
 const TARGET_PX = 18;                // целевой экранный размер увеличенного места, px
@@ -697,7 +696,7 @@ function renderFilter() {
         if (s.status !== 'available' || !s.tier || s.selected) return;
         const st = filterTiers.get(s.tier);
         if (!st || st.p <= 0) return;
-        items.push({ s, sc: 1 + (sc - 1) * st.p, dot: photoMap ? photoMap.dotOf(s.id) : null });
+        items.push({ s, sc: 1 + (sc - 1) * st.p });
     });
     renderFilterLayer(items);
 }
@@ -729,7 +728,7 @@ function toggleTierFilter(color) {
 }
 
 /* Бледнение при активном фильтре. Активен ≥1 тир (target===1) → на корневой
-   <svg> вешаем класс .filtering: CSS приглушает ВСЕ базовые 8×8-места и кружки фото,
+   <svg> вешаем класс .filtering: CSS приглушает ВСЕ базовые 8×8-места,
    а места активных тиров помечаем классом .tier-active (CSS возвращает им полный цвет).
    Слои .filter-layer/.sel-layer из бледнения исключены в CSS, поэтому
    увеличенные копии и оранжевый маркер остаются в полном цвете. */
@@ -838,8 +837,8 @@ requestAnimationFrame(recenterTickets);   // добор после первог�
 // SVG уже в DOM → отрисовать загрузочный viewBox через состояние (= min-зум)
 hallReady.then(fitHall);
 
-// фото и подсветка — после загрузки схемы: нужна модель кресел с seat.id
-const PHOTOS_URL = 'photos/photos-bug.json';   // набор фото; другие наборы лежат рядом в photos/
+// фото секций и подсветка — после загрузки схемы: нужна модель кресел с секцией и стороной
+const PHOTOS_URL = 'photos/sections.json';   // одно фото на секцию: { "<часть>-<сторона>": { url, caption } }
 
 hallReady.then(() => {
     if (!seats.length) return;   // схема не загрузилась — ошибка уже в консоли
