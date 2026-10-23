@@ -21,6 +21,9 @@
    Центр — места, чей центр не дальше от оси, чем треть полуширины части зала
    (партер — по 4 места с каждой стороны прохода, бельэтаж — по 5, амфитеатр и балкон — по 7).
 
+   Номер места — по положению в сетке ряда (шаг SEAT_PITCH), поэтому места, убранные
+   под танцпол (<g class="seatless"> в hall.svg, местом не считается), оставляют пропуск в номерах.
+
    buildSeats() размечает rect'ы data-атрибутами (data-section/row/seat/
    side/price/tier/status) — данные «привязаны к местам» прямо в DOM — и
    возвращает массив объектов-мест.
@@ -29,6 +32,7 @@ import { TIER_COLORS } from './data.js';
 
 const OCCUPIED = '#D8E0E8';
 const SEAT = 8;           // сторона места в единицах схемы
+const SEAT_PITCH = 12;    // шаг мест в ряду (центр — центр), единицы схемы
 const SECTION_GAP = 40;   // разрыв по Y не меньше этого = граница частей зала
 /* Части зала по порядку от сцены. key — латиницей для seatId и ключа фото секции,
    rows — счёт рядов: у частей с одинаковым rows номера рядов сквозные */
@@ -80,16 +84,22 @@ export function buildSeats(svgRoot) {
     });
     byY.forEach((list) => list.sort((a, b) => +a.getAttribute('x') - +b.getAttribute('x')));
 
-    // ось продольного прохода: середина самого широкого разрыва между соседними местами ряда
-    let axis = 0;
-    let widest = -Infinity;
+    // ось продольного прохода: в каждом ряду — середина самого широкого разрыва между соседними местами,
+    // ось — середина, которая встречается в большинстве рядов (разрыв под танцполом шире прохода, но рядов с ним меньше)
+    const axisVotes = new Map();   // середина разрыва → число рядов
     byY.forEach((list) => {
+        let widest = -Infinity;
+        let mid = null;
         for (let i = 1; i < list.length; i++) {
             const right = +list[i - 1].getAttribute('x') + SEAT;   // правый край левого соседа
             const left = +list[i].getAttribute('x');               // левый край правого соседа
-            if (left - right > widest) { widest = left - right; axis = (right + left) / 2; }
+            if (left - right > widest) { widest = left - right; mid = (right + left) / 2; }
         }
+        if (mid !== null) axisVotes.set(mid, (axisVotes.get(mid) || 0) + 1);
     });
+    let axis = 0;
+    let votes = 0;
+    axisVotes.forEach((n, mid) => { if (n > votes) { votes = n; axis = mid; } });
 
     // полуширина секции от оси: самое дальнее от оси место
     const center = (r) => +r.getAttribute('x') + SEAT / 2;
@@ -106,8 +116,19 @@ export function buildSeats(svgRoot) {
         const sectionKey = SECTIONS[s] ? SECTIONS[s].key : `section-${s + 1}`;
         const row = rowNumberOfY.get(y);
         const band = halfWidth.get(s) / 3;   // центр — средняя треть ширины секции вокруг оси
-        list.forEach((r, i) => {
-            const seatNo = i + 1;
+        // номер места — по положению, а не по порядку: от соседа слева +1 за каждый шаг сетки SEAT_PITCH,
+        // переход через продольный проход — одно место. Убранные места (под танцполом) оставляют пропуск в номерах
+        let seatNo = 0;
+        let prevX = null;
+        list.forEach((r) => {
+            const x = +r.getAttribute('x');
+            if (prevX === null) seatNo = 1;
+            else {
+                const steps = Math.round((x - prevX) / SEAT_PITCH);
+                const crossesAisle = prevX + SEAT <= axis && x >= axis;
+                seatNo += crossesAisle ? steps - 1 : steps;
+            }
+            prevX = x;
             const id = `${sectionKey}-${row}-${seatNo}`;   // стабильный ID кресла: <секция>-<ряд>-<место>
             const d = center(r) - axis;
             const side = Math.abs(d) <= band ? 'center' : (d < 0 ? 'left' : 'right');

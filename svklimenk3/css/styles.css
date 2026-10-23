@@ -195,6 +195,10 @@ html, body {
 .map-content .hall-svg svg.filtering rect[width="8"].tier-active { opacity: 1; }
 .map-content .hall-svg svg.filtering .filter-layer rect[width="8"],
 .map-content .hall-svg svg.filtering .sel-layer rect[width="8"] { opacity: 1; }
+/* Танцпол (.seatless) бледнеет так же, как места; при активном своём тире (.tier-active) — полный цвет */
+.map-content .hall-svg svg .seatless { transition: opacity .18s ease; }
+.map-content .hall-svg svg.filtering .seatless { opacity: .25; }
+.map-content .hall-svg svg.filtering .seatless.tier-active { opacity: 1; }
 
 /* ============================================================
    3. Нижний блок — билеты + CTA
@@ -210,17 +214,13 @@ html, body {
     z-index: 4;
     display: flex;
     flex-direction: column;
-    gap: 16px;                              /* Figma 4902-80252: gap 16 (галерея ↔ CTA) */
-    padding: 32px 16px 16px;                /* pt 32 (было 24, +8px: градиент отодвинут вверх/дальше от кнопки), px 16, pb 16 */
-    /* Подложка (Figma 4902-80252): вертикальный градиент белого — прозрачный сверху
-       растворяется в сплошной белый к 15% и далее до низа. Верхний край плавно
-       проявляется над схемой зала. Стопы/направление — по Figma + скринам редактора. */
-    background: linear-gradient(180deg,
-        rgba(255, 255, 255, 0) 0%,
-        #ffffff 15%,
-        #ffffff 100%);
-    /* pointer-events:none — градиент НЕ перехватывает клики по схеме над галереей;
-       ловят только билеты/кнопка (children ниже). */
+    /* «Bottomsheet / svklimenk3-cards» 4778:30275 (360×188): Tickets — сверху 16, слева 16, промежуток 8;
+       Button — сверху 16, по бокам 16, снизу 24. Отсюда: отступы блока 16 / 16 / 24, между лентой и кнопкой 16.
+       Заливки и подложки у компонента нет — схема видна сквозь блок */
+    gap: 16px;
+    padding: 16px 16px 24px;
+    background: none;
+    /* пустоты блока пропускают касания к схеме; ловят только билеты и кнопка (children ниже) */
     pointer-events: none;
 }
 .floating > * { pointer-events: auto; }
@@ -261,7 +261,7 @@ html, body {
      • секция без места (Type=Seatless 4770:14091 / 14105 / 14099 / 14112): название секции
        (переносится на вторую строку), цена;
      • доп. инвентарь (Type=Gift 4770:14033 / 14046): название, вид, цена; фото нет никогда.
-   Неактивная — белая с обводкой 1px rgba(162,162,162,.5) снаружи; активная — белая с тенью Shadows/Middle.
+   Обе белые: неактивная — тень Shadows/Neutral/Middle, активная — Shadows/Neutral/High.
    Высота 80 у обоих состояний, радиус 16, содержимое обрезается по скруглению.
    Ширина фиксированная: 280 с фото (.has-photo), 192 без фото.
    MTS Compact заменён на Statika с размерами и начертаниями макета. */
@@ -278,9 +278,7 @@ html, body {
     border-radius: 16px;
     overflow: hidden;                     /* overflow-clip карточки */
     background: #ffffff;                  /* Selected=False: Background/Modal #FFFFFF */
-    /* Selected=False: обводка Background/Stroke rgba(162,162,162,.5), 1px снаружи — рендер узла 282×82 при размере 280×80;
-       тенью-кольцом: снаружи рамки, раскладку не меняет, повторяет скругление */
-    box-shadow: 0 0 0 1px rgba(162, 162, 162, .5);
+    box-shadow: 0 4px 24px 0 rgba(35, 29, 31, .04), 0 8px 20px 0 rgba(35, 29, 31, .06);   /* Selected=False: Shadows/Neutral/Middle */
     cursor: grab;
     user-select: none;
     /* transform/opacity правит JS покадрово — их НЕ анимируем; размеры у состояний одинаковые */
@@ -295,7 +293,7 @@ html, body {
 .slider.grabbing .ticket { cursor: grabbing; }
 .ticket.active {
     background: #ffffff;                  /* Selected=True: Background/Modal #FFFFFF */
-    box-shadow: 0 8px 16px 0 #0000000A, 0 4px 24px 0 #0000000F;   /* Shadows/Middle макета; --shadow-middle проекта другой */
+    box-shadow: 0 6px 24px 0 rgba(35, 29, 31, .06), 0 18px 20px 0 rgba(35, 29, 31, .08);   /* Selected=True: Shadows/Neutral/High */
 }
 
 /* Hall preview: 108×80, своё скругление 16 на всех углах, фото cover */
@@ -397,10 +395,11 @@ html, body {
     pointer-events: none;
 }
 
-/* ---- 3.2 CTA — «Timer button», вариант Size=44 Medium (макет 4810:34469, файл Z4wmhHaKhZMV8UI79y1a9Y) ----
-   Высота 44, радиус 26, px 32, pb 2, gap 8; фон Controls/Primary #FF5005; текст «Оформить» P2 Medium 16/24 белый,
+/* ---- 3.2 CTA — «Timer button», вариант Size=52 Large (макет 4810:34473, файл Z4wmhHaKhZMV8UI79y1a9Y),
+   как в шторке «Bottomsheet / svklimenk3-cards» 4778:30275 ----
+   Высота 52, радиус 26, px 32, pb 2, gap 8; фон Controls/Primary #FF5005; текст «Оформить» P2 Medium 16/24 белый,
    по центру. Справа — таймер «.Timer button timer» (4806:2819): в 24 от правого края, по центру по вертикали,
-   фон #E54500, px 6 py 2, радиус 16, Statika Regular 12, line-height normal, цифры lnum + tnum.
+   фон #EE3000, px 12 py 6, радиус 16, Statika Regular 12, line-height normal, белый, цифры lnum + tnum.
    Hover — белая заливка 20% поверх фона (слой Hover макета). */
 .cta {
     position: relative;                   /* опора таймера и слоя hover; нужен для z-index */
@@ -408,7 +407,7 @@ html, body {
     box-sizing: border-box;
     width: 100%;
     min-width: 328px;
-    height: 44px;
+    height: 52px;
     border: 0;
     border-radius: 26px;
     background: var(--ctrl-primary);      /* Controls/Primary #FF5005 */
@@ -437,8 +436,8 @@ html, body {
 }
 .cta .cta-label {
     position: relative;                   /* над слоем hover */
-    flex: 1 0 0;
-    min-width: 1px;
+    flex: none;                           /* 52 Large: текст по ширине содержимого, по центру кнопки */
+    white-space: nowrap;
 }
 .cta .cta-timer {
     position: absolute;
@@ -448,9 +447,10 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 2px 6px;
+    padding: 6px 12px;
     border-radius: 16px;
-    background: #e54500;                  /* в макете без токена */
+    background: #ee3000;                  /* в макете без токена */
+    color: var(--gs-0);                   /* Constant/Greyscale 0 #FFFFFF */
     font: 400 12px/normal var(--font-sans);
     font-feature-settings: "lnum" 1, "tnum" 1;
     white-space: nowrap;

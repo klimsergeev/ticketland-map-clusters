@@ -1,0 +1,302 @@
+/* ============================================================
+   Диалог «билет без места» (танцпол) — макет «Seatless popup _ svklimenk3-cards» 4828:36933
+   (файл Z4wmhHaKhZMV8UI79y1a9Y). Шапка «.Ticket title» 4826:34909 / 4828:36937, блок количества
+   «.Tickets options count» 4828:36597 (Build=Options 4828:36596, Number alt 4830:39659, Number alt+Warning 4834:39762),
+   кнопка «Button» 52 Large. MTS Compact заменён на Statika с размерами и начертаниями макета.
+   Слои: над схемой (1), шапкой (5) и нижним блоком (4), под лайтбоксом (20).
+   Подключается после css/styles.css.
+   ============================================================ */
+
+/* Затемнение: Background/Overlay rgba(15,15,15,.5) на весь экран */
+.sd-scrim {
+    position: absolute;
+    inset: 0;
+    z-index: 15;
+    background: rgba(15, 15, 15, .5);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 250ms cubic-bezier(.2, .8, .2, 1), visibility 0s linear 250ms;
+}
+.sd-scrim.is-shown {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 250ms cubic-bezier(.2, .8, .2, 1), visibility 0s;
+}
+
+/* Шторка (Content): белая, сверху скругление 24, отступы 16 / 16 / 24, промежуток 16 */
+.sd-sheet {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 16;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    padding: 16px 16px 24px;
+    border-radius: 24px 24px 0 0;
+    background: #ffffff;                       /* Background/Modal */
+    touch-action: none;                        /* свайп вниз ловит js */
+    transform: translateY(100%);
+    visibility: hidden;
+    transition: transform 250ms cubic-bezier(.2, .8, .2, 1), visibility 0s linear 250ms;
+}
+.sd-sheet.is-open {
+    transform: none;
+    visibility: visible;
+    transition: transform 250ms cubic-bezier(.2, .8, .2, 1), visibility 0s;
+}
+.sd-sheet.is-dragging { transition: none; }
+
+/* ---------- Шапка «.Ticket title»: высота 80; фото 108×80 радиус 16 + текст ---------- */
+.sd-title {
+    display: flex;
+    align-items: center;
+    height: 80px;
+    overflow: hidden;
+}
+.sd-photo {
+    position: relative;
+    flex: none;
+    width: 108px;
+    height: 80px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 16px;
+    overflow: hidden;
+    background: transparent;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.sd-photo-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+    -webkit-user-drag: none;
+}
+/* Icon button Blur 32: в 4 от правого и нижнего края фото, радиус 22, фон rgba(253,249,245,.2), Blur 15 */
+.sd-zoom {
+    position: absolute;
+    right: 4px;
+    bottom: 4px;
+    width: 32px;
+    height: 32px;
+    border-radius: 22px;
+    background: rgba(253, 249, 245, .2);
+    -webkit-backdrop-filter: blur(7.5px);
+    backdrop-filter: blur(7.5px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    pointer-events: none;
+}
+.sd-zoom img { display: block; width: 16px; height: 16px; }
+.sd-details {
+    flex: 1 0 0;
+    min-width: 1px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 0 12px;
+}
+.sd-name {
+    width: 100%;
+    font: 500 17px/24px var(--font-sans);      /* P1 Medium Comp 17/24 */
+    color: #1d2023;                            /* Text/Primary */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.sd-kind {
+    width: 100%;
+    font: 400 14px/20px var(--font-sans);      /* P2 Regular Comp 14/20 */
+    color: #626c77;                            /* Text/Secondary */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.sd-price-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+}
+.sd-price {
+    font: 400 14px/20px var(--font-sans);
+    color: #231d1f;                            /* Image=True: Text/Primary #231D1F */
+    white-space: nowrap;
+}
+.sd-title.no-photo .sd-price { color: #626c77; }   /* Image=False: Text/Secondary #626C77 */
+/* Badges / Badge 20 S: Badges/Emerald #C1F5C1, px 6 py 1, радиус 10; C1 Medium 12/18 */
+.sd-badge {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    height: 20px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    background: #c1f5c1;
+    font: 500 12px/18px var(--font-sans);
+    color: #231d1f;
+    white-space: nowrap;
+}
+
+/* Крестик: Icon button Secondary 44, фон Controls/Secondary #F5F4F2, радиус 22, в 16 от верха и правого края */
+.sd-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 44px;
+    height: 44px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 22px;
+    background: #f5f4f2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.sd-close img { display: block; width: 24px; height: 24px; }
+
+/* ---------- Блок количества: фон Background/Primary-elevated #FAFAFA, радиус 16 ---------- */
+.sd-count {
+    box-sizing: border-box;
+    border-radius: 16px;
+    background: #fafafa;
+}
+/* Build=Options: столбец по центру, отступы 12/16, промежуток 12 */
+.sd-count.is-options {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+}
+.sd-count-subtitle {
+    width: 100%;
+    font: 400 16px/24px var(--font-sans);      /* Paragraph/P2 Regular */
+    color: #231d1f;
+    text-align: center;
+}
+.sd-chips {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+}
+/* Chip 44 Medium: 44×44, радиус 22, px 8; Secondary — #F5F4F2, текст Statika Medium 16/24 #231D1F;
+   Active — Controls/Active #2D0514, текст белый */
+.sd-chip {
+    flex: none;
+    box-sizing: border-box;
+    width: 44px;
+    height: 44px;
+    margin: 0;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 22px;
+    background: #f5f4f2;
+    color: #231d1f;
+    font: 500 16px/24px var(--font-sans);
+    text-align: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.sd-chip.is-active { background: #2d0514; color: #ffffff; }
+/* недоступно сверх лимита заказа — в макете состояния нет: заливка Controls/Inactive и цвет иконки неактивного «+» */
+.sd-chip:disabled { background: rgba(162, 160, 161, .2); color: #bebdbd; cursor: default; }
+
+/* Build=Number alt: строка, отступы 12, промежуток 12, радиус 28 (высота 72 = 48 + 2 × 12) */
+.sd-count.is-number {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 28px;
+}
+.sd-count-text {
+    flex: 1 0 0;
+    min-width: 1px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0 8px;
+    white-space: nowrap;
+}
+.sd-count-label { font: 500 16px/24px var(--font-sans); color: #231d1f; }   /* P2 Medium */
+.sd-count-limit { font: 400 14px/21px var(--font-sans); color: #706e6f; }   /* P3 Regular, Text/Secondary */
+/* Warning=True: P3 Medium, Text/Warning #F59400 */
+.sd-count.is-warning .sd-count-limit { font-weight: 500; color: #f59400; }
+/* Counter: белая плашка Background/Primary, высота 48, отступы 0/4, промежуток 8, радиус 16 */
+.sd-counter {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 48px;
+    padding: 0 4px;
+    border-radius: 16px;
+    background: #ffffff;
+}
+/* Icon button 44 без заливки, радиус 22; неактивная — непрозрачность 0,5 (макет: «+» на 8 в Warning=True).
+   Неактивного «−» в макете нет — так же, непрозрачность 0,5 */
+.sd-step {
+    box-sizing: border-box;
+    width: 44px;
+    height: 44px;
+    margin: 0;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 22px;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.sd-step:disabled { opacity: .5; cursor: default; }
+.sd-step img { display: block; }
+.sd-count-value {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font: 500 20px/30px var(--font-sans);      /* Paragraph/P1 Medium */
+    color: #231d1f;
+}
+
+/* ---------- Кнопка «Добавить»: Button Primary 52 Large ---------- */
+.sd-add {
+    box-sizing: border-box;
+    width: 100%;
+    height: 52px;
+    margin: 0;
+    padding: 0 32px;
+    border: 0;
+    border-radius: 26px;
+    background: var(--ctrl-primary);           /* Controls/Primary #FF5005 */
+    color: #ffffff;
+    font: 500 16px/24px var(--font-sans);      /* Paragraph/P2 Medium */
+    text-align: center;
+    white-space: nowrap;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.sd-add .sd-dot { color: rgba(255, 255, 255, .5); }
+/* заказ полон — в макете состояния нет: заливка Controls/Inactive, текст цвета неактивной иконки */
+.sd-add:disabled { background: rgba(162, 160, 161, .2); color: #bebdbd; cursor: default; }

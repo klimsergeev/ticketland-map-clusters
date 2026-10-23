@@ -1,11 +1,12 @@
 /* ============================================================
    Точка входа: собирает экран, связывает схему ↔ корзину ↔ карусель билетов.
    ============================================================ */
-import { EVENT, TIER_COLORS, TIER_PRICES, MAX_SEATS, formatPrice } from './data.js';
+import { EVENT, TIER_COLORS, TIER_PRICES, MAX_SEATS, DANCEFLOOR, formatPrice } from './data.js';
 import { HallViewport } from './hall.js';
 import { buildSeats, createSelectionLayer, applySessionPrices, createFilterLayer } from './seats.js';
 import { createPhotoMap } from './photo-map.js';
 import { createLightbox } from './photo-ui.js';
+import { createSeatlessDialog } from './seatless-dialog.js';
 
 /* --- Иконки (инлайн SVG) --- */
 const icoChevronLeft =
@@ -25,6 +26,12 @@ const floatingEl = $('.floating');
 let photoMap = null;       // фото секций, появляются после загрузки схемы
 // лайтбокс: все фото секций, открывается тапом по фото активной карточки билета (openSectionPhotos)
 const lightbox = createLightbox({ parentEl: $('.app') });
+// диалог танцпола: тап по танцполу на схеме → выбор количества → билеты без места в заказ (addSeatless)
+const seatlessDialog = createSeatlessDialog({
+    parentEl: $('.app'),
+    onAdd: (n) => addSeatless(n),
+    onPhoto: () => openSectionPhotos({ kind: 'seatless', photoKey: DANCEFLOOR.photoKey }),   // лайтбокс поверх диалога
+});
 
 /* --- Шапка: статичная (название, площадка, «Назад») --- */
 $('.ttl').textContent = EVENT.title;
@@ -195,7 +202,7 @@ const escHtml = (v) => String(v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<'
 /* Что показать на карточке: тип, строки текста (первая — заголовок), фото или null */
 function ticketView(tk) {
     if (tk.kind === 'seatless') {
-        return { type: 'seatless', lines: [tk.name, formatPrice(tk.price)], photo: tk.photo || null };
+        return { type: 'seatless', lines: [tk.name, formatPrice(tk.price)], photo: photoMap ? photoMap.photoOf(tk) : null };
     }
     if (tk.kind === 'extra') {
         return { type: 'extra', lines: [tk.name, tk.sort, formatPrice(tk.price)], photo: null };
@@ -239,10 +246,17 @@ function renderTickets(opts = {}) {
         card.addEventListener('pointercancel', onTicketUp);
         // × виден только у активного: удаляет его; у неактивного (только программно) — активирует.
         // Глушим pointerdown, чтобы кнопка не стартовала drag карточки
+        // Крестик срабатывает, только если палец или курсор лёг на него сам: тап в правый верхний угол
+        // неактивной карточки делает её активной, крестик появляется под пальцем, и click, который браузер
+        // присылает после отпускания, иначе сразу удалял бы билет. Click с клавиатуры (detail 0) — как раньше
         const xBtn = card.querySelector('.t-x');
-        xBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
+        let xPressed = false;
+        xBtn.addEventListener('pointerdown', (e) => { e.stopPropagation(); xPressed = true; });
         xBtn.addEventListener('click', (e) => {
             e.stopPropagation();
+            const pressed = xPressed;
+            xPressed = false;
+            if (!pressed && e.detail !== 0) return;
             const i = ticketEls.indexOf(card);   // актуальный индекс на момент клика
             if (i === activeTicket) deleteActiveTicket(i);
             else activateTicket(i);
@@ -475,7 +489,7 @@ function syncFloating() {
     floatingEl.style.display = cart.length === 0 ? 'none' : '';
 }
 
-/* --- CTA «Оформить» с таймером брони (макет «Timer button» 4810:34469) ---
+/* --- CTA «Оформить» с таймером брони (макет «Timer button» 52 Large 4810:34473) ---
    Таймер запускается с первым билетом в заказе с 4:59 и идёт, пока заказ не пуст: добавление и
    удаление билетов его не сбрасывают. Заказ опустел — кнопка скрыта, таймер остановлен; следующий
    первый билет запускает его заново с 4:59. На 0:00 таймер останавливается и стоит на 0:00 —
@@ -542,9 +556,12 @@ function renderMarks() {
 
 /* Перерисовать всё, что зависит от корзины: карусель, CTA, подложку, маркеры на схеме */
 function refreshCart() {
+    // сначала показать нижний блок: при пустом заказе он display: none, и карточки, разложенные внутри
+    // скрытого блока, меряются шириной 0 — лента считала, что всё влезает, и оставалась на первой карточке
+    // (пачка билетов танцпола в пустой заказ)
+    syncFloating();
     renderTickets();
     renderCTA();
-    syncFloating();
     renderMarks();
 }
 
@@ -557,6 +574,73 @@ function addSeat(seat) {
     activeTicket = cart.length - 1;     // новый билет — активная карточка
     refreshCart();
     focusSeat(seat);
+}
+
+/* --- Танцпол: билеты без места ---
+   Цена — по тиру заливки танцпола, центр — середина его прямоугольника в hall.svg (для фокуса схемы).
+   Каждый билет — отдельная позиция заказа { kind: 'seatless' } и отдельная карточка в карусели. */
+function dancefloorPrice() {
+    const i = TIER_COLORS.findIndex((c) => c.toUpperCase() === DANCEFLOOR.tier.toUpperCase());
+    return i === -1 ? 0 : TIER_PRICES[i];
+}
+function dancefloorCenter() {
+    const r = seatlessEls[0] && seatlessEls[0].querySelector('rect');
+    if (!r) return null;
+    return { x: +r.getAttribute('x') + +r.getAttribute('width') / 2, y: +r.getAttribute('y') + +r.getAttribute('height') / 2 };
+}
+
+function dancefloorWidth() {
+    const r = seatlessEls[0] && seatlessEls[0].querySelector('rect');
+    return r ? +r.getAttribute('width') : 0;
+}
+
+/* Тап по танцполу: сначала схема приближается — танцпол на DANCEFLOOR_SHARE ширины экрана, центр в полосе
+   между шапкой и шторкой диалога, — после остановки открывается диалог. Можно выбрать не больше, чем осталось
+   до лимита заказа. Если человек оборвал приближение касанием, диалог всё равно открывается по таймеру,
+   а «Добавить» потом довезёт схему до танцпола */
+const DANCEFLOOR_SHARE = 0.8;
+const DANCEFLOOR_ZOOM_MS = 260;   // = длительность _animateTo в hall.js
+let dancefloorView = null;   // вид схемы, в котором открыт диалог: «Добавить» второй раз схему не двигает
+let dancefloorSeq = 0;       // номер текущего открытия: поздний onDone или таймер старого открытия не срабатывают
+
+function openSeatlessDialog() {
+    const photo = photoMap ? photoMap.photoOf({ kind: 'seatless', photoKey: DANCEFLOOR.photoKey }) : null;
+    seatlessDialog.prepare({ name: DANCEFLOOR.name, price: dancefloorPrice(), photo, available: MAX_SEATS - cart.length });
+    dancefloorView = null;
+    const c = dancefloorCenter();
+    if (!c || !hall) { seatlessDialog.show(); return; }
+    const seq = ++dancefloorSeq;
+    const showOnce = (arrived) => {
+        if (seq !== dancefloorSeq) return;
+        dancefloorSeq++;
+        dancefloorView = arrived ? hall.viewState() : null;
+        seatlessDialog.show();
+    };
+    const scale = hall.scaleForWidth(dancefloorWidth(), viewportEl.clientWidth * DANCEFLOOR_SHARE);
+    hall.focusAt(c.x, c.y, scale, seatlessDialog.height(), () => showOnce(true));
+    setTimeout(() => showOnce(false), DANCEFLOOR_ZOOM_MS + 200);   // приближение оборвано — onDone не придёт
+}
+
+/* Схема стоит там, где открывался диалог: человек её не двигал */
+function sameView(a, b) {
+    return !!a && !!b && Math.abs(a.s - b.s) < 1e-6 && Math.abs(a.tx - b.tx) < 0.5 && Math.abs(a.ty - b.ty) < 0.5;
+}
+
+/* «Добавить» в диалоге: n билетов в конец заказа, активный — последний добавленный.
+   Схема уже стоит на танцполе с открытия диалога; едет к нему, только если человек её успел сдвинуть */
+function addSeatless(n) {
+    const count = Math.min(n, MAX_SEATS - cart.length);
+    if (count < 1) return;
+    const c = dancefloorCenter();
+    let last = null;
+    for (let i = 0; i < count; i++) {
+        last = { kind: 'seatless', name: DANCEFLOOR.name, price: dancefloorPrice(), photoKey: DANCEFLOOR.photoKey, cx: c ? c.x : null, cy: c ? c.y : null };
+        cart.push(last);
+    }
+    activeTicket = cart.length - 1;
+    refreshCart();
+    if (!sameView(dancefloorView, hall.viewState())) focusSeat(last);
+    dancefloorView = null;
 }
 
 /* Убрать место: снять selected, выкинуть из корзины, вернуть в дефолт.
@@ -574,7 +658,13 @@ function removeSeat(seat) {
    (центр rect'а = x+4, y+4 в SVG-юнитах). Зум не меньше текущего. */
 const FOCUS_SCALE = 1.8;   // уровень приближения при выборе (мягкий: место видно + видны соседи, без гипер-зума)
 function focusSeat(seat) {
-    if (!hall || !seat.el) return;   // у секции без места и инвентаря кресла на схеме нет
+    if (!hall || !seat) return;
+    // билет без места — центр секции (танцпола); у инвентаря точки на схеме нет
+    if (seat.kind === 'seatless') {
+        if (seat.cx != null) hall.focusInBand(seat.cx, seat.cy, FOCUS_SCALE);
+        return;
+    }
+    if (!seat.el) return;
     const x = +seat.el.getAttribute('x') + 4;
     const y = +seat.el.getAttribute('y') + 4;
     hall.focusInBand(x, y, FOCUS_SCALE);
@@ -593,11 +683,21 @@ function findNearestSeat(sx, sy, maxR) {
     }
     return best;
 }
+/* Точка схемы (SVG-юниты) внутри прямоугольника танцпола (<g class="seatless"> в hall.svg) */
+function onSeatless(sx, sy) {
+    return seatlessEls.some((g) => {
+        const r = g.querySelector('rect');
+        if (!r) return false;
+        const x = +r.getAttribute('x'), y = +r.getAttribute('y');
+        return sx >= x && sx <= x + +r.getAttribute('width') && sy >= y && sy <= y + +r.getAttribute('height');
+    });
+}
 function handleTap(clientX, clientY) {
     if (lightbox.isOpen()) { lightbox.close(); return; }   // лайтбокс перекрывает весь экран, тап до схемы не дойдёт; строка — страховка
     if (deleting) return;                                   // не трогаем корзину во время анимации удаления
     const p = hall.clientToSvg(clientX, clientY);
     if (!p) return;
+    if (onSeatless(p.x, p.y)) { openSeatlessDialog(); return; }   // танцпол: схема приближается к нему, потом диалог
     const seat = findNearestSeat(p.x, p.y, 8);   // R=8 SVG-юнитов (место 8 + зазор)
     // Попадание в ДОСТУПНОЕ место → выбрать/снять + подзум
     if (seat && seat.status === 'available') {
@@ -614,8 +714,8 @@ function handleTap(clientX, clientY) {
 }
 
 /* --- Карточка билета → лайтбокс ---
-   Тап по фото (или лупе) активной карточки: лайтбокс со всеми фото секций, начиная с фото секции
-   этого билета. Схема, карусель и фильтр не меняются ни при открытии, ни при закрытии. */
+   Тап по фото (или лупе) активной карточки или по фото в диалоге танцпола: лайтбокс со всеми фото —
+   танцпол первым, затем 12 секций, — начиная с фото секции этого билета. Схема, карусель и фильтр не меняются ни при открытии, ни при закрытии. */
 function openSectionPhotos(tk) {
     if (!photoMap || !tk) return;
     const items = photoMap.gallery();
@@ -635,6 +735,7 @@ function fitHall() {
 /* --- Инлайн-SVG схемы (вектор в DOM, чёткий на зуме) --- */
 let seats = [];            // модель мест (ряд/место/цена/секция/статус), см. js/seats.js
 let hallSvgEl = null;      // корневой <svg> схемы (для класса бледнения .filtering)
+let seatlessEls = [];      // секции без мест (танцпол) — <g class="seatless" data-tier> в hall.svg
 let renderSelection = null; // fn(seats, activeSeat) — перерисовать слой выбранных мест
 let renderFilterLayer = null; // fn(items) — перерисовать слой увеличения по фильтру цены
 
@@ -743,6 +844,7 @@ function updateFade() {
     if (active.size === 0) {
         hallSvgEl.classList.remove('filtering');
         seats.forEach((s) => s.el.classList.remove('tier-active'));
+        seatlessEls.forEach((g) => g.classList.remove('tier-active'));
         return;
     }
     hallSvgEl.classList.add('filtering');
@@ -750,6 +852,8 @@ function updateFade() {
         const on = s.status === 'available' && s.tier && active.has(s.tier);
         s.el.classList.toggle('tier-active', on);
     });
+    // танцпол: свой тир (data-tier) — в полном цвете, только если активен его тир
+    seatlessEls.forEach((g) => g.classList.toggle('tier-active', active.has((g.dataset.tier || '').toUpperCase())));
 }
 
 /* Синхронизировать .active у пилюль с активными тирами (без ре-рендера легенды). */
@@ -778,6 +882,7 @@ function injectHall() {
             $('.hall-svg').innerHTML = svg;
             const svgEl = $('.hall-svg svg');
             hallSvgEl = svgEl;   // для класса бледнения .filtering (см. updateFade)
+            seatlessEls = [...svgEl.querySelectorAll('.seatless')];   // танцпол: бледнение по фильтру и тап мимо
             // привязать к местам схемы данные (ряд/место/статус) + разметить DOM
             seats = buildSeats(svgEl);
             // слой увеличения по фильтру цены (ПОД слоем выбора — создаётся раньше)
@@ -795,7 +900,8 @@ const hallReady = injectHall();
 renderLegend();
 refreshCart();   // заказ пуст: нижнего блока нет
 
-const hall = new HallViewport($('.map-viewport'), $('.map-content'), {
+const viewportEl = $('.map-viewport');
+const hall = new HallViewport(viewportEl, $('.map-content'), {
     // высоты плавающих оверлеев (шапка с фильтрами / нижний блок) — расширяют пан-слэк,
     // чтобы верхние/нижние места можно было вывести ИЗ-ПОД оверлеев; по ним же focusInBand
     // считает видимую полосу. Пустая корзина → .floating display:none → 0.
@@ -832,7 +938,7 @@ const PHOTOS_URL = 'photos/sections.json';   // одно фото на секц�
 hallReady.then(() => {
     if (!seats.length) return;   // схема не загрузилась — ошибка уже в консоли
     try {
-        photoMap = createPhotoMap({ seats });
+        photoMap = createPhotoMap({ seats, seatless: [{ photoKey: DANCEFLOOR.photoKey, name: DANCEFLOOR.name }] });
         // фото секций пришли — карточки билетов, уже лежащих в заказе, получают фото (ширина 192 → 280)
         photoMap.load(PHOTOS_URL).then(() => {
             if (cart.length && !deleting) renderTickets();

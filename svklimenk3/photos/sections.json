@@ -1,4 +1,5 @@
 {
+    "dancefloor": { "url": "photos/low-center.jpg", "caption": "VIP Танцпол" },
     "parter-left": { "url": "photos/low-left.jpg", "caption": "Вид из партера, левая сторона" },
     "parter-center": { "url": "photos/low-center.jpg", "caption": "Вид из партера, центр" },
     "parter-right": { "url": "photos/low-right.jpg", "caption": "Вид из партера, правая сторона" },

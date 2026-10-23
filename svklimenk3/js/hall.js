@@ -269,6 +269,30 @@ export class HallViewport {
         this._animateTo(s, (BASE_W / 2 - px) * ppu, (BASE_H / 2 - py) * ppu + (top - bottom) / 2, onDone);
     }
 
+    /* Точка (px, py) в SVG-юнитах → центр полосы между шапкой и нижним краем полосы bottom (px экрана от низа
+       вьюпорта), ровно на масштабе scale — и приближая, и отдаляя (в пределах от вписанного до MAX_SCALE).
+       Для фокуса под шторку, которая ещё не открыта: её высоту передаёт вызывающий.
+       onDone — после последнего кадра; движение оборвано жестом, panTo или новым _animateTo — не приходит. */
+    focusAt(px, py, scale, bottom, onDone) {
+        const { cover } = this._dims();
+        this._userInteract();
+        const top = this._inset('topInset');
+        const s = Math.max(this._fitScale(), Math.min(MAX_SCALE, scale));
+        const ppu = cover * s;
+        this._animateTo(s, (BASE_W / 2 - px) * ppu, (BASE_H / 2 - py) * ppu + (top - bottom) / 2, onDone);
+    }
+
+    /* Масштаб, на котором отрезок w SVG-юнитов занимает px пикселей экрана */
+    scaleForWidth(w, px) {
+        const { cover } = this._dims();
+        return px / (w * cover);
+    }
+
+    /* Снимок вида: сравнить «сдвигал ли человек схему» */
+    viewState() {
+        return { s: this.scale, tx: this.tx, ty: this.ty };
+    }
+
     /* ---- pointer (мышь): drag-пан ---- */
     _onPointerDown = (e) => {
         if (e.pointerType === 'touch') return; // тач — отдельно
@@ -287,6 +311,9 @@ export class HallViewport {
         this._apply(this.scale, this.drag.baseTx + dx, this.drag.baseTy + dy);
     };
     _onPointerUp = (e) => {
+        // палец: тап считает touchend (_onTouchEnd) — там же гасится «призрачный» click. pointerup касания
+        // приходит раньше touchend и раньше забирал тап себе, тогда touchend уже нечего было отменять
+        if (e.pointerType === 'touch') return;
         this.drag.active = false;
         this.vp.classList.remove('grabbing');
         try { this.vp.releasePointerCapture(e.pointerId); } catch {}
@@ -294,15 +321,17 @@ export class HallViewport {
     };
 
     /* Если жест не превратился в пан (смещение < TAP_DIST, время < TAP_TIME) —
-       это тап: отдать координаты наверх для hit-test/выбора места. */
+       это тап: отдать координаты наверх для hit-test/выбора места. true — тап засчитан. */
     _maybeTap(clientX, clientY) {
         const d = this._tap;
         this._tap = null;
-        if (!d) return;
+        if (!d) return false;
         const moved = Math.hypot(clientX - d.x, clientY - d.y);
         if (moved <= TAP_DIST && performance.now() - d.t <= TAP_TIME) {
             this.opts.onTap && this.opts.onTap(clientX, clientY);
+            return true;
         }
+        return false;
     }
 
     /* ---- wheel: зум ---- */
@@ -355,7 +384,10 @@ export class HallViewport {
         // тап одним пальцем (без pinch): взять координаты отпущенного касания
         if (!this.pinch.active && e && e.changedTouches && e.changedTouches.length) {
             const t = e.changedTouches[0];
-            this._maybeTap(t.clientX, t.clientY);
+            // тап обработан здесь — гасим совместимые mouse-события и click, которые браузер иначе пришлёт
+            // в ту же точку после touchend: под пальцем к этому моменту уже открытый диалог, и «призрачный»
+            // click по затемнению сразу его закрывал (тап по танцполу на телефоне и в режиме устройства DevTools)
+            if (this._maybeTap(t.clientX, t.clientY) && e.cancelable) e.preventDefault();
         } else {
             this._tap = null;
         }
