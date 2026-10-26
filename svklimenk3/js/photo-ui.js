@@ -2,13 +2,10 @@
    Лайтбокс с фото секций зала (вид с места).
    ============================================================ */
 
-// Иконки лайтбокса 24×24 — экспорт Figma, фрейм lightbox. Цвет — currentColor, задаёт CSS.
-// Крестик — компонент «Cross», node I4334:28383;3977:1542;3477:481;75180:415565;547:208314
-const icoCross24 =
-    '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">'
-    + '<path d="M6.29289 16.2929C5.90237 16.6834 5.90237 17.3166 6.29289 17.7071C6.68342 18.0976 7.31658 18.0976 7.70711 17.7071L11.9999 13.4143L16.2929 17.7073C16.6834 18.0978 17.3166 18.0978 17.7071 17.7073C18.0976 17.3167 18.0976 16.6836 17.7071 16.293L13.4141 12.0001L17.7071 7.70711C18.0976 7.31658 18.0976 6.68342 17.7071 6.29289C17.3166 5.90237 16.6834 5.90237 16.2929 6.29289L11.9999 10.5859L7.70711 6.29304C7.31658 5.90252 6.68342 5.90252 6.2929 6.29304C5.90237 6.68357 5.90237 7.31673 6.29289 7.70726L10.5857 12.0001L6.29289 16.2929Z" fill="currentColor"/>'
-    + '</svg>';
+// Крестик — иконка макета лайтбокса (файл Z4wmhHaKhZMV8UI79y1a9Y, узел I4866:18387;4013:6005;547:208314), белая
+const ICON_CROSS = 'assets/lightbox-cross-24.svg';
 
+// Шевроны 24×24 — экспорт Figma, прежний фрейм lightbox; в новом макете стрелок нет. Цвет — currentColor, задаёт CSS.
 // Шеврон влево — компонент «Chevron Left», node I4334:28387;547:207731
 const icoChevronLeft24 =
     '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">'
@@ -61,12 +58,11 @@ function wobbleAt(t) {
    open(items, start) — items: [{ key, photo: { url, caption }, label }] в порядке галереи (photoMap.gallery()),
    start — индекс фото, с которого открыть. Под фото — подпись секции label («Партер, левая сторона»)
    и «Показать на схеме»: лайтбокс закрывается, onShow(item) ведёт схему к секции фото.
-   canShow(item) — есть ли у фото место на схеме; нет — кнопки под фото нет.
-   Фото занимает всю высоту области между крестиком и подписью, по ширине обрезано, видна середина;
+   Фото занимает всю высоту от верхнего края до подписи (крестик поверх фото), по ширине обрезано, видна середина;
    тап по краям листает, протяжка двигает фото вбок, вертикальный свайп закрывает. При открытии фото
    один раз покачивается — подсказка, что его можно двигать.
    close(onDone) — onDone через LB_MS по таймеру, а не по transitionend: колбэк приходит, даже если переход не сыграл. */
-export function createLightbox({ parentEl, onShow, canShow = () => true }) {
+export function createLightbox({ parentEl, onShow }) {
     const el = document.createElement('div');
     el.className = 'lb';
     el.setAttribute('role', 'dialog');
@@ -74,8 +70,7 @@ export function createLightbox({ parentEl, onShow, canShow = () => true }) {
     el.setAttribute('aria-label', 'Фото секций зала');
     const slideHtml = '<div class="lb-slide"><div class="lb-photo"><img class="lb-img" alt="" draggable="false"></div></div>';
     el.innerHTML =
-        `<div class="lb-top"><button class="lb-close" type="button" aria-label="Закрыть">${icoCross24}</button></div>`
-        + '<div class="lb-stage">'
+        '<div class="lb-stage">'
         + `<div class="lb-track">${slideHtml}${slideHtml}${slideHtml}</div>`
         + `<button class="lb-arrow lb-arrow--prev" type="button" aria-label="Предыдущее фото">${icoChevronLeft24}</button>`
         + `<button class="lb-arrow lb-arrow--next" type="button" aria-label="Следующее фото">${icoChevronRight24}</button>`
@@ -85,7 +80,9 @@ export function createLightbox({ parentEl, onShow, canShow = () => true }) {
         + '<div class="lb-place"><span class="lb-seat"></span></div>'
         + '</div>'
         + '<button class="lb-show" type="button">Показать на схеме</button>'
-        + '</div>';
+        + '</div>'
+        // крестик — поверх фото в правом верхнем углу, отдельной шапки нет (макет 4866:18319)
+        + `<button class="lb-close" type="button" aria-label="Закрыть"><img src="${ICON_CROSS}" width="24" height="24" alt=""></button>`;
     parentEl.appendChild(el);
 
     // Live-строка вне лайтбокса: закрытый лайтбокс visibility: hidden, а скрытый live-регион диктор не слушает
@@ -193,7 +190,7 @@ export function createLightbox({ parentEl, onShow, canShow = () => true }) {
     function paintInfo() {
         const item = list[index];
         labelEl.textContent = item.label;
-        showBtn.hidden = !onShow || !canShow(item);
+        showBtn.hidden = !onShow;   // кнопка есть у каждого фото
         const first = index === 0;
         const last = index === list.length - 1;
         prevBtn.classList.toggle('is-edge', first);

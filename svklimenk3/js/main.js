@@ -29,7 +29,6 @@ let photoMap = null;       // фото секций, появляются пос
 const lightbox = createLightbox({
     parentEl: $('.app'),
     onShow: (item) => showPhotoOnMap(item),
-    canShow: (item) => !!photoPlace(item),   // у секции без мест на схеме кнопки нет
 });
 // диалог танцпола: тап по танцполу на схеме → выбор количества → билеты без места в заказ (addSeatless)
 const seatlessDialog = createSeatlessDialog({
@@ -228,7 +227,8 @@ function fillTicketCard(card, tk) {
     card.className = `ticket type-${v.type}` + (v.photo ? ' has-photo' : '');
     const photoHtml = v.photo
         ? '<span class="t-photo">'
-            + `<img class="t-photo-img" src="${escHtml(v.photo.url)}" alt="${escHtml(v.photo.caption || '')}" draggable="false">`
+            // миниатюра 324×240 (photos/thumbs); лайтбокс и диалог танцпола берут полное фото v.photo.url
+            + `<img class="t-photo-img" src="${escHtml(v.photo.thumb || v.photo.url)}" alt="${escHtml(v.photo.caption || '')}" draggable="false">`
             + `<span class="t-zoom" aria-hidden="true"><img src="${ICON_SEARCH}" alt="" width="16" height="16" draggable="false"></span>`
             + '</span>'
         : '';
@@ -237,9 +237,14 @@ function fillTicketCard(card, tk) {
         photoHtml
         + `<span class="t-text">${lines}</span>`
         + `<button class="t-x" type="button" aria-label="Убрать"><img src="${ICON_CROSS_CIRCLE}" alt="" width="24" height="24" draggable="false"></button>`;
-    // битое фото — пустой фон превью, как у карточки места раньше
+    // нет миниатюры — полное фото; битое и оно — пустой фон превью, как у карточки места раньше
     const img = card.querySelector('.t-photo-img');
-    if (img) img.addEventListener('error', () => { img.style.visibility = 'hidden'; });
+    if (img) {
+        img.addEventListener('error', () => {
+            if (v.photo.thumb && img.getAttribute('src') !== v.photo.url) img.src = v.photo.url;
+            else img.style.visibility = 'hidden';
+        });
+    }
 }
 
 /* ============================================================
@@ -917,7 +922,8 @@ function showPhotoOnMap(item) {
 }
 
 /* Контуры секции фото: вокруг каждого свободного места секции, кроме мест в заказе, — в цвет места;
-   у танцпола — вокруг его прямоугольника, в цвет его тира */
+   у танцпола — вокруг его прямоугольника, в цвет его тира. В секции нет свободных мест (всё продано или
+   всё в заказе) — контуров нет: схема только приезжает к секции, show([]) ничего не рисует */
 function highlightPhotoPlace(item) {
     if (!sectionHighlight || !hall) return;
     const shape = (el, color) => ({

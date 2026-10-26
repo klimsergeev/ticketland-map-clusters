@@ -52,7 +52,8 @@ export function createSeatlessDialog({ parentEl, onAdd, onPhoto, onClose }) {
         + '</button>'
         + '<div class="sd-details">'
         + '<div class="sd-title-col"><span class="sd-name"></span><span class="sd-kind">Билет без места</span></div>'
-        + '<div class="sd-price-col"><span class="sd-price"></span><span class="sd-fee">без комиссии</span></div>'
+        // «без комиссии» пока скрыта по решению пользователя; вернуть — убрать атрибут hidden у .sd-fee
+        + '<div class="sd-price-col"><span class="sd-price"></span><span class="sd-fee" hidden>без комиссии</span></div>'
         + '</div>'
         + '</div>'
         + '<div class="sd-body">'

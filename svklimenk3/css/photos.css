@@ -23,14 +23,16 @@
 }
 
 /* ---------- Лайтбокс с фото: на весь экран поверх шапки (z 5) и нижнего блока (z 4).
-   Значения — фрейм lightbox макета; MTS Compact заменён на Statika с параметрами макета ---------- */
+   Макет «Lightbox / svklimenk3-cards», файл Z4wmhHaKhZMV8UI79y1a9Y, узел 4866:18319 (360×800): фото от верхнего края
+   до подписи, крестик поверх фото, снизу подпись и «Показать на схеме». Тень Content (Upper-middle) не видна —
+   лайтбокс на весь экран; подложка Background/Overlay за ним тоже закрыта целиком ---------- */
 .lb {
     position: absolute;
     inset: 0;
     z-index: 20;
     display: flex;
     flex-direction: column;
-    /* #FFFFFF — Background/Primary: светлый лайтбокс, тексты и иконки тёмные.
+    /* #FFFFFF — Background/Modal (= --bg-primary): светлый лайтбокс.
        --lb-fade — вертикальный свайп закрытия: белый фон тает, фото остаётся непрозрачным (js) */
     background: color-mix(in srgb, var(--bg-primary) calc(var(--lb-fade) * 100%), transparent);
     touch-action: none;                     /* жесты на фото считает js */
@@ -46,13 +48,8 @@
     transition: opacity 200ms cubic-bezier(.2, .8, .2, 1), visibility 0s linear 0s;
 }
 /* крестик, подпись и кнопка тают вдвое быстрее фона: пропадают к его половине и не путаются с тем, что под ним */
-.lb-top,
+.lb-close,
 .lb-bottom { opacity: max(0, var(--lb-fade) * 2 - 1); }
-.lb-top {
-    display: flex;
-    justify-content: flex-end;
-    padding: 8px;
-}
 .lb-close,
 .lb-arrow {
     display: flex;
@@ -67,11 +64,19 @@
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
 }
+/* Крестик — Icon button макета (I4866:18387): 44×44, круг радиус 22, справа 16, сверху 16.33 (значение макета);
+   заливка #FDF9F5 с прозрачностью 0,2 и размытие фона Blur 15 (CSS blur 7.5px), иконка Cross 24 белая — файлом */
 .lb-close {
-    border-radius: var(--r-8);
-    color: var(--text-primary);             /* #231D1F — Text/Primary */
+    position: absolute;
+    top: 16.33px;
+    right: 16px;
+    z-index: 1;                             /* над областью фото */
+    border-radius: 22px;
+    background: rgba(253, 249, 245, .2);
+    -webkit-backdrop-filter: blur(7.5px);
+    backdrop-filter: blur(7.5px);
 }
-.lb-close svg,
+.lb-close img,
 .lb-arrow svg { display: block; }
 
 .lb-stage {
@@ -88,7 +93,7 @@
 .lb-slide {
     overflow: hidden;                       /* рамка фото шире области: соседние фото на ленте не наезжают друг на друга */
 }
-/* Фото на всю высоту области между крестиком и подписью, без скругления (комментарии к кадру 4861:18110).
+/* Фото на всю высоту от верхнего края до подписи, без скругления (макет 4866:18319, комментарии к кадру 4861:18110).
    Рамка в пропорциях картинки — js ставит их после загрузки, до неё 1024 × 708, как сами фото в photos/.
    По ширине рамка больше области, середину ставит и сдвиг считает js.
    min-width — на экране шире рамки фото закрывает область и по ширине, лишнее по высоте обрезает object-fit */
@@ -111,34 +116,39 @@
     -webkit-user-drag: none;
 }
 
-/* Стрелки: иконка 24 в 12 px от края, зона касания 44: (44 − 24) / 2 = 10, кнопка в 12 − 10 = 2 px от края */
+/* Стрелки: в макете их нет, оставлены по просьбе пользователя. Вид — как крестик макета и скрытая Icon button
+   4866:18386: 44×44, круг радиус 22, фон rgba(253,249,245,.2), размытие фона 7.5px (Blur 15), иконка 24 белая.
+   От края 16 — как крестик (right 16); по высоте — середина области фото */
 .lb-arrow {
     position: absolute;
     top: 50%;
     margin-top: -22px;
-    color: var(--text-primary);             /* #231D1F — Text/Primary */
+    border-radius: 22px;
+    background: rgba(253, 249, 245, .2);
+    -webkit-backdrop-filter: blur(7.5px);
+    backdrop-filter: blur(7.5px);
+    color: #ffffff;                         /* как иконка Cross в макете: fill white */
 }
-.lb-arrow--prev { left: 2px; }
-.lb-arrow--next { right: 2px; }
+.lb-arrow--prev { left: 16px; }
+.lb-arrow--next { right: 16px; }
 .lb-arrow.is-edge { opacity: .5; cursor: default; }
 
-/* Низ лайтбокса — макет, кадр 4417:12680 (состояния 4416:12158, 4416:12228, 4417:12642): сверху 16, снизу 16,
-   между подписью и кнопкой 20. По бокам 16 — как кнопки в диалоге танцпола (.sd-body), кнопка на всю ширину */
+/* Низ лайтбокса — «lightbox-label» макета (I4866:18368;4866:18158): сверху 16, по бокам 16, снизу 24,
+   между подписью и кнопкой 16; фон — градиент от прозрачного белого к белому на 12.766% высоты */
 .lb-bottom {
     display: flex;
     flex-direction: column;
-    gap: 20px;
-    padding: 16px;
+    gap: 16px;
+    padding: 16px 16px 24px;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0), #ffffff 12.766%);
 }
-/* Info: подпись секции («Партер, левая сторона») на месте строки с местом; от края экрана 28, как раньше
-   (20 + 8 макета), — 16 блока + 12. min-width: 0 у колонки — длинная подпись переносится, а не распирает лайтбокс */
+/* Подпись секции («Партер, центр») по центру: Statika Regular 14/21, Text/Primary #231D1F (I4866:18368;4866:18196).
+   min-width: 0 у колонки — длинная подпись переносится, а не распирает лайтбокс */
 .lb-info {
     display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    padding: 0 12px;
     color: var(--text-primary);             /* #231D1F — Text/Primary */
-    font: 400 14px/20px var(--font-sans);   /* P2 Regular Comp 14/20: Statika вместо MTS Compact */
+    font: 400 14px/21px var(--font-sans);
+    text-align: center;
     overflow-wrap: anywhere;
 }
 .lb-place {
@@ -147,8 +157,8 @@
     flex-direction: column;
     min-width: 0;
 }
-/* «Показать на схеме» — серая secondary: заливка Controls/Secondary #F5F4F2, текст Text/Primary #231D1F,
-   Statika Medium 16/24; высота 52, радиус 26, по бокам 32 — как «Добавить» и «Закрыть» в диалоге танцпола */
+/* «Показать на схеме» — Button макета (I4866:18368;4866:18159): заливка Controls/Secondary #F5F4F2,
+   текст Text/Primary #231D1F, Statika Medium 16/24; высота 52, радиус 26, по бокам 32, на всю ширину */
 .lb-show {
     box-sizing: border-box;
     width: 100%;
@@ -164,9 +174,4 @@
     white-space: nowrap;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
-}
-/* у секции без мест на схеме кнопки нет, но место под ней остаётся: высота фото при листании не прыгает */
-.lb-show[hidden] {
-    display: block;
-    visibility: hidden;
 }

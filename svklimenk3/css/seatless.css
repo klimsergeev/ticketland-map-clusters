@@ -143,11 +143,13 @@
     padding: 16px;
 }
 
-/* ---------- Блок количества: обводка 1px rgba(162,162,162,.25), радиус 16, отступы 12 ---------- */
+/* ---------- Блок количества — «.Tickets options count svklimenk3-cards» (4828:36597, Notes 4778:30167):
+   обводка 1px rgba(162,162,162,.25) внутрь (inside: размер не растёт, блок 360×112 и 360×72, как в макете),
+   радиус 28, отступы 12 ---------- */
 .sd-count {
     box-sizing: border-box;
-    border: 1px solid rgba(162, 162, 162, .25);
-    border-radius: 16px;
+    box-shadow: inset 0 0 0 1px rgba(162, 162, 162, .25);
+    border-radius: 28px;
     padding: 12px;
 }
 /* Build=Options alt: столбец по центру, промежуток 16 */
@@ -219,8 +221,7 @@
 }
 .sd-count-label { font: 400 16px/24px var(--font-sans); color: #231d1f; }   /* P2 Regular */
 .sd-count-limit { font: 400 14px/21px var(--font-sans); color: #706e6f; }   /* P3 Regular, Text/Secondary */
-/* Warning=True: обе строки Medium, «Не более N» — Text/Warning #F59400 */
-.sd-count.is-warning .sd-count-label { font-weight: 500; }
+/* Warning=True (4834:39762): «Билетов» — Regular, как без предупреждения; «Не более N» — P3 Medium, Text/Warning #F59400 */
 .sd-count.is-warning .sd-count-limit { font-weight: 500; color: #f59400; }
 /* Counter: серая плашка Background/Secondary #F5F4F2, высота 48, отступы 0/4, промежуток 8, радиус 16 */
 .sd-counter {

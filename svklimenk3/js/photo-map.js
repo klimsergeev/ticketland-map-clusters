@@ -23,8 +23,7 @@ export function createPhotoMap({ seats, seatless = [] }) {
     let sectionPhotos = new Map();   // ключ секции → { url, caption }
 
     /* Загрузить фото секций. Ключ не из «часть зала на схеме × сторона» — предупреждение (опечатка в ключе).
-       Секция может остаться без мест — центр партера занят танцполом, — её фото остаётся в галерее;
-       секция без фото — не ошибка: у её мест фото нет */
+       Секция без фото — не ошибка: у её мест фото нет */
     function load(url) {
         return loadSectionPhotos(url).then((map) => {
             const known = new Set([...partName.keys()].flatMap((part) => SIDES.map(([side]) => `${part}-${side}`)));
@@ -37,8 +36,10 @@ export function createPhotoMap({ seats, seatless = [] }) {
     }
 
     /* Все фото секций в порядке галереи: [{ key, photo, label }], label — «Партер, левая сторона».
-       Секции без фото пропускаются */
+       Секции без фото пропускаются. Секции без мест на схеме тоже: их место занимает секция без мест —
+       центр партера занят танцполом, и фото «Партер, центр» в галерее не повторяет фото «Танцпол» */
     function gallery() {
+        const seated = new Set(seats.map(sectionKeyOf));
         const items = [];
         seatless.forEach((s) => {
             const photo = sectionPhotos.get(s.photoKey);
@@ -48,7 +49,7 @@ export function createPhotoMap({ seats, seatless = [] }) {
             SIDES.forEach(([side, sideLabel]) => {
                 const key = `${part}-${side}`;
                 const photo = sectionPhotos.get(key);
-                if (!photo) return;
+                if (!photo || !seated.has(key)) return;
                 items.push({ key, photo, label: `${partName.get(part) || part}, ${sideLabel}` });
             });
         });

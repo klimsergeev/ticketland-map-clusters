@@ -6,8 +6,13 @@
 /* Ключ секции места: «amphitheatre-center» */
 export const sectionKeyOf = (seat) => `${seat.sectionKey}-${seat.side}`;
 
+/* Миниатюра фото для карточки билета — по правилу: тот же файл в папке thumbs рядом,
+   «photos/low-left.jpg» → «photos/thumbs/low-left.jpg». 324×240 — превью карточки 108×80 на экране 3x,
+   обрезка по центру, как object-fit: cover на карточке */
+export const thumbOf = (url) => url.replace(/([^/]+)$/, 'thumbs/$1');
+
 /* JSON: { "<ключ секции>": { url, caption? } }. Сбой загрузки или не объект — пустой Map и ошибка в консоли.
-   Запись без url пропускается с предупреждением. Возвращает Map(ключ секции → { url, caption }). */
+   Запись без url пропускается с предупреждением. Возвращает Map(ключ секции → { url, thumb, caption }). */
 export function loadSectionPhotos(url) {
     return fetch(url)
         .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
@@ -19,7 +24,7 @@ export function loadSectionPhotos(url) {
                     console.warn(`Фото секции ${key}: нет url, фото не показано`);
                     return;
                 }
-                map.set(key, { url: p.url, caption: p.caption || '' });
+                map.set(key, { url: p.url, thumb: thumbOf(p.url), caption: p.caption || '' });
             });
             return map;
         })
