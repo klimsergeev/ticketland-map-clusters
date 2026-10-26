@@ -48,6 +48,42 @@ $('.icon-btn').innerHTML = icoChevronLeft;
 /* --- Рендер легенды (цвет→цена). Пилюли = ФИЛЬТР цены:
        клик по пилюле увеличивает доступные места её тира (см. toggleTierFilter).
        Активная пилюля — цветная обводка в цвет тира (класс .active, --ring). --- */
+/* Цвет обводки нажатой пилюли. Обычно — цвет тира. Тир, еле видный на белом (контраст с белым ниже
+   RING_MIN_CONTRAST по WCAG), получает тот же тон и насыщенность с яркостью B (HSB) ниже на RING_DARKEN пунктов —
+   правило прежних кружков на креслах. Маркер на пилюле остаётся в цвет тира.
+   Порог 1,3: темнее становится только «1 750 ₽» (#F2E7E4, контраст 1,21). При пороге 1,5 под правило попал бы
+   и жёлтый «4 000 ₽» (#F5D300, контраст 1,48) — обводка #C2A700 */
+const RING_MIN_CONTRAST = 1.3;
+const RING_DARKEN = 20;
+
+function hexRgb(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+// контраст с белым по WCAG 2.1: (1 + 0.05) / (L + 0.05), L — относительная яркость цвета
+function contrastWithWhite(hex) {
+    const [r, g, b] = hexRgb(hex).map((c) => {
+        const v = c / 255;
+        return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+    });
+    return 1.05 / (0.2126 * r + 0.7152 * g + 0.0722 * b + 0.05);
+}
+
+// #RRGGBB → тот же H и S, яркость B меньше на points пунктов: при тех же H и S все каналы меняются в пропорции newB / B
+function darkenHsb(hex, points) {
+    const rgb = hexRgb(hex);
+    const b = Math.max(...rgb) / 255;
+    if (!b) return hex;
+    const k = Math.max(0, b - points / 100) / b;
+    return '#' + rgb.map((c) => Math.round(c * k).toString(16).padStart(2, '0')).join('').toUpperCase();
+}
+
+function ringColor(hex) {
+    if (!/^#[0-9a-f]{6}$/i.test(hex || '')) return hex;
+    return contrastWithWhite(hex) < RING_MIN_CONTRAST ? darkenHsb(hex, RING_DARKEN) : hex;
+}
+
 function renderLegend() {
     legendEl.innerHTML = '';
     TIER_COLORS.forEach((c, i) => {
@@ -56,7 +92,7 @@ function renderLegend() {
         pill.type = 'button';
         pill.className = 'pill';
         pill.dataset.tier = color;
-        pill.style.setProperty('--ring', c);
+        pill.style.setProperty('--ring', ringColor(c));   // обводка нажатой; светлый тир — темнее
         pill.innerHTML = `<span class="sw" style="background:${c}"></span>${formatPrice(TIER_PRICES[i])}`;
         pill.addEventListener('click', () => toggleTierFilter(color));
         legendEl.appendChild(pill);
