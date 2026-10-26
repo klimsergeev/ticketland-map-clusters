@@ -16,7 +16,7 @@ export const EVENT = {
    самый дорогой. */
 export const TIER_COLORS = [
     '#27C227', // Балкон, дальние ряды  — дешевле всего
-    '#F2E7E4', // VIP Танцпол — свободная рассадка, без мест (Figma: Price item 4828:37094, Color 4828:37095)
+    '#F2E7E4', // Танцпол — свободная рассадка, без мест (Figma: Price item 4828:37094, Color 4828:37095)
     '#6EE16E', // Балкон, ближние ряды
     '#F5D300', // Партер, дальняя зона (жёлтый)
     '#FF9452', // Партер, средняя зона (оранжевый)
@@ -32,10 +32,11 @@ export function formatPrice(n) {
     return n.toLocaleString('ru-RU') + ' ₽';
 }
 
-/* Секция без мест — VIP Танцпол (<g class="seatless"> в assets/hall.svg). Цена — по тиру заливки (TIER_PRICES),
-   фото — ключ photoKey в photos/sections.json. Билеты на неё — позиции заказа { kind: 'seatless' } (js/main.js) */
+/* Секция без мест — Танцпол (<g class="seatless"> в assets/hall.svg). Цена — по тиру заливки (TIER_PRICES),
+   фото — ключ photoKey в photos/sections.json. Билеты на неё — позиции заказа { kind: 'seatless' } (js/main.js).
+   name — единственное название танцпола в интерфейсе: диалог, карточка билета, подпись в лайтбоксе */
 export const DANCEFLOOR = {
-    name: 'VIP Танцпол',
+    name: 'Танцпол',
     tier: '#F2E7E4',
     photoKey: 'dancefloor',
 };

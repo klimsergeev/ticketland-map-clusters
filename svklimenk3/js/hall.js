@@ -26,9 +26,9 @@ const MAX_SCALE = 5;
 const TAP_DIST = 6;
 const TAP_TIME = 500;
 
-/* Базовый viewBox схемы (из assets/hall.svg): 0 0 536 526 */
+/* Базовый viewBox схемы (из assets/hall.svg): 0 0 536 582 */
 const BASE_W = 536;
-const BASE_H = 526;
+const BASE_H = 582;
 
 /* Небольшой отступ клэмпа пана (экранные px): до крайних мест можно
    доехать с этим зазором, но без гигантского пустого поля. */
@@ -209,6 +209,12 @@ export class HallViewport {
     panTo(tx, ty) {
         cancelAnimationFrame(this._raf);
         this._apply(this.scale, tx, ty);
+    }
+
+    /* Плавно вернуть вид в границы пана на текущем зуме — после того как убран оверлей, расширявший слэк
+       (шторка диалога танцпола). Вид в границах — движения нет. Фильтр не сбрасывает */
+    settle() {
+        this._animateTo(this.scale, this.tx, this.ty);
     }
 
     /* Экранные координаты (clientX/clientY) → координаты в SVG-юнитах.

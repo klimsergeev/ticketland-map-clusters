@@ -216,10 +216,14 @@ html, body {
     flex-direction: column;
     /* «Bottomsheet / svklimenk3-cards» 4778:30275 (360×188): Tickets — сверху 16, слева 16, промежуток 8;
        Button — сверху 16, по бокам 16, снизу 24. Отсюда: отступы блока 16 / 16 / 24, между лентой и кнопкой 16.
-       Заливки и подложки у компонента нет — схема видна сквозь блок */
+       Подложка — как была в прототипе схемы зала: вертикальный градиент белого, прозрачный сверху
+       растворяется в сплошной белый к 15% и далее до низа (у компонента шторки заливки нет) */
     gap: 16px;
     padding: 16px 16px 24px;
-    background: none;
+    background: linear-gradient(180deg,
+        rgba(255, 255, 255, 0) 0%,
+        #ffffff 15%,
+        #ffffff 100%);
     /* пустоты блока пропускают касания к схеме; ловят только билеты и кнопка (children ниже) */
     pointer-events: none;
 }
@@ -296,13 +300,13 @@ html, body {
     box-shadow: 0 6px 24px 0 rgba(35, 29, 31, .06), 0 18px 20px 0 rgba(35, 29, 31, .08);   /* Selected=True: Shadows/Neutral/High */
 }
 
-/* Hall preview: 108×80, своё скругление 16 на всех углах, фото cover */
+/* Hall preview: 108×80, фото cover. Своего скругления у превью нет: левые углы срезает скругление
+   карточки 16 (overflow карточки), правые — прямые */
 .ticket .t-photo {
     position: relative;
     flex: none;
     width: 108px;
     height: 80px;
-    border-radius: 16px;
     overflow: hidden;
 }
 .ticket .t-photo-img {
@@ -384,12 +388,12 @@ html, body {
 .ticket.active .t-x { display: block; }
 .ticket .t-x img { display: block; width: 24px; height: 24px; }
 
-/* Клон уходящей карточки при удалении (fade): рисуется поверх слайдера, вне потока,
-   чтобы не ломать layout карусели. Наследует вид .ticket; геометрию/анимацию (scale→.2 +
-   opacity→0) задаёт JS (deleteActiveTicket в js/main.js). */
+/* Клон уходящей карточки при удалении: лежит в .floating вне потока, слоем 0 — под лентой (.slider, 2)
+   и под кнопкой «Оформить» (.cta, 1), поэтому уходя вниз заезжает под кнопку, а не поверх неё.
+   Наследует вид .ticket; положение и анимацию (вниз + гаснет) задаёт JS (spawnExit в js/main.js). */
 .exit-clone {
     position: absolute;
-    z-index: 200;
+    z-index: 0;
     margin: 0;
     cursor: default;
     pointer-events: none;
