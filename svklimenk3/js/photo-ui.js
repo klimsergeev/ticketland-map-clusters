@@ -36,13 +36,15 @@ const DOUBLE_TAP_PX = 30;
 const ZONE_PREV = 79 / 360;
 const ZONE_NEXT = 180 / 360;
 
-/* Покачивание при открытии — подсказка, что фото двигается: после проявления лайтбокса фото плавно съезжает
-   влево, потом вправо и возвращается в середину. Только если фото шире области и есть куда двигать */
-const WOBBLE_DELAY = LB_MS;   // ждёт, пока лайтбокс проявится
-const WOBBLE_MS = 900;
+/* Покачивание при открытии — подсказка, что фото двигается: фото плавно съезжает влево, потом вправо
+   и возвращается в середину. Один раз за жизнь страницы — при первом открытии, где фото шире области
+   и есть куда двигать; флаг в памяти страницы, после перезагрузки покачивание снова будет */
+const WOBBLE_DELAY = 100;     // лайтбокс уже почти проявился (LB_MS 200)
+const WOBBLE_MS = 550;
 const WOBBLE_PX = 28;         // амплитуда; меньше, если фото выходит за область меньше чем на столько с каждой стороны
 // опорные точки: [доля времени, сдвиг в долях амплитуды]; между точками — мягкая кривая easeInOutSine
 const WOBBLE_KEYS = [[0, 0], [0.3, -1], [0.75, 1], [1, 0]];
+let wobbleShown = false;      // покачивание уже было на этой странице
 const easeInOutSine = (t) => (1 - Math.cos(Math.PI * t)) / 2;
 function wobbleAt(t) {
     for (let i = 1; i < WOBBLE_KEYS.length; i++) {
@@ -225,7 +227,8 @@ export function createLightbox({ parentEl, onShow }) {
             wobbleTimer = null;
             const slot = cur();
             const room = (slot.photo.offsetWidth - stage.clientWidth) / 2;   // запас сдвига от середины в каждую сторону
-            if (room < 1) return;   // фото не шире области — двигать нечего
+            if (room < 1) return;   // фото не шире области — двигать нечего, покачаем при следующем открытии
+            wobbleShown = true;
             const a = Math.min(WOBBLE_PX, room);
             const t0 = performance.now();
             const step = (now) => {
@@ -286,7 +289,7 @@ export function createLightbox({ parentEl, onShow }) {
         layout();      // закрытый лайтбокс visibility: hidden, раскладка у него есть — размеры области известны
         el.classList.add('is-open');
         isOpen = true;
-        wobble();      // при каждом открытии, при листании — нет
+        if (!wobbleShown) wobble();   // только при первом подходящем открытии; при листании — нет
     }
 
     function close(onDone) {
