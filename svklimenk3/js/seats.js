@@ -242,3 +242,56 @@ export function createSelectionLayer(svgRoot) {
         layer.innerHTML = parts.join('');
     };
 }
+
+/* ============================================================
+   Подсветка секции после «Показать на схеме»: вокруг каждой фигуры — контур её цвета и её формы,
+   между фигурой и контуром белый зазор (просвет схемы). Все контуры загораются разом, стоят секунду
+   и плавно гаснут; hide() гасит сразу. Взято из прежней подсветки одного кресла (зазор 2 и линия 3 px экрана),
+   без посадки и ореола. Слой — <g> в конце <svg>, над маркерами выбора; касаний не принимает.
+   Размеры контура заданы в px экрана, а рисуются в единицах схемы: show() получает k — px экрана на единицу.
+   Пока контуры горят, схема стоит: любое касание её гасит. */
+const HL_GAP = 2;          // px экрана, белый зазор между фигурой и контуром
+const HL_LINE = 3;         // px экрана, линия контура
+const HL_SHOW_MS = 100;    // загорание: непрозрачность 0 → 1
+const HL_HOLD_MS = 1000;   // горит
+const HL_OFF_MS = 350;     // гаснет
+
+export function createHighlightLayer(svgRoot) {
+    const layer = document.createElementNS(SVG_NS, 'g');
+    layer.setAttribute('class', 'hl-layer');
+    layer.setAttribute('pointer-events', 'none');
+    svgRoot.appendChild(layer);
+    let anim = null;
+    let timer = null;
+
+    function hide() {
+        clearTimeout(timer);
+        timer = null;
+        if (anim) { anim.cancel(); anim = null; }
+        layer.replaceChildren();
+    }
+
+    /* shapes: [{ x, y, w, h, r, color }] — фигуры в единицах схемы: левый верхний угол, размеры, радиус угла */
+    function show(shapes, k) {
+        hide();
+        if (!shapes.length || !(k > 0)) return;
+        const pad = (HL_GAP + HL_LINE / 2) / k;   // от края фигуры до середины линии контура
+        layer.innerHTML = shapes.map(({ x, y, w, h, r, color }) =>
+            `<rect x="${x - pad}" y="${y - pad}" width="${w + 2 * pad}" height="${h + 2 * pad}" rx="${r + pad}"`
+            + ` fill="none" stroke="${color}" stroke-width="${HL_LINE / k}"/>`).join('');
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            timer = setTimeout(hide, HL_HOLD_MS);   // без загорания и гашения
+            return;
+        }
+        const total = HL_SHOW_MS + HL_HOLD_MS + HL_OFF_MS;
+        anim = layer.animate([
+            { opacity: 0 },
+            { opacity: 1, offset: HL_SHOW_MS / total },
+            { opacity: 1, offset: (HL_SHOW_MS + HL_HOLD_MS) / total, easing: 'ease-out' },
+            { opacity: 0 },
+        ], { duration: total });
+        anim.onfinish = hide;
+    }
+
+    return { show, hide };
+}

@@ -3,7 +3,7 @@
    ============================================================ */
 import { EVENT, TIER_COLORS, TIER_PRICES, MAX_SEATS, DANCEFLOOR, formatPrice } from './data.js';
 import { HallViewport } from './hall.js';
-import { buildSeats, createSelectionLayer, applySessionPrices, createFilterLayer } from './seats.js';
+import { buildSeats, createSelectionLayer, applySessionPrices, createFilterLayer, createHighlightLayer } from './seats.js';
 import { createPhotoMap } from './photo-map.js';
 import { createLightbox } from './photo-ui.js';
 import { createSeatlessDialog } from './seatless-dialog.js';
@@ -25,7 +25,12 @@ const floatingEl = $('.floating');
 /* --- Фото секций и лайтбокс --- */
 let photoMap = null;       // фото секций, появляются после загрузки схемы
 // лайтбокс: все фото секций, открывается тапом по фото активной карточки билета (openSectionPhotos)
-const lightbox = createLightbox({ parentEl: $('.app') });
+// «Показать на схеме» под фото: лайтбокс закрывается, схема едет к секции фото (showPhotoOnMap)
+const lightbox = createLightbox({
+    parentEl: $('.app'),
+    onShow: (item) => showPhotoOnMap(item),
+    canShow: (item) => !!photoPlace(item),   // у секции без мест на схеме кнопки нет
+});
 // диалог танцпола: тап по танцполу на схеме → выбор количества → билеты без места в заказ (addSeatless)
 const seatlessDialog = createSeatlessDialog({
     parentEl: $('.app'),
@@ -873,6 +878,71 @@ function openSectionPhotos(tk) {
     lightbox.open(items, start);
 }
 
+/* Где на схеме секция фото: { x, y, w } в SVG-юнитах — середина и ширина прямоугольника, в который вписаны
+   места секции (часть зала + сторона, место 8×8), или танцпола. null — у секции нет мест на схеме */
+function photoPlace(item) {
+    if (!item) return null;
+    if (item.key === DANCEFLOOR.photoKey) {
+        const c = dancefloorCenter();
+        return c ? { x: c.x, y: c.y, w: dancefloorSize().w } : null;
+    }
+    if (!photoMap) return null;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    seats.forEach((s) => {
+        if (photoMap.keyOf(s) !== item.key) return;
+        const x = +s.el.getAttribute('x');
+        const y = +s.el.getAttribute('y');
+        x0 = Math.min(x0, x); y0 = Math.min(y0, y);
+        x1 = Math.max(x1, x + 8); y1 = Math.max(y1, y + 8);
+    });
+    return x0 === Infinity ? null : { x: (x0 + x1) / 2, y: (y0 + y1) / 2, w: x1 - x0 };
+}
+
+/* «Показать на схеме» в лайтбоксе: лайтбокс уже закрывается, диалог танцпола закрывается, если открыт.
+   Секция или танцпол встают на DANCEFLOOR_SHARE ширины экрана, середина — в центр полосы над нижним блоком;
+   схема и приближается, и отдаляется. Узкой секции масштаб по ширине вышел бы слишком крупным — у секций
+   он не больше FOCUS_SCALE, масштаба фокуса на выбранном билете: кресло не крупнее, чем там.
+   У танцпола ограничения нет — как перед диалогом. Фокус сбрасывает фильтр — как любое движение схемы */
+function showPhotoOnMap(item) {
+    const c = photoPlace(item);
+    if (!c || !hall) return;
+    dancefloorSeq++;            // приближение к танцполу перед диалогом, если ещё шло, диалог уже не откроет
+    dancefloorFocusing = false;
+    dancefloorView = null;
+    seatlessDialog.close();     // onClose → hall.settle(); фокус ниже его перебивает
+    let scale = hall.scaleForWidth(c.w, viewportEl.clientWidth * DANCEFLOOR_SHARE);
+    if (item.key !== DANCEFLOOR.photoKey) scale = Math.min(scale, FOCUS_SCALE);
+    // схема доехала и встала — секция на секунду подсвечивается; движение оборвали касанием — onDone не придёт
+    hall.focusAt(c.x, c.y, scale, floatingEl.getBoundingClientRect().height, () => highlightPhotoPlace(item));
+}
+
+/* Контуры секции фото: вокруг каждого свободного места секции, кроме мест в заказе, — в цвет места;
+   у танцпола — вокруг его прямоугольника, в цвет его тира */
+function highlightPhotoPlace(item) {
+    if (!sectionHighlight || !hall) return;
+    const shape = (el, color) => ({
+        x: +el.getAttribute('x'),
+        y: +el.getAttribute('y'),
+        w: +el.getAttribute('width'),
+        h: +el.getAttribute('height'),
+        r: +el.getAttribute('rx') || 0,
+        color,
+    });
+    let shapes;
+    if (item.key === DANCEFLOOR.photoKey) {
+        shapes = seatlessEls.map((g) => g.querySelector('rect')).filter(Boolean)
+            .map((r) => shape(r, r.getAttribute('fill')));
+    } else {
+        shapes = seats
+            .filter((s) => s.status === 'available' && !s.selected && photoMap.keyOf(s) === item.key)
+            .map((s) => shape(s.el, s.el.getAttribute('fill')));
+    }
+    sectionHighlight.show(shapes, hall.viewTransform().k);
+}
+
+// касание где угодно — схемы, ленты билетов, фильтра — гасит контуры секции сразу
+document.addEventListener('pointerdown', () => { if (sectionHighlight) sectionHighlight.hide(); }, true);
+
 /* --- Пересчёт схемы под размеры вьюпорта ---
    Схема — cover-слой на весь вьюпорт (см. hall.js). Коробка .map-content
    заполняет вьюпорт через CSS (inset:0), JS лишь переприменяет viewBox под
@@ -887,6 +957,7 @@ let hallSvgEl = null;      // корневой <svg> схемы (для клас
 let seatlessEls = [];      // секции без мест (танцпол) — <g class="seatless" data-tier> в hall.svg
 let renderSelection = null; // fn(seats, activeSeat) — перерисовать слой выбранных мест
 let renderFilterLayer = null; // fn(items) — перерисовать слой увеличения по фильтру цены
+let sectionHighlight = null;  // { show, hide } — контуры секции после «Показать на схеме» (showPhotoOnMap)
 
 /* пружина (velocity-based, rAF) — карусель билетов и увеличение мест по фильтру цены.
    stiffness 840, damping 44 → ζ≈0.76: лёгкий overshoot ~2.5% (еле заметный баунс) */
@@ -1038,6 +1109,8 @@ function injectHall() {
             renderFilterLayer = createFilterLayer(svgEl);
             // слой selected-отметок поверх мест (оранжевый + галочка)
             renderSelection = createSelectionLayer(svgEl);
+            // контуры секции после «Показать на схеме» — над всеми слоями
+            sectionHighlight = createHighlightLayer(svgEl);
             // цены мест: цвет тира → цена
             applySessionPrices(seats, new Map(TIER_COLORS.map((c, i) => [c.toUpperCase(), TIER_PRICES[i]])));
         })
@@ -1066,7 +1139,10 @@ const hall = new HallViewport(viewportEl, $('.map-content'), {
     // тап по схеме (не пан) → выбрать/снять место под указателем
     onTap: (cx, cy) => handleTap(cx, cy),
     // любое взаимодействие со схемой (pan/zoom/tap/фокус) → сброс фильтра цены
-    onInteract: () => clearFilters(),
+    onInteract: () => {
+        clearFilters();
+        if (sectionHighlight) sectionHighlight.hide();   // схему тронули или повели к другой точке — контуры секции гаснут сразу
+    },
 });
 
 // вписать всю схему в кадр (contain) сразу и после первого лейаута
