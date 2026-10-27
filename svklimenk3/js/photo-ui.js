@@ -5,6 +5,9 @@
 // Крестик — иконка макета лайтбокса (файл Z4wmhHaKhZMV8UI79y1a9Y, узел I4866:18387;4013:6005;547:208314), белая
 const ICON_CROSS = 'assets/lightbox-cross-24.svg';
 
+// Стрелки «‹ ›» пока спрятаны (решение пользователя); вернуть — true. Листание тапом по краям фото и клавишами остаётся
+const SHOW_ARROWS = false;
+
 // Шевроны 24×24 — экспорт Figma, прежний фрейм lightbox; в новом макете стрелок нет. Цвет — currentColor, задаёт CSS.
 // Шеврон влево — компонент «Chevron Left», node I4334:28387;547:207731
 const icoChevronLeft24 =
@@ -60,13 +63,13 @@ function wobbleAt(t) {
    open(items, start) — items: [{ key, photo: { url, caption }, label }] в порядке галереи (photoMap.gallery()),
    start — индекс фото, с которого открыть. Под фото — подпись секции label («Партер, левая сторона»)
    и «Показать на схеме»: лайтбокс закрывается, onShow(item) ведёт схему к секции фото.
-   Фото занимает всю высоту от верхнего края до подписи (крестик поверх фото), по ширине обрезано, видна середина;
+   Фото занимает весь экран (крестик и плашка с подписью и кнопкой — поверх фото), по ширине обрезано, видна середина;
    тап по краям листает, протяжка двигает фото вбок, вертикальный свайп закрывает. При открытии фото
    один раз покачивается — подсказка, что его можно двигать.
    close(onDone) — onDone через LB_MS по таймеру, а не по transitionend: колбэк приходит, даже если переход не сыграл. */
 export function createLightbox({ parentEl, onShow }) {
     const el = document.createElement('div');
-    el.className = 'lb';
+    el.className = SHOW_ARROWS ? 'lb' : 'lb no-arrows';
     el.setAttribute('role', 'dialog');
     el.setAttribute('aria-modal', 'true');
     el.setAttribute('aria-label', 'Фото секций зала');
