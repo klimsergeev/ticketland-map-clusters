@@ -1,29 +1,7 @@
 /* ============================================================
-   Подсветка кресла и лайтбокс с фото.
+   Лайтбокс с фото секций.
    Подключается после css/styles.css.
    ============================================================ */
-
-/* ---------- Подсветка кресла после «Показать на схеме»: контур в форме кресла цветом кресла и один ореол.
-   color на .seat-hl ставит js: заливка кресла, оранжевый маркера у кресла в заказе.
-   Середина прозрачная — белый зазор между креслом и контуром это просвет схемы.
-   Касаний не принимает: тап сквозь контур — тап по креслу под ним.
-   Размер и радиус угла контура — инлайн из js ---------- */
-.seat-hl {
-    position: absolute;
-    left: 0;
-    top: 0;
-    pointer-events: none;
-}
-.seat-hl-ring,
-.seat-hl-halo {
-    position: absolute;
-    left: 0;
-    top: 0;
-    box-sizing: border-box;
-    border: 3px solid currentColor;   /* = HL_LINE в photo-map.js */
-    transform: translate(-50%, -50%);
-}
-.seat-hl-halo { opacity: 0; }
 
 /* ---------- Строка для экранного диктора: в раскладке не видна ---------- */
 .photo-sr {
@@ -36,124 +14,27 @@
     white-space: nowrap;
 }
 
-/* ---------- Карточка выбранного места — макет «seat-preview», инстанс «Ticket preview» 4570:16932.
-   Компонент 4569:16646: 328×80 в кадре 360 с отступами 16 — тянется по ширине экрана. Шрифт Statika вместо MTS Compact.
-   Над свёрнутой шторкой с зазором 16 (макет: низ карточки 660, верх шторки 676; = CARD_GAP в js/photo-ui.js); bottom ставит js.
-   Слой 14: над схемой (1) и шапкой (5), под затемнением (15), шторкой (16) и лайтбоксом (20).
-   Спрятана — сдвинута вниз на свою высоту и зазор: верх вровень с верхом шторки, карточка целиком
-   за шторкой (124 > 80); visibility — иначе над шторкой выглядывала бы тень.
-   Выезд и уход — кривая и длительность шторки (.sheet в css/styles.css); в макете движения нет.
-   overflow не обрезается: зона касания крестика выходит за край карточки ---------- */
-.seat-card {
-    position: absolute;
-    left: 16px;
-    right: 16px;
-    bottom: 0;                                                    /* js: высота свёрнутой шторки + 8 */
-    z-index: 14;
-    display: flex;
-    align-items: center;
-    height: 80px;
-    border-radius: var(--r-16);
-    background: var(--bg-modal);                                 /* Background/Modal #FFFFFF */
-    box-shadow: 0 8px 16px 0 #0000000A, 0 4px 24px 0 #0000000F;   /* Shadows/Middle; --shadow-middle проекта другой */
-    color: var(--gs-800);                                         /* Text/Primary #1D2023; --text-primary проекта другой */
-    /* --seat-card-from — ещё ниже на путь выезжающей шторки: при первом билете карточка стартует вместе с ней */
-    transform: translateY(calc(100% + 16px + var(--seat-card-from, 0px)));
-    visibility: hidden;
-    pointer-events: none;
-    transition: transform 250ms cubic-bezier(.2, .8, .2, 1), visibility 0s linear 250ms;
+/* Непрозрачность фона лайтбокса при вертикальном свайпе: 1 — белый, 0 — сквозь фон видна схема.
+   Зарегистрирована как число — возврат после короткого свайпа идёт плавно (transition в js) */
+@property --lb-fade {
+    syntax: '<number>';
+    inherits: true;
+    initial-value: 1;
 }
-/* выезд из-под шторки; --seat-card-ms — длительность: при первом билете дольше шторки на столько же,
-   во сколько длиннее путь, — на старте карточка и шторка едут с одной скоростью */
-.seat-card.is-shown {
-    transform: none;
-    visibility: visible;
-    pointer-events: auto;
-    transition:
-        transform var(--seat-card-ms, 250ms) cubic-bezier(.2, .8, .2, 1),
-        visibility 0s;
-}
-/* мгновенный уход: шторка уезжает целиком */
-.seat-card.is-instant { transition: none; }
-
-/* Превью 120×80 (3:2, как фото 1440×960), фон Hall preview #FFFFFF — кнопка открытия лайтбокса.
-   Своего скругления у превью в макете нет: левые углы срезает скругление карточки 16 (overflow-clip карточки).
-   У карточки overflow не обрезается — иначе обрезалась бы зона касания крестика, — поэтому срез повторён
-   скруглением левых углов превью: высота превью равна высоте карточки, углы совпадают */
-.seat-card-photo {
-    position: relative;
-    flex: none;
-    width: 120px;
-    height: 80px;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    border-radius: var(--r-16) 0 0 var(--r-16);
-    overflow: hidden;
-    background: var(--gs-0);
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-}
-.seat-card-img {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    pointer-events: none;
-    -webkit-user-drag: none;
-}
-/* «Развернуть» 24 — в 8 от верхнего и правого края превью, Constant/Greyscale 0 #FFFFFF */
-.seat-card-expand {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    width: 24px;
-    height: 24px;
-    color: var(--gs-0);
-    pointer-events: none;
-}
-.seat-card-expand svg,
-.seat-card-close svg { display: block; }
-
-/* Тексты: по бокам 16, между строками 2; P2 Comp 14/20 */
-.seat-card-info {
-    flex: 1 0 0;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 0 16px;
-    font: 400 14px/20px var(--font-sans);   /* P2 Regular Comp: Statika вместо MTS Compact */
-    overflow-wrap: anywhere;
-}
-.seat-card-section { font-weight: 500; }    /* P2 Medium Comp */
-
-/* Крестик 24 — в 8 от верхнего и правого края карточки, Icons/Secondary #8D969F, токена нет */
-.seat-card-close {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    width: 24px;
-    height: 24px;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: #8D969F;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-}
-.seat-card-close::after { content: ''; position: absolute; inset: -10px; }   /* зона касания 44 × 44, глазу не видна */
 
 /* ---------- Лайтбокс с фото: на весь экран поверх шапки (z 5) и нижнего блока (z 4).
-   Значения — фрейм lightbox макета; MTS Compact заменён на Statika с параметрами макета ---------- */
+   Макет «Lightbox / svklimenk3-cards», файл Z4wmhHaKhZMV8UI79y1a9Y, узел 4866:18319 (360×800): белый фон,
+   фото 3 : 2 на всю ширину по центру экрана, на нём шевроны; крестик справа сверху; снизу поверх — подпись
+   и «Показать на схеме» на градиенте. Подложка Background/Overlay за лайтбоксом закрыта им целиком ---------- */
 .lb {
     position: absolute;
     inset: 0;
     z-index: 20;
     display: flex;
     flex-direction: column;
-    background: var(--gs-900);              /* #000000 — Constant/Greyscale 900 */
+    /* #FFFFFF — Background/Modal (= --bg-primary): светлый лайтбокс.
+       --lb-fade — вертикальный свайп закрытия: белый фон тает, фото остаётся непрозрачным (js) */
+    background: color-mix(in srgb, var(--bg-primary) calc(var(--lb-fade) * 100%), transparent);
     touch-action: none;                     /* жесты на фото считает js */
     user-select: none;
     /* закрыт: прозрачный; visibility гаснет после ухода */
@@ -166,18 +47,18 @@
     visibility: visible;
     transition: opacity 200ms cubic-bezier(.2, .8, .2, 1), visibility 0s linear 0s;
 }
-.lb-top {
-    display: flex;
-    justify-content: flex-end;
-    padding: 8px;
-}
+/* крестик, подпись и кнопка тают вдвое быстрее фона: пропадают к его половине и не путаются с тем, что под ним */
+.lb-close,
+.lb-bottom { opacity: max(0, var(--lb-fade) * 2 - 1); }
+/* Close и Next макета: кнопка 52×52 без заливки, радиус 26, иконка 32 по центру */
 .lb-close,
 .lb-arrow {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 44px;
-    height: 44px;
+    width: 52px;
+    height: 52px;
+    border-radius: 26px;
     margin: 0;
     padding: 0;
     border: 0;
@@ -185,12 +66,15 @@
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
 }
+/* Крестик «Close» (4866:18387): справа 8, сверху 8, иконка Cross 32 #231D1F — файлом */
 .lb-close {
-    border-radius: var(--r-8);
-    color: var(--text-inverted);            /* #FAFAFA — Text/Inverted */
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 1;                             /* над областью фото */
 }
-.lb-close svg,
-.lb-arrow svg { display: block; }
+.lb-close img,
+.lb-arrow img { display: block; }
 
 .lb-stage {
     position: relative;
@@ -204,56 +88,60 @@
     inset: 0;
 }
 .lb-slide {
-    display: flex;
-    align-items: center;                    /* фото по центру области по вертикали */
+    overflow: hidden;                       /* рамка фото шире области: соседние фото на ленте не наезжают друг на друга */
 }
+/* Фото «Hall preview» (4866:18384): рамка 3 : 2 на всю ширину, по центру экрана, без скругления;
+   размер и место рамки ставит js (fitSlot в js/photo-ui.js) */
 .lb-photo {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 3 / 2;                    /* не по макету: 3:2, как сами фото 1440×960 — без обрезки (в макете 16:9) */
-    border-radius: var(--r-8);
+    position: absolute;
+    top: 0;
+    left: 0;
     overflow: hidden;
-    transform-origin: 0 0;                  /* сдвиг и масштаб щипка считаются от левого верхнего угла */
+    transform-origin: 0 0;                  /* сдвиг и масштаб считаются от левого верхнего угла */
 }
-.lb-photo.is-zoomed { border-radius: 0; }
 .lb-img {
     display: block;
     width: 100%;
     height: 100%;
-    object-fit: cover;                      /* фото 3:2 в рамке 3:2 не обрезается; картинка других пропорций заполнит рамку */
+    object-fit: cover;                      /* как в макете: картинка заполняет рамку 3 : 2 */
     pointer-events: none;
     -webkit-user-drag: none;
 }
 
-/* Стрелки: иконка 24 в 12 px от края, зона касания 44: (44 − 24) / 2 = 10, кнопка в 12 − 10 = 2 px от края */
+/* Стрелки «Next» (4887:15415, 4887:15409): у краёв экрана (0), по высоте — середина фото, то есть экрана;
+   иконки Chevron Left и Right 32 #FAFAFA — файлами */
 .lb-arrow {
     position: absolute;
     top: 50%;
-    margin-top: -22px;
-    color: var(--gs-0);                     /* #FFFFFF — Constant/Greyscale 0 */
+    margin-top: -26px;
 }
-.lb-arrow--prev { left: 2px; }
-.lb-arrow--next { right: 2px; }
+.lb-arrow--prev { left: 0; }
+.lb-arrow--next { right: 0; }
 .lb-arrow.is-edge { opacity: .5; cursor: default; }
+/* стрелки спрятаны, если SHOW_ARROWS = false в js/photo-ui.js; листание — тапом по краям фото и клавишами */
+.lb.no-arrows .lb-arrow { display: none; }
 
-/* Низ лайтбокса — макет, кадр 4417:12680 (состояния 4416:12158, 4416:12228, 4417:12642), ширина 360:
-   Button group — сверху 16, по бокам 20, между подписью и кнопками 20; снизу 16 — нижний отступ Content.
-   Подпись и кнопки тянутся по ширине рамки (в макете 320 = 360 − 2 × 20) */
+/* Низ лайтбокса — «lightbox-label» (4866:18368) поверх низа экрана: во всю ширину, отступы 16 сверху и по бокам,
+   24 снизу, между подписью и кнопкой 16; фон — градиент от прозрачного белого к белому на 12.766% высоты */
 .lb-bottom {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;                             /* над областью фото */
     display: flex;
     flex-direction: column;
-    gap: 20px;
-    padding: 16px 20px;
+    gap: 16px;
+    padding: 16px 16px 24px;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0), #ffffff 12.766%);
 }
-/* Info: слева секция и «Ряд N место M», справа статус по нижней строке; по бокам 8.
-   min-width: 0 у колонок — длинная секция переносится, а не распирает лайтбокс */
+/* Подпись секции («Партер, центр») по центру: Statika Regular 14/21, Text/Primary #231D1F (I4866:18368;4866:18196).
+   min-width: 0 у колонки — длинная подпись переносится, а не распирает лайтбокс */
 .lb-info {
     display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    padding: 0 8px;
-    color: var(--text-inverted);            /* #FAFAFA — Text/Inverted */
-    font: 400 14px/20px var(--font-sans);   /* P2 Regular Comp 14/20: Statika вместо MTS Compact */
+    color: var(--text-primary);             /* #231D1F — Text/Primary */
+    font: 400 14px/21px var(--font-sans);
+    text-align: center;
     overflow-wrap: anywhere;
 }
 .lb-place {
@@ -262,57 +150,21 @@
     flex-direction: column;
     min-width: 0;
 }
-.lb-section { font-weight: 500; }           /* P2 Medium Comp 14/20: Statika вместо MTS Compact */
-.lb-status {
-    flex: 1 0 0;
-    min-width: 0;
-    font-weight: 500;                       /* P2 Medium Comp 14/20 */
-    text-align: right;
-}
-/* «В корзине» — кадр 4417:12642, узел 4417:12653: Accent/Positive Inverted #74DF8B, токена в проекте нет */
-.lb-status.is-cart { color: #74DF8B; }
-/* Кнопки столбиком через 8 */
-.lb-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-.lb-add,
-.lb-remove,
+/* «Показать на схеме» — Button макета (I4866:18368;4866:18159): заливка Controls/Secondary #F5F4F2,
+   текст Text/Primary #231D1F, Statika Medium 16/24; высота 52, радиус 26, по бокам 32, на всю ширину */
 .lb-show {
+    box-sizing: border-box;
     width: 100%;
-    height: 44px;
+    height: 52px;
     margin: 0;
-    padding: 0 18px;                        /* 10 кнопки + 8 содержимого */
+    padding: 0 32px;
     border: 0;
-    border-radius: var(--r-8);
-    font: 500 17px/24px var(--font-sans);   /* P1 Medium Comp 17/24: Statika вместо MTS Compact */
+    border-radius: 26px;
+    background: var(--ctrl-secondary);      /* #F5F4F2 — Controls/Secondary */
+    color: var(--text-primary);             /* #231D1F — Text/Primary */
+    font: 500 16px/24px var(--font-sans);
+    text-align: center;
+    white-space: nowrap;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
-}
-.lb-add[hidden],
-.lb-remove[hidden] { display: none; }
-/* «Добавить в корзину» — кадр «свободно» 4416:12169; те же цвета у «Оформить» (.sheet-pay в css/styles.css) */
-.lb-add {
-    background: var(--brand-mts);           /* Controls/Primary Active #FF0032 */
-    color: var(--gs-0);                     /* Constant/Greyscale 0 #FFFFFF */
-}
-/* Неактивная — кадр «занято» 4416:12241: заливка Controls/Inactive #BCC3D080 (--ctrl-inactive проекта другой),
-   текст Text/Tertiary #969FA8 (= --gs-400; --text-tertiary проекта другой), непрозрачность кнопки 0,6 */
-.lb-add:disabled {
-    background: #BCC3D080;
-    color: var(--gs-400);
-    opacity: .6;
-    cursor: default;
-}
-/* «Убрать из корзины» — кадр «в корзине», инстанс 4417:12655: заливка Constant/Greyscale 0 #FFFFFF,
-   текст Text/Primary #1D2023 (= --gs-800; --text-primary проекта другой) */
-.lb-remove {
-    background: var(--gs-0);
-    color: var(--gs-800);
-}
-/* «Показать на схеме» — текстовая, кадр 4416:12187: без заливки, текст Text/Inverted #FAFAFA */
-.lb-show {
-    background: transparent;
-    color: var(--text-inverted);
 }

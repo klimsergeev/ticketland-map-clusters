@@ -26,20 +26,21 @@ const MAX_SCALE = 5;
 const TAP_DIST = 6;
 const TAP_TIME = 500;
 
-/* Базовый viewBox схемы (из assets/hall.svg): 0 0 536 442 */
+/* Базовый viewBox схемы (из assets/hall.svg): 0 0 536 582 */
 const BASE_W = 536;
-const BASE_H = 442;
+const BASE_H = 582;
 
 /* Небольшой отступ клэмпа пана (экранные px): до крайних мест можно
    доехать с этим зазором, но без гигантского пустого поля. */
 const PAD = 24;
 
 export class HallViewport {
-    /* opts: { topInset, bottomInset, restOffsetY, onTap } — insets в экранных px (число|fn):
+    /* opts: { topInset, bottomInset, restOffsetY, onTap, onInteract } — insets в экранных px (число|fn):
        высоты оверлеев (шапка/нижний блок). На них расширяется пан-слэк,
        чтобы крайние места можно было вывести из-под оверлея.
        onTap(clientX, clientY) — вызывается на «тапе» (pointerdown→up без drag),
-       чтобы верхний слой сделал hit-test места и выбрал/снял его. */
+       чтобы верхний слой сделал hit-test места и выбрал/снял его.
+       onInteract() — любое взаимодействие со схемой (см. _userInteract). */
     constructor(viewport, content, opts = {}) {
         this.vp = viewport;
         this.content = content;
@@ -101,6 +102,14 @@ export class HallViewport {
         const v = this.opts[key];
         const n = typeof v === 'function' ? v() : v;
         return n || 0;
+    }
+
+    /* Единая точка «пользователь взаимодействует со схемой» (pan/zoom/tap/фокус):
+       уведомляет наружу (opts.onInteract) — на неё main.js вешает сброс фильтра цены.
+       Вызывается из всех точек начала взаимодействия: _onPointerDown/_onWheel/
+       _onTouchStart/focusOnSvgPoint/focusInBand. */
+    _userInteract() {
+        if (this.opts.onInteract) this.opts.onInteract();
     }
 
     /* px на один SVG-юнит при текущем зуме = cover * scale. Экранный размер
@@ -202,6 +211,12 @@ export class HallViewport {
         this._apply(this.scale, tx, ty);
     }
 
+    /* Плавно вернуть вид в границы пана на текущем зуме — после того как убран оверлей, расширявший слэк
+       (шторка диалога танцпола). Вид в границах — движения нет. Фильтр не сбрасывает */
+    settle() {
+        this._animateTo(this.scale, this.tx, this.ty);
+    }
+
     /* Экранные координаты (clientX/clientY) → координаты в SVG-юнитах.
        Через getScreenCTM инлайн-SVG (учитывает viewBox и позицию слоя),
        поэтому работает при любом зуме/пане. null — если SVG ещё не в DOM. */
@@ -223,6 +238,7 @@ export class HallViewport {
        Зум берём не меньше текущего (жест всегда приближает, не отдаляет). */
     focusOnSvgPoint(px, py, scale) {
         const { cover } = this._dims();
+        this._userInteract();   // фокус на месте (жест выбора) → сброс фильтра
         const s = Math.max(this.scale, this._fitScale(), Math.min(MAX_SCALE, scale));
         const ppu = cover * s;
         const tx = (BASE_W / 2 - px) * ppu;
@@ -250,6 +266,7 @@ export class HallViewport {
        onDone — после последнего кадра; движение оборвано жестом, panTo или новым _animateTo — не приходит. */
     focusInBand(px, py, scale, onDone) {
         const { cover } = this._dims();
+        this._userInteract();   // уход из лайтбокса на кресло → сброс фильтра
         const top = this._inset('topInset');
         const bottom = this._inset('bottomInset');
         const s = Math.max(this.scale, this._fitScale(), Math.min(MAX_SCALE, scale));
@@ -258,11 +275,36 @@ export class HallViewport {
         this._animateTo(s, (BASE_W / 2 - px) * ppu, (BASE_H / 2 - py) * ppu + (top - bottom) / 2, onDone);
     }
 
+    /* Точка (px, py) в SVG-юнитах → центр полосы между шапкой и нижним краем полосы bottom (px экрана от низа
+       вьюпорта), ровно на масштабе scale — и приближая, и отдаляя (в пределах от вписанного до MAX_SCALE).
+       Для фокуса под шторку, которая ещё не открыта: её высоту передаёт вызывающий.
+       onDone — после последнего кадра; движение оборвано жестом, panTo или новым _animateTo — не приходит. */
+    focusAt(px, py, scale, bottom, onDone) {
+        const { cover } = this._dims();
+        this._userInteract();
+        const top = this._inset('topInset');
+        const s = Math.max(this._fitScale(), Math.min(MAX_SCALE, scale));
+        const ppu = cover * s;
+        this._animateTo(s, (BASE_W / 2 - px) * ppu, (BASE_H / 2 - py) * ppu + (top - bottom) / 2, onDone);
+    }
+
+    /* Масштаб, на котором отрезок w SVG-юнитов занимает px пикселей экрана */
+    scaleForWidth(w, px) {
+        const { cover } = this._dims();
+        return px / (w * cover);
+    }
+
+    /* Снимок вида: сравнить «сдвигал ли человек схему» */
+    viewState() {
+        return { s: this.scale, tx: this.tx, ty: this.ty };
+    }
+
     /* ---- pointer (мышь): drag-пан ---- */
     _onPointerDown = (e) => {
         if (e.pointerType === 'touch') return; // тач — отдельно
         e.preventDefault();
         cancelAnimationFrame(this._raf);
+        this._userInteract();   // жест пользователя → сброс фильтра
         this._tap = { x: e.clientX, y: e.clientY, t: performance.now() };
         this.drag = { active: true, startX: e.clientX, startY: e.clientY, baseTx: this.tx, baseTy: this.ty, pid: e.pointerId };
         try { this.vp.setPointerCapture(e.pointerId); } catch {}
@@ -275,6 +317,9 @@ export class HallViewport {
         this._apply(this.scale, this.drag.baseTx + dx, this.drag.baseTy + dy);
     };
     _onPointerUp = (e) => {
+        // палец: тап считает touchend (_onTouchEnd) — там же гасится «призрачный» click. pointerup касания
+        // приходит раньше touchend и раньше забирал тап себе, тогда touchend уже нечего было отменять
+        if (e.pointerType === 'touch') return;
         this.drag.active = false;
         this.vp.classList.remove('grabbing');
         try { this.vp.releasePointerCapture(e.pointerId); } catch {}
@@ -282,21 +327,24 @@ export class HallViewport {
     };
 
     /* Если жест не превратился в пан (смещение < TAP_DIST, время < TAP_TIME) —
-       это тап: отдать координаты наверх для hit-test/выбора места. */
+       это тап: отдать координаты наверх для hit-test/выбора места. true — тап засчитан. */
     _maybeTap(clientX, clientY) {
         const d = this._tap;
         this._tap = null;
-        if (!d) return;
+        if (!d) return false;
         const moved = Math.hypot(clientX - d.x, clientY - d.y);
         if (moved <= TAP_DIST && performance.now() - d.t <= TAP_TIME) {
             this.opts.onTap && this.opts.onTap(clientX, clientY);
+            return true;
         }
+        return false;
     }
 
     /* ---- wheel: зум ---- */
     _onWheel = (e) => {
         e.preventDefault();
         cancelAnimationFrame(this._raf);
+        this._userInteract();   // жест пользователя → сброс фильтра
         const delta = -e.deltaY * 0.003;
         const next = Math.max(this._fitScale(), Math.min(MAX_SCALE, this.scale + delta));
         this._apply(next, this.tx, this.ty);
@@ -305,6 +353,7 @@ export class HallViewport {
     /* ---- touch: pinch-зум + 1-палец пан ---- */
     _onTouchStart = (e) => {
         cancelAnimationFrame(this._raf);
+        this._userInteract();   // жест пользователя → сброс фильтра
         if (e.touches.length === 2) {
             const [a, b] = e.touches;
             this.pinch = {
@@ -341,7 +390,10 @@ export class HallViewport {
         // тап одним пальцем (без pinch): взять координаты отпущенного касания
         if (!this.pinch.active && e && e.changedTouches && e.changedTouches.length) {
             const t = e.changedTouches[0];
-            this._maybeTap(t.clientX, t.clientY);
+            // тап обработан здесь — гасим совместимые mouse-события и click, которые браузер иначе пришлёт
+            // в ту же точку после touchend: под пальцем к этому моменту уже открытый диалог, и «призрачный»
+            // click по затемнению сразу его закрывал (тап по танцполу на телефоне и в режиме устройства DevTools)
+            if (this._maybeTap(t.clientX, t.clientY) && e.cancelable) e.preventDefault();
         } else {
             this._tap = null;
         }

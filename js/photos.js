@@ -1,41 +1,35 @@
 /* ============================================================
-   Фото на креслах: загрузка набора и привязка к креслам схемы.
-   Узел — кресло с его единственным фото.
+   Фото секций: одно фото на секцию зала — часть зала и сторона.
+   Ключ секции — `${seat.sectionKey}-${seat.side}` (js/seats.js), например «parter-left».
    ============================================================ */
 
-/* JSON набора: [{ id, url, seatId, caption? }]. Сбой загрузки — пустой список и ошибка в консоли. */
-export function loadPhotos(url) {
+/* Ключ секции места: «amphitheatre-center» */
+export const sectionKeyOf = (seat) => `${seat.sectionKey}-${seat.side}`;
+
+/* Миниатюра фото для карточки билета — по правилу: тот же файл в папке thumbs рядом,
+   «photos/low-left.jpg» → «photos/thumbs/low-left.jpg». 324×240 — превью карточки 108×80 на экране 3x,
+   обрезка по центру, как object-fit: cover на карточке */
+export const thumbOf = (url) => url.replace(/([^/]+)$/, 'thumbs/$1');
+
+/* JSON: { "<ключ секции>": { url, caption? } }. Сбой загрузки или не объект — пустой Map и ошибка в консоли.
+   Запись без url пропускается с предупреждением. Возвращает Map(ключ секции → { url, thumb, caption }). */
+export function loadSectionPhotos(url) {
     return fetch(url)
         .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+        .then((data) => {
+            if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('ожидался объект { ключ секции: фото }');
+            const map = new Map();
+            Object.entries(data).forEach(([key, p]) => {
+                if (!p || typeof p.url !== 'string' || !p.url) {
+                    console.warn(`Фото секции ${key}: нет url, фото не показано`);
+                    return;
+                }
+                map.set(key, { url: p.url, thumb: thumbOf(p.url), caption: p.caption || '' });
+            });
+            return map;
+        })
         .catch((e) => {
-            console.error(`Не загрузились фото ${url}`, e);
-            return [];
+            console.error(`Не загрузились фото секций ${url}`, e);
+            return new Map();
         });
-}
-
-/* list — записи из JSON, seatsById — Map(seatId → место из buildSeats).
-   Возвращает узлы в порядке данных: { seatId, seat, x, y, order, photo },
-   x, y — центр кресла в SVG-юнитах, order — индекс записи в данных. */
-export function bindPhotos(list, seatsById) {
-    const bySeat = new Map();
-    (Array.isArray(list) ? list : []).forEach((p, order) => {
-        const seat = seatsById.get(p.seatId);
-        if (!seat) {
-            console.warn(`Фото ${p.id}: кресла ${p.seatId} нет на схеме, фото не показано`);
-            return;
-        }
-        if (bySeat.has(p.seatId)) {
-            console.warn(`Фото ${p.id}: у кресла ${p.seatId} уже есть фото, второе не показано`);
-            return;
-        }
-        bySeat.set(p.seatId, {
-            seatId: p.seatId,
-            seat,
-            x: +seat.el.getAttribute('x') + 4,
-            y: +seat.el.getAttribute('y') + 4,
-            order,
-            photo: p,
-        });
-    });
-    return [...bySeat.values()];
 }
