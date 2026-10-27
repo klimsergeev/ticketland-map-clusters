@@ -144,11 +144,10 @@
 }
 
 /* ---------- Блок количества — «.Tickets options count svklimenk3-cards» (4828:36597, Notes 4778:30167):
-   обводка 1px rgba(162,162,162,.25) внутрь (inside: размер не растёт, блок 360×112 и 360×72, как в макете),
-   радиус 28, отступы 12 ---------- */
+   фон Background/Primary-elevated #FAFAFA без обводки, радиус 28, отступы 12 (блок 360×112 и 360×72) ---------- */
 .sd-count {
     box-sizing: border-box;
-    box-shadow: inset 0 0 0 1px rgba(162, 162, 162, .25);
+    background: var(--bg-primary-elevated);   /* #FAFAFA */
     border-radius: 28px;
     padding: 12px;
 }
@@ -171,7 +170,7 @@
     justify-content: space-between;
     width: 100%;
 }
-/* Picker / svklimenk3, 48 Medium: фон Background/Secondary #F5F4F2, радиус 16.
+/* Picker / svklimenk3, 48 Medium: фон Background/Modal #FFFFFF, радиус 16.
    Фиксированный размер — 48×48, число P1 Medium 20/30; «Больше» — высота 48, по бокам 16, P2 Medium 16/24.
    Selected — Controls/Active #2D0514, текст Text/Inverted #FAFAFA, тень (drop-shadow макета) */
 .sd-chip {
@@ -183,7 +182,7 @@
     padding: 0;
     border: 0;
     border-radius: 16px;
-    background: #f5f4f2;
+    background: #ffffff;                       /* Background/Modal */
     color: #231d1f;
     font: 500 20px/30px var(--font-sans);
     text-align: center;
@@ -223,7 +222,7 @@
 .sd-count-limit { font: 400 14px/21px var(--font-sans); color: #706e6f; }   /* P3 Regular, Text/Secondary */
 /* Warning=True (4834:39762): «Билетов» — Regular, как без предупреждения; «Не более N» — P3 Medium, Text/Warning #F59400 */
 .sd-count.is-warning .sd-count-limit { font-weight: 500; color: #f59400; }
-/* Counter: серая плашка Background/Secondary #F5F4F2, высота 48, отступы 0/4, промежуток 8, радиус 16 */
+/* Counter: белая плашка Background/Modal #FFFFFF, высота 48, отступы 0/4, промежуток 8, радиус 16 */
 .sd-counter {
     flex: none;
     display: flex;
@@ -232,7 +231,7 @@
     height: 48px;
     padding: 0 4px;
     border-radius: 16px;
-    background: #f5f4f2;
+    background: #ffffff;                       /* Background/Modal */
 }
 /* Icon button 44 без заливки, радиус 22; неактивная — непрозрачность 0,5 (макет: «+» на максимуме).
    Неактивного «−» в макете нет — так же, непрозрачность 0,5 */
