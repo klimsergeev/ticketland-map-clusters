@@ -23,9 +23,9 @@
 }
 
 /* ---------- Лайтбокс с фото: на весь экран поверх шапки (z 5) и нижнего блока (z 4).
-   Макет «Lightbox / svklimenk3-cards», файл Z4wmhHaKhZMV8UI79y1a9Y, узел 4875:15227 (360×800): фото на весь экран,
-   поверх него крестик и снизу плашка с подписью и «Показать на схеме». Тень Content (Upper-middle) не видна —
-   лайтбокс на весь экран; подложка Background/Overlay за ним тоже закрыта целиком ---------- */
+   Макет «Lightbox / svklimenk3-cards», файл Z4wmhHaKhZMV8UI79y1a9Y, узел 4866:18319 (360×800): белый фон,
+   фото 3 : 2 на всю ширину по центру экрана, на нём шевроны; крестик справа сверху; снизу поверх — подпись
+   и «Показать на схеме» на градиенте. Подложка Background/Overlay за лайтбоксом закрыта им целиком ---------- */
 .lb {
     position: absolute;
     inset: 0;
@@ -50,13 +50,15 @@
 /* крестик, подпись и кнопка тают вдвое быстрее фона: пропадают к его половине и не путаются с тем, что под ним */
 .lb-close,
 .lb-bottom { opacity: max(0, var(--lb-fade) * 2 - 1); }
+/* Close и Next макета: кнопка 52×52 без заливки, радиус 26, иконка 32 по центру */
 .lb-close,
 .lb-arrow {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 44px;
-    height: 44px;
+    width: 52px;
+    height: 52px;
+    border-radius: 26px;
     margin: 0;
     padding: 0;
     border: 0;
@@ -64,20 +66,15 @@
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
 }
-/* Крестик — Icon button макета (I4866:18387): 44×44, круг радиус 22, справа 16, сверху 16.33 (значение макета);
-   заливка #FDF9F5 с прозрачностью 0,2 и размытие фона Blur 15 (CSS blur 7.5px), иконка Cross 24 белая — файлом */
+/* Крестик «Close» (4866:18387): справа 8, сверху 8, иконка Cross 32 #231D1F — файлом */
 .lb-close {
     position: absolute;
-    top: 16.33px;
-    right: 16px;
+    top: 8px;
+    right: 8px;
     z-index: 1;                             /* над областью фото */
-    border-radius: 22px;
-    background: rgba(253, 249, 245, .2);
-    -webkit-backdrop-filter: blur(7.5px);
-    backdrop-filter: blur(7.5px);
 }
 .lb-close img,
-.lb-arrow svg { display: block; }
+.lb-arrow img { display: block; }
 
 .lb-stage {
     position: relative;
@@ -93,17 +90,12 @@
 .lb-slide {
     overflow: hidden;                       /* рамка фото шире области: соседние фото на ленте не наезжают друг на друга */
 }
-/* Фото на весь экран, без скругления; плашка с подписью и кнопкой — поверх фото (макет 4875:15227, комментарии к кадру 4861:18110).
-   Рамка в пропорциях картинки — js ставит их после загрузки, до неё 1024 × 708, как сами фото в photos/.
-   По ширине рамка больше области, середину ставит и сдвиг считает js.
-   min-width — на экране шире рамки фото закрывает область и по ширине, лишнее по высоте обрезает object-fit */
+/* Фото «Hall preview» (4866:18384): рамка 3 : 2 на всю ширину, по центру экрана, без скругления;
+   размер и место рамки ставит js (fitSlot в js/photo-ui.js) */
 .lb-photo {
     position: absolute;
     top: 0;
     left: 0;
-    height: 100%;
-    min-width: 100%;
-    aspect-ratio: 1024 / 708;
     overflow: hidden;
     transform-origin: 0 0;                  /* сдвиг и масштаб считаются от левого верхнего угла */
 }
@@ -111,49 +103,39 @@
     display: block;
     width: 100%;
     height: 100%;
-    object-fit: cover;                      /* картинка других пропорций заполнит рамку */
+    object-fit: cover;                      /* как в макете: картинка заполняет рамку 3 : 2 */
     pointer-events: none;
     -webkit-user-drag: none;
 }
 
-/* Стрелки: в макете их нет, оставлены по просьбе пользователя. Вид — как крестик макета и скрытая Icon button
-   4866:18386: 44×44, круг радиус 22, фон rgba(253,249,245,.2), размытие фона 7.5px (Blur 15), иконка 24 белая.
-   От края 16 — как крестик (right 16); по высоте — середина области фото */
+/* Стрелки «Next» (4887:15415, 4887:15409): у краёв экрана (0), по высоте — середина фото, то есть экрана;
+   иконки Chevron Left и Right 32 #FAFAFA — файлами */
 .lb-arrow {
     position: absolute;
     top: 50%;
-    margin-top: -22px;
-    border-radius: 22px;
-    background: rgba(253, 249, 245, .2);
-    -webkit-backdrop-filter: blur(7.5px);
-    backdrop-filter: blur(7.5px);
-    color: #ffffff;                         /* как иконка Cross в макете: fill white */
+    margin-top: -26px;
 }
-.lb-arrow--prev { left: 16px; }
-.lb-arrow--next { right: 16px; }
+.lb-arrow--prev { left: 0; }
+.lb-arrow--next { right: 0; }
 .lb-arrow.is-edge { opacity: .5; cursor: default; }
-/* стрелки спрятаны (SHOW_ARROWS в js/photo-ui.js); листание — тапом по краям фото и клавишами */
+/* стрелки спрятаны, если SHOW_ARROWS = false в js/photo-ui.js; листание — тапом по краям фото и клавишами */
 .lb.no-arrows .lb-arrow { display: none; }
 
-/* Низ лайтбокса — плашка «Bottom» макета 4875:15244 поверх фото: от краёв экрана 16, снизу 12.67
-   (в макете top 666.33 при высоте 121 в кадре 800), отступы 16, между подписью и кнопкой 16, радиус 24,
-   фон белый, размытие фона Blur 15 (CSS 7.5px). Фото под плашкой продолжается до низа экрана */
+/* Низ лайтбокса — «lightbox-label» (4866:18368) поверх низа экрана: во всю ширину, отступы 16 сверху и по бокам,
+   24 снизу, между подписью и кнопкой 16; фон — градиент от прозрачного белого к белому на 12.766% высоты */
 .lb-bottom {
     position: absolute;
-    left: 16px;
-    right: 16px;
-    bottom: 12.67px;
+    left: 0;
+    right: 0;
+    bottom: 0;
     z-index: 1;                             /* над областью фото */
     display: flex;
     flex-direction: column;
     gap: 16px;
-    padding: 16px;
-    border-radius: 24px;
-    background: #ffffff;
-    -webkit-backdrop-filter: blur(7.5px);
-    backdrop-filter: blur(7.5px);
+    padding: 16px 16px 24px;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0), #ffffff 12.766%);
 }
-/* Подпись секции («Партер, центр») по центру: P3 Regular, Statika 14/21, Text/Primary #231D1F (4875:15250).
+/* Подпись секции («Партер, центр») по центру: Statika Regular 14/21, Text/Primary #231D1F (I4866:18368;4866:18196).
    min-width: 0 у колонки — длинная подпись переносится, а не распирает лайтбокс */
 .lb-info {
     display: flex;
@@ -168,7 +150,7 @@
     flex-direction: column;
     min-width: 0;
 }
-/* «Показать на схеме» — Button макета (4875:15252): заливка Controls/Secondary #F5F4F2,
+/* «Показать на схеме» — Button макета (I4866:18368;4866:18159): заливка Controls/Secondary #F5F4F2,
    текст Text/Primary #231D1F, Statika Medium 16/24; высота 52, радиус 26, по бокам 32, на всю ширину */
 .lb-show {
     box-sizing: border-box;
