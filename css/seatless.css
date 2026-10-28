@@ -1,19 +1,17 @@
 /* ============================================================
-   Диалог «билет без места» (танцпол) — макет «Seatless popup _ svklimenk3-cards» 4828:36933
-   (фрейм Notes 4778:30167, файл Z4wmhHaKhZMV8UI79y1a9Y). Шапка «.Ticket title» 4826:34909 / 4847:4438,
-   блок количества «.Tickets options count» 4828:36597 (Build=Options alt 4846:3418, Number 4830:39659,
-   Number + Warning 4834:39762), кнопки-числа «Picker / svklimenk3» 4846:3384, кнопки Button 52 Large.
-   MTS Compact заменён на Statika с размерами и начертаниями макета.
+   Диалог «билет без места» (танцпол) — Citrus «Dialog / Mobile» (файл Z4wmhHaKhZMV8UI79y1a9Y, 4987:23457,
+   экраны 4983:20794 и 4983:20856) со строкой количества «.tickets-count-citrus» (4983:17370).
+   Шрифт — MTS Compact, как в макете (--font-compact).
    Слои: над схемой (1), шапкой (5) и нижним блоком (4), под лайтбоксом (20).
    Подключается после css/styles.css.
    ============================================================ */
 
-/* Затемнение: Background/Overlay rgba(15,15,15,.5) на весь экран */
+/* Затемнение: Background/Overlay rgba(29,32,35,.4) на весь экран */
 .sd-scrim {
     position: absolute;
     inset: 0;
     z-index: 15;
-    background: rgba(15, 15, 15, .5);
+    background: rgba(29, 32, 35, .4);
     opacity: 0;
     visibility: hidden;
     transition: opacity 250ms cubic-bezier(.2, .8, .2, 1), visibility 0s linear 250ms;
@@ -24,8 +22,8 @@
     transition: opacity 250ms cubic-bezier(.2, .8, .2, 1), visibility 0s;
 }
 
-/* Шторка (Content): белая, сверху скругление 24, содержимое обрезается по скруглению (фото), без отступов;
-   тень Shadows/Neutral/Upper-middle */
+/* Шторка «Content»: белая (Background/Modal), сверху скругление 16, снизу отступ 20;
+   тень Shadows/Upper-middle (0 -2 24 #0000000A, 0 -8 24 #0000000F) */
 .sd-sheet {
     position: absolute;
     left: 0;
@@ -37,9 +35,10 @@
     flex-direction: column;
     align-items: stretch;
     overflow: hidden;
-    border-radius: 24px 24px 0 0;
-    background: #ffffff;                       /* Background/Modal */
-    box-shadow: 0 -2px 24px 0 rgba(35, 29, 31, .04), 0 -8px 24px 0 rgba(35, 29, 31, .06);
+    padding-bottom: 20px;
+    border-radius: 16px 16px 0 0;
+    background: #ffffff;
+    box-shadow: 0 -2px 24px 0 rgba(0, 0, 0, .04), 0 -8px 24px 0 rgba(0, 0, 0, .06);
     touch-action: none;                        /* свайп вниз ловит js */
     transform: translateY(100%);
     visibility: hidden;
@@ -52,12 +51,7 @@
 }
 .sd-sheet.is-dragging { transition: none; }
 
-/* ---------- Шапка «.Ticket title»: фото на всю ширину (пропорции 108/80), под ним строка с названием и ценой ---------- */
-.sd-title {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-}
+/* ---------- Фото в шапке — в Citrus его нет, выводится только при SHOW_PHOTO в js/seatless-dialog.js ---------- */
 .sd-photo {
     position: relative;
     display: block;
@@ -99,151 +93,85 @@
     pointer-events: none;
 }
 .sd-zoom img { display: block; width: 24px; height: 24px; }
-/* Details: сверху 16 (без фото — 24), по бокам 24; слева название, справа цена */
-.sd-details {
+
+/* ---------- «Dialog title»: сверху 20, по бокам 20, снизу 16, высота не меньше 72, промежуток 8.
+   Название H1 Desktop Comp 24/28 Medium #1D2023, под ним через 2 подпись P1 Regular Comp 17/24 Text/Secondary #626C77.
+   Справа Icon button 32: фон Controls/Tertiary-active #F2F3F7, радиус 6, иконка Cross 24 ---------- */
+.sd-title {
     display: flex;
     align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 16px 24px 0;
-    white-space: nowrap;
+    gap: 8px;
+    min-height: 72px;
+    padding: 20px 20px 16px;
 }
-.sd-title.no-photo .sd-details { padding-top: 24px; }
-.sd-title-col,
-.sd-price-col {
+.sd-title-text {
+    flex: 1 0 0;
+    min-width: 1px;
     display: flex;
     flex-direction: column;
-    min-width: 0;
+    gap: 2px;
 }
-.sd-title-col { align-items: flex-start; }
-.sd-price-col { flex: none; align-items: flex-end; }
-.sd-name,
-.sd-price {
-    max-width: 100%;
-    font: 500 20px/30px var(--font-sans);      /* Header/Sub Desktop Med 20/30 */
-    color: #231d1f;                            /* Text/Primary */
-    overflow: hidden;
-    text-overflow: ellipsis;
+.sd-name {
+    font: 500 24px/28px var(--font-compact, var(--font-sans));
+    color: #1d2023;
+    overflow-wrap: break-word;
 }
-.sd-kind,
-.sd-fee {
-    max-width: 100%;
-    font: 400 14px/20px var(--font-sans);      /* P2 Regular Comp 14/20 */
-    overflow: hidden;
-    text-overflow: ellipsis;
+.sd-kind {
+    font: 400 17px/24px var(--font-compact, var(--font-sans));
+    color: #626c77;
 }
-.sd-kind { color: #626c77; }                   /* Text/Secondary */
-.sd-fee { color: #12b23f; }                    /* Text/Positive */
-
-/* ---------- Под шапкой: отступы 16, между блоком количества и кнопками 24 ---------- */
-.sd-body {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-    padding: 16px;
-}
-
-/* ---------- Блок количества — «.Tickets options count svklimenk3-cards» (4828:36597, Notes 4778:30167):
-   фон Background/Primary-elevated #FAFAFA без обводки, радиус 28, отступы 12 (блок 360×112 и 360×72) ---------- */
-.sd-count {
-    box-sizing: border-box;
-    background: var(--bg-primary-elevated);   /* #FAFAFA */
-    border-radius: 28px;
-    padding: 12px;
-}
-/* Build=Options alt: столбец по центру, промежуток 16 */
-.sd-count.is-options {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 16px;
-}
-.sd-count-subtitle {
-    width: 100%;
-    font: 400 16px/24px var(--font-sans);      /* Paragraph/P2 Regular */
-    color: #231d1f;
-    text-align: center;
-}
-.sd-chips {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-}
-/* Picker / svklimenk3, 48 Medium: фон Background/Modal #FFFFFF, радиус 16.
-   Фиксированный размер — 48×48, число P1 Medium 20/30; «Больше» — высота 48, по бокам 16, P2 Medium 16/24.
-   Selected — Controls/Active #2D0514, текст Text/Inverted #FAFAFA, тень (drop-shadow макета) */
-.sd-chip {
+.sd-close {
     flex: none;
-    box-sizing: border-box;
-    width: 48px;
-    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
     margin: 0;
     padding: 0;
     border: 0;
-    border-radius: 16px;
-    background: #ffffff;                       /* Background/Modal */
-    color: #231d1f;
-    font: 500 20px/30px var(--font-sans);
-    text-align: center;
-    white-space: nowrap;
+    border-radius: 6px;
+    background: #f2f3f7;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
 }
-.sd-chip.sd-chip-more {
-    width: auto;
-    padding: 0 16px;
-    font: 500 16px/24px var(--font-sans);
-}
-.sd-chip.is-active {
-    background: #2d0514;
-    color: #fafafa;
-    filter: drop-shadow(0 6px 12px rgba(0, 0, 0, .06)) drop-shadow(0 18px 10px rgba(0, 0, 0, .08));
-}
-/* недоступно сверх лимита заказа — в макете состояния нет: непрозрачность 0,5, как у неактивных кнопок степпера */
-.sd-chip:disabled { opacity: .5; cursor: default; }
+.sd-close img { display: block; }
 
-/* Build=Number: строка, промежуток 12 */
-.sd-count.is-number {
+/* ---------- «Modal content»: по бокам 20 ---------- */
+.sd-body { padding: 0 20px; }
+
+/* ---------- «.tickets-count-citrus» Counter: строка, текст слева, степпер справа ----------
+   Текст: «N билетов» P2 Regular Comp 14/20 Text/Secondary #626C77, через 3 сумма H2 Mobile Comp 17/21 Medium #1D2023 */
+.sd-count {
     display: flex;
     align-items: center;
-    gap: 12px;
+    justify-content: space-between;
 }
 .sd-count-text {
     flex: 1 0 0;
     min-width: 1px;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    padding: 0 8px;
-    white-space: nowrap;
+    gap: 3px;
 }
-.sd-count-label { font: 400 16px/24px var(--font-sans); color: #231d1f; }   /* P2 Regular */
-.sd-count-limit { font: 400 14px/21px var(--font-sans); color: #706e6f; }   /* P3 Regular, Text/Secondary */
-/* Warning=True (4834:39762): «Билетов» — Regular, как без предупреждения; «Не более N» — P3 Medium, Text/Warning #F59400 */
-.sd-count.is-warning .sd-count-limit { font-weight: 500; color: #f59400; }
-/* Counter: белая плашка Background/Modal #FFFFFF, высота 48, отступы 0/4, промежуток 8, радиус 16 */
+.sd-count-label { font: 400 14px/20px var(--font-compact, var(--font-sans)); color: #626c77; }
+.sd-count-sum { font: 500 17px/21px var(--font-compact, var(--font-sans)); color: #1d2023; white-space: nowrap; }
+/* Степпер: «Minus» и «Plus» — Icon button 44, фон Controls/Tertiary-active #F2F3F7, радиус 8, иконки 24;
+   число 44×44, H1 Mobile Comp 20/24 Medium #1D2023 по центру. Неактивных кнопок в Citrus нет — непрозрачность 0,5, как было */
 .sd-counter {
     flex: none;
     display: flex;
     align-items: center;
-    gap: 8px;
-    height: 48px;
-    padding: 0 4px;
-    border-radius: 16px;
-    background: #ffffff;                       /* Background/Modal */
 }
-/* Icon button 44 без заливки, радиус 22; неактивная — непрозрачность 0,5 (макет: «+» на максимуме).
-   Неактивного «−» в макете нет — так же, непрозрачность 0,5 */
 .sd-step {
     box-sizing: border-box;
     width: 44px;
     height: 44px;
     margin: 0;
-    padding: 0 8px;
+    padding: 0;
     border: 0;
-    border-radius: 22px;
-    background: transparent;
+    border-radius: 8px;
+    background: #f2f3f7;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -258,38 +186,32 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font: 500 20px/30px var(--font-sans);      /* Paragraph/P1 Medium */
-    color: #231d1f;
+    font: 500 20px/24px var(--font-compact, var(--font-sans));
+    color: #1d2023;
 }
 
-/* ---------- Button group: «Добавить» (Primary 52) и «Закрыть» (Secondary 52, белая), без промежутка ---------- */
+/* ---------- «Button group»: сверху 16, по бокам 20. «Добавить в корзину» — Primary 44: фон Controls/Primary-active
+   #FF0032, радиус 8, отступы 10 и ещё 8 по бокам у содержимого, P1 Medium Comp 17/24 белый ---------- */
 .sd-buttons {
     display: flex;
-    flex-direction: column;
+    padding: 16px 20px 0;
 }
-.sd-add,
-.sd-close {
+.sd-add {
+    flex: 1 0 0;
+    min-width: 1px;
     box-sizing: border-box;
-    width: 100%;
-    height: 52px;
+    height: 44px;
     margin: 0;
-    padding: 0 32px;
+    padding: 10px 18px;
     border: 0;
-    border-radius: 26px;
-    font: 500 16px/24px var(--font-sans);      /* Paragraph/P2 Medium */
+    border-radius: 8px;
+    background: #ff0032;
+    color: #ffffff;
+    font: 500 17px/24px var(--font-compact, var(--font-sans));
     text-align: center;
     white-space: nowrap;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
 }
-.sd-add {
-    background: var(--ctrl-primary);           /* Controls/Primary #FF5005 */
-    color: #ffffff;
-}
-.sd-add .sd-dot { color: rgba(255, 255, 255, .5); }
-/* заказ полон — в макете состояния нет: заливка Controls/Inactive, текст цвета неактивной иконки */
+/* заказ полон — в Citrus состояния нет: заливка Controls/Inactive, текст цвета неактивной иконки, как было */
 .sd-add:disabled { background: rgba(162, 160, 161, .2); color: #bebdbd; cursor: default; }
-.sd-close {
-    background: #ffffff;                       /* Controls/Alternative */
-    color: #231d1f;                            /* Text/Primary */
-}

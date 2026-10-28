@@ -18,6 +18,21 @@
   font-style: normal;
   font-display: swap;
 }
+/* MTS Compact — шрифт Citrus (макет Z4wmhHaKhZMV8UI79y1a9Y): шапка, пилюли, карточки, кнопки, шторка */
+@font-face {
+  font-family: "MTS Compact";
+  src: url("../fonts/MTSCompact-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "MTS Compact";
+  src: url("../fonts/MTSCompact-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
 @font-face {
   font-family: "Statika";
   src: url("../fonts/Statika-Light.otf") format("opentype");
@@ -58,6 +73,7 @@
   /* ---------- Font families ---------- */
   --font-serif: "Tercia", "Lora", Georgia, "Times New Roman", serif;
   --font-sans:  "Statika", "Inter", "Helvetica Neue", Arial, sans-serif;
+  --font-compact: "MTS Compact", "Statika", "Inter", "Helvetica Neue", Arial, sans-serif;   /* Citrus */
 
   /* ---------- Text (Light) ---------- */
   --text-primary:           #231d1f;

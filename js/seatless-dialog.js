@@ -1,28 +1,33 @@
 /* ============================================================
-   Диалог «билет без места» (танцпол): макет «Seatless popup _ svklimenk3-cards» 4828:36933 (фрейм Notes 4778:30167).
-   Шторка снизу над затемнением: сверху фото на всю ширину с лупой, под ним название и «Билет без места»,
-   справа цена и «без комиссии»; выбор количества — кнопки 1–4 и «Больше» или степпер;
-   кнопки «Добавить N билетов • сумма» и «Закрыть».
+   Диалог «билет без места» (танцпол) — Citrus «Dialog / Mobile» с «.tickets-count-citrus»
+   (файл Z4wmhHaKhZMV8UI79y1a9Y, компоненты 4987:23457 и 4983:17370, экраны 4983:20794 и 4983:20856).
+   Шторка снизу над затемнением: название и подпись, справа крестик; строка количества — «N билетов» и сумма
+   слева, степпер «− N +» справа; кнопка «Добавить в корзину». Фото в шапке в Citrus нет — спрятано флагом SHOW_PHOTO.
    Стили — css/seatless.css.
 
    createSeatlessDialog({ parentEl, onAdd, onPhoto, onClose }) → { open, prepare, show, height, close, isOpen }
      open(opts) = prepare(opts) + show(). prepare заполняет шторку, не показывая её, — после этого height()
        даёт её высоту в px (схема заранее приближается так, чтобы танцпол встал над шторкой);
-     opts = { name, price, photo, available } — photo { url, caption } или null; available — сколько ещё
-       можно положить в заказ (лимит заказа минус уже лежащее), 0 — заказ полон;
-     onAdd(count) — «Добавить»: диалог уже закрывается, вызывающий кладёт count билетов в заказ;
-     onPhoto() — тап по фото или лупе в шапке;
-     onClose() — шторка закрылась любым способом («Закрыть», затемнение, свайп, «Добавить» — до onAdd).
+     opts = { name, price, photo, left, available } — photo { url, caption } или null; left — остаток билетов
+       на танцпол в продаже (подпись под названием: «23 билета», при 0 — «Билетов нет»); available — сколько ещё
+       можно положить в заказ (лимит заказа минус уже лежащее), 0 — заказ полон. Выбрать можно не больше
+       меньшего из left и available;
+     onAdd(count) — «Добавить в корзину»: диалог уже закрывается, вызывающий кладёт count билетов в заказ;
+     onPhoto() — тап по фото (только если SHOW_PHOTO);
+     onClose() — шторка закрылась любым способом (крестик, затемнение, свайп, «Добавить» — до onAdd).
    ============================================================ */
 import { formatPrice } from './data.js';
 
-const ICON_MINUS = 'assets/dialog-minus-32.svg';      // Minus 32, #231D1F — экспорт макета
-const ICON_PLUS = 'assets/dialog-plus-24.svg';        // Plus 24, #231D1F
-const ICON_SEARCH = 'assets/dialog-search-24.svg';    // Search 24, белая — лупа на фото шапки
+// иконки Citrus 24, #1D2023 — экспорт макета
+const ICON_MINUS = 'assets/dialog-minus-citrus-24.svg';
+const ICON_PLUS = 'assets/dialog-plus-citrus-24.svg';
+const ICON_CLOSE = 'assets/dialog-close-24.svg';
+const ICON_SEARCH = 'assets/dialog-search-24.svg';    // лупа на фото шапки (фото спрятано)
 
-const CHIPS = [1, 2, 3, 4];      // кнопки-числа (Picker 48, фиксированный размер); пятая — «Больше»
-const STEPPER_FROM = 5;          // «Больше» переключает на степпер со значением 5 — следующим после кнопок
-const START_COUNT = 2;           // при открытии выбрано 2, как в макете
+// Фото танцпола в шапке шторки: в Citrus его нет. true — вернуть фото с лупой (тап открывает лайтбокс)
+const SHOW_PHOTO = false;
+
+const START_COUNT = 1;           // при открытии выбран 1 билет, как в Citrus (4987:23457)
 const SWIPE_START = 8;           // px: меньше — это тап, а не свайп
 const SWIPE_CLOSE_PX = 80;       // протянули дальше — закрываем
 const SWIPE_CLOSE_V = 0.5;       // px/ms: флик быстрее — закрываем
@@ -45,88 +50,59 @@ export function createSeatlessDialog({ parentEl, onAdd, onPhoto, onClose }) {
     sheet.setAttribute('role', 'dialog');
     sheet.setAttribute('aria-modal', 'true');
     sheet.innerHTML =
-        '<div class="sd-title">'
-        + '<button class="sd-photo" type="button" aria-label="Открыть фото">'
-        + '<img class="sd-photo-img" alt="" draggable="false">'
-        + `<span class="sd-zoom" aria-hidden="true"><img src="${ICON_SEARCH}" alt="" width="24" height="24" draggable="false"></span>`
-        + '</button>'
-        + '<div class="sd-details">'
-        + '<div class="sd-title-col"><span class="sd-name"></span><span class="sd-kind">Билет без места</span></div>'
-        // «без комиссии» пока скрыта по решению пользователя; вернуть — убрать атрибут hidden у .sd-fee
-        + '<div class="sd-price-col"><span class="sd-price"></span><span class="sd-fee" hidden>без комиссии</span></div>'
+        (SHOW_PHOTO
+            ? '<button class="sd-photo" type="button" aria-label="Открыть фото">'
+              + '<img class="sd-photo-img" alt="" draggable="false">'
+              + `<span class="sd-zoom" aria-hidden="true"><img src="${ICON_SEARCH}" alt="" width="24" height="24" draggable="false"></span>`
+              + '</button>'
+            : '')
+        + '<div class="sd-title">'
+        + '<div class="sd-title-text"><span class="sd-name"></span><span class="sd-kind"></span></div>'
+        + `<button class="sd-close" type="button" aria-label="Закрыть"><img src="${ICON_CLOSE}" alt="" width="24" height="24" draggable="false"></button>`
         + '</div>'
-        + '</div>'
-        + '<div class="sd-body">'
-        + '<div class="sd-count"></div>'
-        + '<div class="sd-buttons">'
-        + '<button class="sd-add" type="button"></button>'
-        + '<button class="sd-close" type="button">Закрыть</button>'
-        + '</div>'
-        + '</div>';
+        + '<div class="sd-body"><div class="sd-count"></div></div>'
+        + '<div class="sd-buttons"><button class="sd-add" type="button">Добавить в корзину</button></div>';
     parentEl.appendChild(scrim);
     parentEl.appendChild(sheet);
 
     const q = (s) => sheet.querySelector(s);
-    const titleEl = q('.sd-title');
     const photoBtn = q('.sd-photo');
     const photoImg = q('.sd-photo-img');
     const nameEl = q('.sd-name');
-    const priceEl = q('.sd-price');
+    const kindEl = q('.sd-kind');
     const countEl = q('.sd-count');
     const addBtn = q('.sd-add');
-    photoImg.addEventListener('error', () => { photoImg.style.visibility = 'hidden'; });
+    if (photoImg) photoImg.addEventListener('error', () => { photoImg.style.visibility = 'hidden'; });
 
     let isOpen = false;
     let price = 0;
-    let available = 0;   // сколько ещё влезает в заказ
+    let available = 0;   // сколько можно выбрать: меньшее из остатка танцпола и места в заказе
+    let soldOut = false; // остаток танцпола 0
     let count = 0;
-    let stepper = false; // false — кнопки 1–4 и «Больше», true — степпер
 
-    /* ---------- блок количества ---------- */
+    /* ---------- строка количества «Counter»: слева «N билетов» и сумма, справа «− N +» ----------
+       Билетов нет (остаток 0): «0 билетов» и 0 ₽, степпер и кнопка неактивны.
+       Заказ полон (8 в заказе): вместо «N билетов» — «В заказе уже нет мест», степпер и кнопка неактивны */
     function renderCount() {
-        if (!stepper) {
-            countEl.className = 'sd-count is-options';
-            countEl.innerHTML =
-                '<div class="sd-count-subtitle">Количество билетов</div>'
-                + '<div class="sd-chips">'
-                + CHIPS.map((n) => `<button class="sd-chip${n === count ? ' is-active' : ''}" type="button" data-n="${n}"${n > available ? ' disabled' : ''}>${n}</button>`).join('')
-                + `<button class="sd-chip sd-chip-more" type="button" data-n="more"${available < STEPPER_FROM ? ' disabled' : ''}>Больше</button>`
-                + '</div>';
-        } else {
-            const atMax = count >= available;
-            countEl.className = 'sd-count is-number' + (atMax ? ' is-warning' : '');
-            countEl.innerHTML =
-                '<div class="sd-count-text">'
-                + '<span class="sd-count-label">Билетов</span>'
-                + `<span class="sd-count-limit">${available > 0 ? `Не более ${available}` : 'В заказе уже нет мест'}</span>`
-                + '</div>'
-                + '<div class="sd-counter">'
-                + `<button class="sd-step" type="button" data-step="-1" aria-label="Меньше"${count <= 1 ? ' disabled' : ''}>`
-                + `<img src="${ICON_MINUS}" alt="" width="32" height="32" draggable="false">`
-                + '</button>'
-                + `<span class="sd-count-value">${count}</span>`
-                + `<button class="sd-step" type="button" data-step="1" aria-label="Больше"${atMax ? ' disabled' : ''}>`
-                + `<img src="${ICON_PLUS}" alt="" width="24" height="24" draggable="false">`
-                + '</button>'
-                + '</div>';
-        }
-        renderAdd();
-    }
-
-    function renderAdd() {
+        const atMax = count >= available;
+        countEl.innerHTML =
+            '<div class="sd-count-text">'
+            + `<span class="sd-count-label">${available > 0 || soldOut ? `${count} ${ticketWord(count)}` : 'В заказе уже нет мест'}</span>`
+            + `<span class="sd-count-sum">${esc(formatPrice(count * price))}</span>`
+            + '</div>'
+            + '<div class="sd-counter">'
+            + `<button class="sd-step" type="button" data-step="-1" aria-label="Меньше"${count <= 1 ? ' disabled' : ''}>`
+            + `<img src="${ICON_MINUS}" alt="" width="24" height="24" draggable="false">`
+            + '</button>'
+            + `<span class="sd-count-value">${count}</span>`
+            + `<button class="sd-step" type="button" data-step="1" aria-label="Больше"${atMax ? ' disabled' : ''}>`
+            + `<img src="${ICON_PLUS}" alt="" width="24" height="24" draggable="false">`
+            + '</button>'
+            + '</div>';
         addBtn.disabled = count < 1;
-        if (count < 1) { addBtn.textContent = 'Добавить'; return; }
-        addBtn.innerHTML = `Добавить ${count} ${ticketWord(count)} <span class="sd-dot">•</span> ${formatPrice(count * price)}`;
     }
 
     countEl.addEventListener('click', (e) => {
-        const chip = e.target.closest('.sd-chip');
-        if (chip && !chip.disabled) {
-            if (chip.dataset.n === 'more') { stepper = true; count = STEPPER_FROM; }
-            else count = +chip.dataset.n;
-            renderCount();
-            return;
-        }
         const step = e.target.closest('.sd-step');
         if (step && !step.disabled) {
             count = Math.max(1, Math.min(available, count + +step.dataset.step));
@@ -141,23 +117,22 @@ export function createSeatlessDialog({ parentEl, onAdd, onPhoto, onClose }) {
         onAdd(n);
     });
 
-    photoBtn.addEventListener('click', () => { if (isOpen && onPhoto) onPhoto(); });
+    if (photoBtn) photoBtn.addEventListener('click', () => { if (isOpen && onPhoto) onPhoto(); });
     q('.sd-close').addEventListener('click', () => close());
     scrim.addEventListener('click', () => close());
 
     /* ---------- открытие и закрытие ---------- */
     function prepare(opts) {
         price = opts.price || 0;
-        available = Math.max(0, opts.available || 0);
-        // заказ полон — сразу степпер с нулём: «−», «+» и «Добавить» неактивны, подпись-предупреждение
-        stepper = available === 0;
-        count = Math.min(START_COUNT, available);
+        const left = Math.max(0, opts.left ?? Infinity);
+        soldOut = left === 0;
+        available = Math.max(0, Math.min(left, opts.available || 0));
+        kindEl.textContent = soldOut ? 'Билетов нет' : `${left} ${ticketWord(left)}`;
+        count = Math.min(START_COUNT, available);   // заказ полон — 0: «−», «+» и «Добавить» неактивны
         nameEl.textContent = opts.name || '';
-        priceEl.textContent = formatPrice(price);
         const photo = opts.photo || null;
-        titleEl.classList.toggle('no-photo', !photo);
-        photoBtn.hidden = !photo;
-        if (photo) {
+        if (photoBtn) photoBtn.hidden = !photo;
+        if (photoBtn && photo) {
             photoImg.alt = photo.caption || '';
             if (photoImg.getAttribute('src') !== photo.url) {
                 photoImg.style.visibility = '';

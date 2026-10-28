@@ -23,7 +23,7 @@
 }
 
 /* ---------- Лайтбокс с фото: на весь экран поверх шапки (z 5) и нижнего блока (z 4).
-   Макет «Lightbox / svklimenk3-cards», файл Z4wmhHaKhZMV8UI79y1a9Y, узел 4866:18319 (360×800): белый фон,
+   Citrus «Lightbox / citrus», файл Z4wmhHaKhZMV8UI79y1a9Y, узел 4982:4980 (360×800): белый фон,
    фото 3 : 2 на всю ширину по центру экрана, на нём шевроны; крестик справа сверху; снизу поверх — подпись
    и «Показать на схеме» на градиенте. Подложка Background/Overlay за лайтбоксом закрыта им целиком ---------- */
 .lb {
@@ -50,7 +50,7 @@
 /* крестик, подпись и кнопка тают вдвое быстрее фона: пропадают к его половине и не путаются с тем, что под ним */
 .lb-close,
 .lb-bottom { opacity: max(0, var(--lb-fade) * 2 - 1); }
-/* Close и Next макета: кнопка 52×52 без заливки, радиус 26, иконка 32 по центру */
+/* Close, Previous и Next (Citrus): кнопка 52×52 без заливки, радиус 8, иконка 32 по центру */
 .lb-close,
 .lb-arrow {
     display: flex;
@@ -58,7 +58,7 @@
     justify-content: center;
     width: 52px;
     height: 52px;
-    border-radius: 26px;
+    border-radius: 8px;
     margin: 0;
     padding: 0;
     border: 0;
@@ -66,7 +66,7 @@
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
 }
-/* Крестик «Close» (4866:18387): справа 8, сверху 8, иконка Cross 32 #231D1F — файлом */
+/* Крестик «Close» (Citrus 4982:4982): справа 8, сверху 8, иконка Cross 32 #1D2023 — файлом */
 .lb-close {
     position: absolute;
     top: 8px;
@@ -108,7 +108,7 @@
     -webkit-user-drag: none;
 }
 
-/* Стрелки «Next» (4887:15415, 4887:15409): у краёв экрана (0), по высоте — середина фото, то есть экрана;
+/* Стрелки «Previous» и «Next» (Citrus 4982:5443, 4982:5454): у краёв экрана (0), по высоте — середина фото, то есть экрана;
    иконки Chevron Left и Right 32 #FAFAFA — файлами */
 .lb-arrow {
     position: absolute;
@@ -121,7 +121,7 @@
 /* стрелки спрятаны, если SHOW_ARROWS = false в js/photo-ui.js; листание — тапом по краям фото и клавишами */
 .lb.no-arrows .lb-arrow { display: none; }
 
-/* Низ лайтбокса — «lightbox-label» (4866:18368) поверх низа экрана: во всю ширину, отступы 16 сверху и по бокам,
+/* Низ лайтбокса — «.lightbox-label-citrus» (4982:4983) поверх низа экрана: во всю ширину, отступы 16 сверху и по бокам,
    24 снизу, между подписью и кнопкой 16; фон — градиент от прозрачного белого к белому на 12.766% высоты */
 .lb-bottom {
     position: absolute;
@@ -135,11 +135,12 @@
     padding: 16px 16px 24px;
     background: linear-gradient(to bottom, rgba(255, 255, 255, 0), #ffffff 12.766%);
 }
-/* Подпись секции («Партер, центр») по центру: Statika Regular 14/21, Text/Primary #231D1F (I4866:18368;4866:18196).
+/* Подпись секции («Партер, центр») по центру: Statika Regular 14/21, Text/Primary #1D2023 (I4982:4983;4982:4866) —
+   в Citrus эта подпись в Statika, а не в MTS Compact.
    min-width: 0 у колонки — длинная подпись переносится, а не распирает лайтбокс */
 .lb-info {
     display: flex;
-    color: var(--text-primary);             /* #231D1F — Text/Primary */
+    color: #1d2023;                         /* Text/Primary */
     font: 400 14px/21px var(--font-sans);
     text-align: center;
     overflow-wrap: anywhere;
@@ -150,19 +151,19 @@
     flex-direction: column;
     min-width: 0;
 }
-/* «Показать на схеме» — Button макета (I4866:18368;4866:18159): заливка Controls/Secondary #F5F4F2,
-   текст Text/Primary #231D1F, Statika Medium 16/24; высота 52, радиус 26, по бокам 32, на всю ширину */
+/* «Показать на схеме» — Citrus Button (I4982:4983;4982:4867): заливка Controls/Tertiary-active #F2F3F7, радиус 8,
+   высота 52, отступы 14 и ещё 8 по бокам у содержимого, текст P1 Medium Comp 17/24 #1D2023 (MTS Compact) */
 .lb-show {
     box-sizing: border-box;
     width: 100%;
     height: 52px;
     margin: 0;
-    padding: 0 32px;
+    padding: 14px 22px;
     border: 0;
-    border-radius: 26px;
-    background: var(--ctrl-secondary);      /* #F5F4F2 — Controls/Secondary */
-    color: var(--text-primary);             /* #231D1F — Text/Primary */
-    font: 500 16px/24px var(--font-sans);
+    border-radius: 8px;
+    background: #f2f3f7;
+    color: #1d2023;
+    font: 500 17px/24px var(--font-compact, var(--font-sans));
     text-align: center;
     white-space: nowrap;
     cursor: pointer;

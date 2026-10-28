@@ -189,8 +189,9 @@ export const ACTIVE_SCALE = 1.4;
    (x+4, y+4): translate(cx,cy) scale(k) translate(-92,-20) при k=1 даёт translate(x-88,y-16). */
 function selectedGroup(x, y, scale = 1) {
     const inner =
-        `<rect x="88" y="16" width="8" height="8" rx="2.5" fill="${SEL_COLOR}"/>`
-        + `<rect x="88" y="16" width="8" height="8" rx="2.5" stroke="${SEL_COLOR}" stroke-width="3"/>`
+        // Citrus Seat State=Selected (4778:31465): место 16 радиус 6 и обводка снаружи 6 — квадрат 28 радиус 12;
+        // на схеме место 8, поэтому вдвое меньше: квадрат 14 радиус 6 вокруг места 8 (88,16)
+        `<rect x="85" y="13" width="14" height="14" rx="6" fill="${SEL_COLOR}"/>`
         + CHECK;
     const t = scale === 1
         ? `translate(${x - 88} ${y - 16})`

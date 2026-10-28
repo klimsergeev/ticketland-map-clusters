@@ -8,10 +8,6 @@ import { createPhotoMap } from './photo-map.js';
 import { createLightbox } from './photo-ui.js';
 import { createSeatlessDialog } from './seatless-dialog.js';
 
-/* --- Иконки (инлайн SVG) --- */
-const icoChevronLeft =
-    '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3 L5 8 L10 13"/></svg>';
-
 const $ = (sel, root = document) => root.querySelector(sel);
 
 /* --- DOM-ссылки --- */
@@ -40,10 +36,10 @@ const seatlessDialog = createSeatlessDialog({
     onClose: () => { if (hall) hall.settle(); },
 });
 
-/* --- Шапка: статичная (название, площадка, «Назад») --- */
+/* --- Шапка: статичная (название, площадка; крестик — без действия, как раньше «Назад») --- */
 $('.ttl').textContent = EVENT.title;
+$('.dt').textContent = EVENT.date;
 $('.sub').textContent = EVENT.venue;
-$('.icon-btn').innerHTML = icoChevronLeft;
 
 /* --- Рендер легенды (цвет→цена). Пилюли = ФИЛЬТР цены:
        клик по пилюле увеличивает доступные места её тира (см. toggleTierFilter).
@@ -240,8 +236,9 @@ function recenterTickets() {
      • секция без места — { kind: 'seatless', name, price, photo? }: название секции, цена;
      • доп. инвентарь — { kind: 'extra', name, sort, price }: название, вид, цена; фото нет никогда.
    Сейчас в заказ попадают только места; секция без места и инвентарь умеют только рисоваться. */
-const ICON_CROSS_CIRCLE = 'assets/ticket-cross-circle-24.svg';   // Cross Circle 24, #BBC1C7 — экспорт макета
-const ICON_SEARCH = 'assets/ticket-search-16.svg';               // Search 16, белая — экспорт макета
+// иконки карточки — Citrus «Ticket preview / citrus» (Bottomsheet 4982:4868): Cross 24 #8D969F, Search 24 белая
+const ICON_CROSS_CIRCLE = 'assets/ticket-cross-24.svg';
+const ICON_SEARCH = 'assets/ticket-search-24.svg';
 
 const escHtml = (v) => String(v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -265,7 +262,7 @@ function fillTicketCard(card, tk) {
         ? '<span class="t-photo">'
             // миниатюра 324×240 (photos/thumbs); лайтбокс и диалог танцпола берут полное фото v.photo.url
             + `<img class="t-photo-img" src="${escHtml(v.photo.thumb || v.photo.url)}" alt="${escHtml(v.photo.caption || '')}" draggable="false">`
-            + `<span class="t-zoom" aria-hidden="true"><img src="${ICON_SEARCH}" alt="" width="16" height="16" draggable="false"></span>`
+            + `<span class="t-zoom" aria-hidden="true"><img src="${ICON_SEARCH}" alt="" width="24" height="24" draggable="false"></span>`
             + '</span>'
         : '';
     const lines = v.lines.map((text, i) => `<span class="t-line${i === 0 ? ' t-title' : ''}">${escHtml(text)}</span>`).join('');
@@ -650,6 +647,7 @@ function deleteActiveTicket(idx) {
 
     seat.selected = false;              // место схемы → дефолт
     cart.splice(idx, 1);
+    if (seat.kind === 'seatless') dancefloorLeft++;   // билет танцпола вернулся в продажу
 
     if (cart.length === 0) {
         renderMarks();
@@ -677,63 +675,17 @@ function syncFloating() {
     floatingEl.style.display = cart.length === 0 ? 'none' : '';
 }
 
-/* --- CTA «Оформить» с таймером брони (макет «Timer button» 52 Large 4810:34473) ---
-   Таймер запускается с первым билетом в заказе с 4:59 и идёт, пока заказ не пуст: добавление и
-   удаление билетов его не сбрасывают. Заказ опустел — кнопка скрыта, таймер остановлен; следующий
-   первый билет запускает его заново с 4:59. На 0:00 таймер останавливается и стоит на 0:00 —
-   экрана «время брони вышло» в макете нет, билеты остаются в заказе.
-   Остаток считается от момента окончания (Date.now), а не числом тиков: таймер не отстаёт, когда
-   вкладка в фоне и браузер реже будит таймеры. */
-const ORDER_HOLD_S = 4 * 60 + 59;     // старт отсчёта — 4:59, как в макете
-ctaEl.innerHTML =
-    '<span class="cta-label">Оформить</span>'
-    + '<span class="cta-timer" role="timer" aria-label="Время брони">'
-    + '<span class="cta-min"></span><span>:</span><span class="cta-sec"></span>'
-    + '</span>';
-const ctaMinEl = $('.cta-min', ctaEl);
-const ctaSecEl = $('.cta-sec', ctaEl);
-let holdEnd = 0;                      // момент окончания брони, мс (Date.now); 0 — таймер стоит
-let holdTimer = null;
+/* --- CTA «Оформить • сумма» — Citrus Button из «Bottomsheet / citrus», без таймера ---
+   Сумма — общая стоимость всех позиций заказа: места, билеты танцпола, допинвентарь (у каждой позиции своё price).
+   Пересчитывается при каждом изменении заказа (renderCTA зовут refreshCart и удаление).
+   Пустая корзина → кнопки нет; есть билеты → кнопка видна */
+ctaEl.innerHTML = '<span class="cta-label"></span>';
+const ctaLabelEl = $('.cta-label', ctaEl);
 
-/* Показать остаток: минуты без ведущего нуля, секунды двумя цифрами — «4:59», «4:09», «0:00» */
-function paintHold() {
-    const left = Math.max(0, Math.ceil((holdEnd - Date.now()) / 1000));
-    ctaMinEl.textContent = String(Math.floor(left / 60));
-    ctaSecEl.textContent = String(left % 60).padStart(2, '0');
-    return left;
-}
-
-/* Тик к ближайшей смене секунды */
-function tickHold() {
-    holdTimer = null;
-    if (!holdEnd) return;
-    if (paintHold() === 0) return;    // 0:00 — стоп
-    const ms = (holdEnd - Date.now()) % 1000;
-    holdTimer = setTimeout(tickHold, (ms > 0 ? ms : 1000) + 5);
-}
-
-function startHold() {
-    if (holdEnd) return;              // уже идёт — не сбрасываем
-    holdEnd = Date.now() + ORDER_HOLD_S * 1000;
-    paintHold();
-    holdTimer = setTimeout(tickHold, 1000);
-}
-
-function stopHold() {
-    holdEnd = 0;
-    clearTimeout(holdTimer);
-    holdTimer = null;
-}
-
-/* Пустая корзина → кнопки нет, таймер остановлен; есть билеты → кнопка, таймер идёт */
 function renderCTA() {
-    if (cart.length === 0) {
-        ctaEl.style.display = 'none';
-        stopHold();
-        return;
-    }
-    ctaEl.style.display = '';
-    startHold();
+    ctaEl.style.display = cart.length === 0 ? 'none' : '';
+    const total = cart.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+    ctaLabelEl.textContent = `Оформить • ${formatPrice(total)}`;
 }
 
 /* Перерисовать маркеры выбранных мест (активное — крупнее) и всё, что от них зависит */
@@ -788,6 +740,8 @@ function dancefloorSize() {
    до лимита заказа. Если человек оборвал приближение касанием, диалог всё равно открывается по таймеру,
    а «Добавить» потом довезёт схему до танцпола */
 const DANCEFLOOR_SHARE = 0.8;
+// остаток билетов на танцпол в продаже: «Добавить в корзину» уменьшает, удаление билета танцпола из ленты возвращает 1
+let dancefloorLeft = DANCEFLOOR.stock;
 const DANCEFLOOR_ZOOM_MS = 260;   // = длительность _animateTo в hall.js
 let dancefloorView = null;   // вид схемы, в котором открыт диалог: «Добавить» второй раз схему не двигает
 let dancefloorSeq = 0;       // номер текущего открытия: поздний onDone или таймер старого открытия не срабатывают
@@ -795,7 +749,7 @@ let dancefloorFocusing = false;   // схема едет к танцполу п�
 
 function openSeatlessDialog() {
     const photo = photoMap ? photoMap.photoOf({ kind: 'seatless', photoKey: DANCEFLOOR.photoKey }) : null;
-    seatlessDialog.prepare({ name: DANCEFLOOR.name, price: dancefloorPrice(), photo, available: MAX_SEATS - cart.length });
+    seatlessDialog.prepare({ name: DANCEFLOOR.name, price: dancefloorPrice(), photo, left: dancefloorLeft, available: MAX_SEATS - cart.length });
     dancefloorView = null;
     const c = dancefloorCenter();
     if (!c || !hall) { seatlessDialog.show(); return; }
@@ -824,8 +778,9 @@ function sameView(a, b) {
 /* «Добавить» в диалоге: n билетов в конец заказа, активный — последний добавленный.
    Схема уже стоит на танцполе с открытия диалога; едет к нему, только если человек её успел сдвинуть */
 function addSeatless(n) {
-    const count = Math.min(n, MAX_SEATS - cart.length);
+    const count = Math.min(n, MAX_SEATS - cart.length, dancefloorLeft);
     if (count < 1) return;
+    dancefloorLeft -= count;
     const c = dancefloorCenter();
     let last = null;
     for (let i = 0; i < count; i++) {

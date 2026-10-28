@@ -34,131 +34,124 @@ html, body {
 /* ============================================================
    1. Шапка
    ============================================================ */
-/* Шапка — ПЛАВАЮЩИЙ оверлей над схемой (как нижний блок z4): схема уходит ПОД
-   неё и заполняет весь вьюпорт. Абсолют сверху, непрозрачный фон. */
+/* Шапка — ПЛАВАЮЩИЙ оверлей над схемой (как нижний блок z4): схема уходит ПОД неё и заполняет весь вьюпорт.
+   Citrus «Hall / Title / Mobile» (файл Z4wmhHaKhZMV8UI79y1a9Y, экран 4983:18050, инстанс 4984:22107):
+   фон Background/Primary-elevated #FFFFFF, отступы 12 сверху и по бокам, 8 снизу, промежуток 4, скругление снизу 16,
+   тень Shadows/Low (0 0 16 и 0 4 16, #0000000A). Шрифт — MTS Compact (--font-compact) */
 .header {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     z-index: 5;
-    background: var(--bg-primary);
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    padding-bottom: 8px;
+    gap: 4px;
+    padding: 12px 12px 8px;
+    border-radius: 0 0 16px 16px;
+    background: #ffffff;
+    box-shadow: 0 0 16px 0 rgba(0, 0, 0, .04), 0 4px 16px 0 rgba(0, 0, 0, .04);
+    overflow: hidden;
 }
 
-/* ---- 1.1 Заголовок ---- */
+/* ---- 1.1 Заголовок: название P1 Medium Comp 17/24 #1D2023 с многоточием, справа крестик Cross 24 ---- */
 .title {
     display: flex;
-    gap: 8px;
-    align-items: flex-start;
-    padding: 20px 16px 0;
+    align-items: center;
+    justify-content: space-between;
     min-width: 0;
+}
+.ttl {
+    flex: 1 0 0;
+    min-width: 0;
+    font: 500 17px/24px var(--font-compact, var(--font-sans));
+    color: #1d2023;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 .icon-btn {
-    flex: 0 0 auto;
-    width: 32px;
-    height: 32px;
-    border: 0;
-    padding: 0;
-    border-radius: 999px;
-    background: var(--ctrl-secondary);
-    color: var(--icon-primary);
-    display: inline-flex;
+    flex: none;
+    display: flex;
     align-items: center;
     justify-content: center;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
-    transition: background-color 150ms ease-out;
 }
-.icon-btn:active { background: var(--ctrl-secondary-hover); }
+.icon-btn img { display: block; }
 
-.title-text {
-    flex: 1 1 auto;
-    min-width: 0;
+/* ---- Строка даты «Date»: P2 Regular Comp 14/20, промежуток 12; дата и время #1D2023,
+   площадка Text/Secondary #626C77 с многоточием ---- */
+.date {
     display: flex;
-    flex-direction: column;
-    gap: 0;
-}
-
-/* заголовок — развёрнутый (serif, A1 20/30) */
-.ttl {
-    font-family: var(--font-serif);
-    font-weight: 400;
-    font-size: var(--fs-p1);          /* 20px */
-    line-height: var(--lh-p1);        /* 30px */
-    color: var(--text-primary);
-    overflow: hidden;
-    text-overflow: ellipsis;
+    align-items: center;
+    gap: 12px;
+    font: 400 14px/20px var(--font-compact, var(--font-sans));
     white-space: nowrap;
-    flex: 0 1 auto;
     min-width: 0;
 }
-
-/* подзаголовок — площадка (P3 14/21) */
+.dt {
+    flex: none;
+    color: #1d2023;
+}
 .sub {
-    font: 400 var(--fs-p3)/var(--lh-p3) var(--font-sans);
-    color: var(--text-secondary);
+    flex: 1 0 0;
+    min-width: 0;
+    color: #626c77;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
-/* ---- 1.2 Легенда цен (Hall price filter) ---- */
+/* ---- 1.2 Легенда цен «Hall price filter»: сверху 8, ряд до правого края шапки, промежуток 8, справа 8 ---- */
 .legend {
     display: flex;
     flex-wrap: nowrap;
     gap: 8px;
     overflow-x: auto;
     scrollbar-width: none;
-    padding: 0 12px 8px;
-    scroll-padding-left: 12px;
-    /* тень пилюль (Shadows/Low, размытие 16) не обрезается краем прокрутки: ряд выше на 16 — в промежуток
-       над ним — и ниже на 8, до низа шапки (её padding-bottom 8); отрицательные поля возвращают раскладку
-       как в макете (снизу 8). За шапку ряд не выходит — схему под шапкой не перекрывает */
-    margin: -16px 0 -8px;
-    padding-top: 16px;
-    padding-bottom: 16px;
+    margin-right: -12px;
+    padding: 8px 8px 0 0;
 }
 .legend::-webkit-scrollbar { display: none; }
-/* Пилюля — «Price item» макета (файл Z4wmhHaKhZMV8UI79y1a9Y, узел 4778:31730): высота 32, отступы 8/12,
-   промежуток 6, радиус 16, фон Background/Primary #FFFFFF, тень Shadows/Low (0 0 16 и 0 4 16, #0000000A).
-   Текст — P2 Regular Comp 14/20, Text/Primary #1D2023: Statika вместо MTS Compact */
+/* Пилюля «Price item»: высота 32, отступы 8/12, промежуток 8, радиус 8, фон Background/Secondary #F2F3F7,
+   текст P2 Regular Comp 14/20 #1D2023 (MTS Compact).
+   Нажатой в Citrus нет — как в текущем UI схемы: белый фон и обводка 1.5 в цвет тира (--ring);
+   прозрачная обводка у обычной держит размер */
 .legend .pill {
     flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 8px;
     box-sizing: border-box;
     height: 32px;
     margin: 0;
     padding: 8px 12px;
-    border: 0;
-    border-radius: 16px;
-    background: #ffffff;
-    box-shadow: 0 0 16px 0 rgba(0, 0, 0, .04), 0 4px 16px 0 rgba(0, 0, 0, .04);
-    font: 400 14px/20px var(--font-sans);
+    border: 1.5px solid transparent;
+    border-radius: 8px;
+    background: #f2f3f7;
+    font: 400 14px/20px var(--font-compact, var(--font-sans));
     color: #1d2023;
     white-space: nowrap;
     cursor: pointer;                    /* пилюля = кликабельный фильтр цены */
     -webkit-tap-highlight-color: transparent;
     -webkit-appearance: none;
     appearance: none;
-    transition: box-shadow 160ms cubic-bezier(0.2, 0, 0, 1);
+    transition: background 160ms cubic-bezier(0.2, 0, 0, 1), border-color 160ms cubic-bezier(0.2, 0, 0, 1);
 }
-/* Нажатая (активный фильтр, 4778:33429): обводка 2 в цвет тира (--ring) внутрь — размер и место текста
-   не меняются, тени нет */
 .legend .pill.active {
-    box-shadow: inset 0 0 0 2px var(--ring);
+    background: #ffffff;
+    border-color: var(--ring);
 }
-/* Маркер цены «Color»: 16×16, радиус 6, цвет тира */
+/* Маркер цены «Color»: 12×12, радиус 4, цвет тира */
 .legend .pill .sw {
-    width: 16px;
-    height: 16px;
-    border-radius: 6px;
+    width: 12px;
+    height: 12px;
+    border-radius: 4px;
     flex: 0 0 auto;
 }
 
@@ -227,16 +220,12 @@ html, body {
     z-index: 4;
     display: flex;
     flex-direction: column;
-    /* «Bottomsheet / svklimenk3-cards» 4778:30275 (360×188): Tickets — сверху 16, слева 16, промежуток 8;
+    /* Citrus «Bottomsheet / citrus» (4982:4869, 360×188): Tickets — сверху 16, слева 16, промежуток 8;
        Button — сверху 16, по бокам 16, снизу 24. Отсюда: отступы блока 16 / 16 / 24, между лентой и кнопкой 16.
-       Подложка — как была в прототипе схемы зала: вертикальный градиент белого, прозрачный сверху
-       растворяется в сплошной белый к 15% и далее до низа (у компонента шторки заливки нет) */
+       Подложка — градиент от прозрачного белого к белому на 12.766% высоты */
     gap: 16px;
     padding: 16px 16px 24px;
-    background: linear-gradient(180deg,
-        rgba(255, 255, 255, 0) 0%,
-        #ffffff 15%,
-        #ffffff 100%);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0), #ffffff 12.766%);
     /* пустоты блока пропускают касания к схеме; ловят только билеты и кнопка (children ниже) */
     pointer-events: none;
 }
@@ -281,7 +270,7 @@ html, body {
    Обе белые: неактивная — тень Shadows/Neutral/Middle, активная — Shadows/Neutral/High.
    Высота 80 у обоих состояний, радиус 16, содержимое обрезается по скруглению.
    Ширина фиксированная: 280 с фото (.has-photo), 192 без фото.
-   MTS Compact заменён на Statika с размерами и начертаниями макета. */
+   Шрифт — MTS Compact (--font-compact). */
 .ticket {
     position: relative;                   /* z-index для peek-глубины; опора крестика */
     pointer-events: auto;
@@ -295,7 +284,7 @@ html, body {
     border-radius: 16px;
     overflow: hidden;                     /* overflow-clip карточки */
     background: #ffffff;                  /* Selected=False: Background/Modal #FFFFFF */
-    box-shadow: 0 4px 24px 0 rgba(35, 29, 31, .04), 0 8px 20px 0 rgba(35, 29, 31, .06);   /* Selected=False: Shadows/Neutral/Middle */
+    box-shadow: 0 4px 24px 0 rgba(0, 0, 0, .06), 0 8px 16px 0 rgba(0, 0, 0, .04);   /* Citrus, не выбрана: Shadows/Middle */
     cursor: grab;
     user-select: none;
     /* transform/opacity правит JS покадрово — их НЕ анимируем; размеры у состояний одинаковые */
@@ -310,7 +299,7 @@ html, body {
 .slider.grabbing .ticket { cursor: grabbing; }
 .ticket.active {
     background: #ffffff;                  /* Selected=True: Background/Modal #FFFFFF */
-    box-shadow: 0 6px 24px 0 rgba(35, 29, 31, .06), 0 18px 20px 0 rgba(35, 29, 31, .08);   /* Selected=True: Shadows/Neutral/High */
+    box-shadow: 0 6px 24px 0 rgba(0, 0, 0, .06), 0 18px 20px 0 rgba(0, 0, 0, .08);   /* Citrus, выбрана: Shadows/High */
 }
 
 /* Hall preview: 108×80, фото cover. Своего скругления у превью нет: левые углы срезает скругление
@@ -331,19 +320,15 @@ html, body {
     pointer-events: none;
     -webkit-user-drag: none;
 }
-/* Icon button с лупой — только у активной: 32×32 в 4 от правого и нижнего края фото,
-   радиус 22, фон rgba(253,249,245,.2), Background blur/Blur 15 (в коде макета backdrop-blur 7.5px).
-   Иконка Search 16, белая (assets/ticket-search-16.svg). Тап — как по карточке */
+/* Icon button с лупой — только у активной (Citrus I4982:4872;4982:4798): 32×32 в 4 от правого и нижнего края фото,
+   радиус 6, без заливки; иконка Search 24 белая (assets/ticket-search-24.svg). Тап — как по карточке */
 .ticket .t-zoom {
     position: absolute;
     right: 4px;
     bottom: 4px;
     width: 32px;
     height: 32px;
-    border-radius: 22px;
-    background: rgba(253, 249, 245, .2);
-    -webkit-backdrop-filter: blur(7.5px);
-    backdrop-filter: blur(7.5px);
+    border-radius: 6px;
     display: none;
     align-items: center;
     justify-content: center;
@@ -351,7 +336,7 @@ html, body {
     pointer-events: none;
 }
 .ticket.active .t-zoom { display: flex; }
-.ticket .t-zoom img { display: block; width: 16px; height: 16px; }
+.ticket .t-zoom img { display: block; width: 24px; height: 24px; }
 
 /* Details: столбец, gap 2, px 12; у активной справа 40 — место под крестик. P2 Comp 14/20 */
 .ticket .t-text {
@@ -362,9 +347,10 @@ html, body {
     align-items: flex-start;
     gap: 2px;
     padding: 0 12px;
-    font: 400 14px/20px var(--font-sans);
+    font: 400 14px/20px var(--font-compact, var(--font-sans));
     color: #626c77;                       /* Text/Secondary #626C77 (= --gs-500); --text-secondary проекта другой */
 }
+.ticket.has-photo .t-text { padding-left: 8px; }   /* Citrus: у карточки с фото текст в 8 от фото */
 .ticket.active .t-text { padding-right: 40px; }
 .ticket .t-line {
     display: block;
@@ -383,7 +369,7 @@ html, body {
     overflow-wrap: break-word;
 }
 
-/* Close icon button: Cross Circle 24, #BBC1C7, в 8 от верхнего и правого края; только у активной */
+/* Close icon button (Citrus I4982:4872;4982:4803): Cross 24 #8D969F, в 8 от верхнего и правого края; только у активной */
 .ticket .t-x {
     position: absolute;
     top: 8px;
@@ -412,12 +398,9 @@ html, body {
     pointer-events: none;
 }
 
-/* ---- 3.2 CTA — «Timer button», вариант Size=52 Large (макет 4810:34473, файл Z4wmhHaKhZMV8UI79y1a9Y),
-   как в шторке «Bottomsheet / svklimenk3-cards» 4778:30275 ----
-   Высота 52, радиус 26, px 32, pb 2, gap 8; фон Controls/Primary #FF5005; текст «Оформить» P2 Medium 16/24 белый,
-   по центру. Справа — таймер «.Timer button timer» (4806:2819): в 24 от правого края, по центру по вертикали,
-   фон #EE3000, px 12 py 6, радиус 16, Statika Regular 12, line-height normal, белый, цифры lnum + tnum.
-   Hover — белая заливка 20% поверх фона (слой Hover макета). */
+/* ---- 3.2 CTA — Citrus Button из «Bottomsheet / citrus» (4982:4875): высота 52, радиус 8,
+   фон Controls/Primary-active #FF0032, отступы 14 и ещё 8 по бокам у содержимого, «Оформить» P1 Medium Comp 17/24 белый
+   (MTS Compact). Только надпись, без таймера. Hover — белая заливка 20% поверх фона, как было. */
 .cta {
     position: relative;                   /* опора таймера и слоя hover; нужен для z-index */
     z-index: 1;                           /* ниже .slider (z-index 2) → тень активного билета ложится поверх кнопки */
@@ -426,16 +409,15 @@ html, body {
     min-width: 328px;
     height: 52px;
     border: 0;
-    border-radius: 26px;
-    background: var(--ctrl-primary);      /* Controls/Primary #FF5005 */
-    color: var(--gs-0);                   /* Constant/Greyscale 0 #FFFFFF */
+    border-radius: 8px;
+    background: #ff0032;                  /* Controls/Primary-active */
+    color: #ffffff;                       /* Constant/Greyscale 0 */
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    padding: 0 32px 2px;
+    padding: 14px 22px;
     overflow: hidden;
-    font: 500 16px/24px var(--font-sans); /* Paragraph/P2 Medium: Statika 16/24 */
+    font: 500 17px/24px var(--font-compact, var(--font-sans));
     text-align: center;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
@@ -454,21 +436,5 @@ html, body {
 .cta .cta-label {
     position: relative;                   /* над слоем hover */
     flex: none;                           /* 52 Large: текст по ширине содержимого, по центру кнопки */
-    white-space: nowrap;
-}
-.cta .cta-timer {
-    position: absolute;
-    top: 50%;
-    right: 24px;
-    transform: translateY(-50%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 6px 12px;
-    border-radius: 16px;
-    background: #ee3000;                  /* в макете без токена */
-    color: var(--gs-0);                   /* Constant/Greyscale 0 #FFFFFF */
-    font: 400 12px/normal var(--font-sans);
-    font-feature-settings: "lnum" 1, "tnum" 1;
     white-space: nowrap;
 }

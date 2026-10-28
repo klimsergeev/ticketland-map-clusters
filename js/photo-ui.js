@@ -2,9 +2,8 @@
    Лайтбокс с фото секций зала (вид с места).
    ============================================================ */
 
-// Иконки макета «Lightbox / svklimenk3-cards» (файл Z4wmhHaKhZMV8UI79y1a9Y, узел 4866:18319), 32×32, файлами:
-// крестик Cross #231D1F (I4866:18387;62:691;547:208311), шевроны Chevron Left и Right #FAFAFA
-// (I4887:15415;62:691;547:207728 и I4887:15409;62:691;547:207738)
+// Иконки Citrus «Lightbox / citrus» (файл Z4wmhHaKhZMV8UI79y1a9Y, 4982:4980), 32×32, файлами:
+// крестик Cross #1D2023 (I4982:4982), шевроны Chevron Left и Right белые (I4982:5443, I4982:5454)
 const ICON_CLOSE = 'assets/lightbox-close-32.svg';
 const ICON_PREV = 'assets/lightbox-chevron-left-32.svg';
 const ICON_NEXT = 'assets/lightbox-chevron-right-32.svg';
