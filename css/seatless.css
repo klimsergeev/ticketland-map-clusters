@@ -215,3 +215,40 @@
 }
 /* заказ полон — в Citrus состояния нет: заливка Controls/Inactive, текст цвета неактивной иконки, как было */
 .sd-add:disabled { background: rgba(162, 160, 161, .2); color: #bebdbd; cursor: default; }
+
+/* ============================================================
+   Шторка «Подарки к вашему билету» — та же основа, что у шторки танцпола, плюс «.tickets-count-citrus» Gift=True
+   (экраны 4983:18887 и 4983:21004): строка билета над строкой «Подарок», между ними 16.
+   ============================================================ */
+.gd-body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+/* «Label»: высота 44, промежуток 2. Место P1 Regular Comp 17/24, цена H2 Mobile Comp 17/21 Medium; оба #1D2023 */
+.gd-ticket {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-height: 44px;
+    color: #1d2023;
+}
+.gd-place { font: 400 17px/24px var(--font-compact, var(--font-sans)); }
+.gd-price { font: 500 17px/21px var(--font-compact, var(--font-sans)); white-space: nowrap; }
+/* Шаги счётчика подарков: неактивный — Controls/Inactive rgba(188,195,208,.5), иконка #BBC1C7 (Minus в макете);
+   иконки — файлы макета маской, цвет задаёт фон: #1D2023 у активной, #BBC1C7 у неактивной */
+.gd-step:disabled {
+    opacity: 1;
+    background: rgba(188, 195, 208, .5);
+}
+.gd-ico {
+    display: block;
+    width: 24px;
+    height: 24px;
+    background: #1d2023;
+    -webkit-mask: center / 24px 24px no-repeat;
+    mask: center / 24px 24px no-repeat;
+}
+.gd-ico-minus { -webkit-mask-image: url('../assets/dialog-minus-citrus-24.svg'); mask-image: url('../assets/dialog-minus-citrus-24.svg'); }
+.gd-ico-plus { -webkit-mask-image: url('../assets/dialog-plus-citrus-24.svg'); mask-image: url('../assets/dialog-plus-citrus-24.svg'); }
+.gd-step:disabled .gd-ico { background: #bbc1c7; }

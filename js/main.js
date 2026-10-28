@@ -1,12 +1,13 @@
 /* ============================================================
    Точка входа: собирает экран, связывает схему ↔ корзину ↔ карусель билетов.
    ============================================================ */
-import { EVENT, TIER_COLORS, TIER_PRICES, MAX_SEATS, DANCEFLOOR, formatPrice } from './data.js';
+import { EVENT, TIER_COLORS, TIER_PRICES, MAX_SEATS, DANCEFLOOR, GIFT, formatPrice } from './data.js';
 import { HallViewport } from './hall.js';
 import { buildSeats, createSelectionLayer, applySessionPrices, createFilterLayer, createHighlightLayer } from './seats.js';
 import { createPhotoMap } from './photo-map.js';
 import { createLightbox } from './photo-ui.js';
 import { createSeatlessDialog } from './seatless-dialog.js';
+import { createGiftDialog } from './gift-dialog.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -33,6 +34,14 @@ const seatlessDialog = createSeatlessDialog({
     onPhoto: () => openSectionPhotos({ kind: 'seatless', photoKey: DANCEFLOOR.photoKey }),   // лайтбокс поверх диалога
     // шторка ушла — её слэк в bottomInset тоже: схема плавно возвращается в обычные границы пана,
     // иначе первый пан после закрытия дёрнул бы её. «Добавить» потом может повести схему сам (focusSeat)
+    onClose: () => { if (hall) hall.settle(); },
+});
+// шторка подарков: тап по свободному месту амфитеатра → билет и подарки в заказ (addSeatWithGifts)
+let giftSeat = null;   // место, для которого открыта шторка подарков; в заказ оно попадает только по «Добавить в корзину»
+const giftDialog = createGiftDialog({
+    parentEl: $('.app'),
+    onAdd: (n) => addSeatWithGifts(giftSeat, n),
+    // закрыли без добавления — место остаётся свободным; схема возвращается в обычные границы пана
     onClose: () => { if (hall) hall.settle(); },
 });
 
@@ -235,7 +244,7 @@ function recenterTickets() {
        фото — фото секции места (photoMap.photoOf), если есть;
      • секция без места — { kind: 'seatless', name, price, photo? }: название секции, цена;
      • доп. инвентарь — { kind: 'extra', name, sort, price }: название, вид, цена; фото нет никогда.
-   Сейчас в заказ попадают только места; секция без места и инвентарь умеют только рисоваться. */
+   Инвентарь — подарок к билету амфитеатра: name «Сладкий подарок», sort — ряд и место билета, parent — его место. */
 // иконки карточки — Citrus «Ticket preview / citrus» (Bottomsheet 4982:4868): Cross 24 #8D969F, Search 24 белая
 const ICON_CROSS_CIRCLE = 'assets/ticket-cross-24.svg';
 const ICON_SEARCH = 'assets/ticket-search-24.svg';
@@ -646,8 +655,12 @@ function deleteActiveTicket(idx) {
     finishLayoutAnim();                                    // недоехавшие карточки — сразу на места
 
     seat.selected = false;              // место схемы → дефолт
-    cart.splice(idx, 1);
+    // вместе с местом уходят его подарки: их карточки гаснут так же, как карточка места
+    const giftEls = [];
+    cart.forEach((item, j) => { if (item.parent === seat) giftEls.push(ticketEls[j]); });
+    dropFromCart(seat);
     if (seat.kind === 'seatless') dancefloorLeft++;   // билет танцпола вернулся в продажу
+    giftEls.forEach((el) => { if (el) spawnExit(el); });
 
     if (cart.length === 0) {
         renderMarks();
@@ -705,10 +718,54 @@ function refreshCart() {
     renderMarks();
 }
 
+/* Билетов в заказе: места и билеты танцпола; подарки (kind 'extra') в лимит MAX_SEATS не входят */
+function ticketCount() {
+    return cart.reduce((n, item) => n + (item.kind === 'extra' ? 0 : 1), 0);
+}
+
+/* Убрать из заказа позицию и все подарки к ней (у подарка parent — его место) */
+function dropFromCart(item) {
+    const keep = cart.filter((x) => x !== item && x.parent !== item);
+    cart.length = 0;
+    cart.push(...keep);
+}
+
+/* --- Подарки к билету амфитеатра ---
+   Тап по свободному месту амфитеатра открывает шторку подарков, место в заказ ещё не попадает.
+   Схема ведёт место так же, как при выборе, но в полосу над шторкой: шторка — нижний оверлей (bottomInset).
+   Подарков к билету можно взять не больше GIFT.maxPerTicket и не больше, чем осталось до GIFT.maxPerOrder в заказе */
+function openGiftDialog(seat) {
+    giftSeat = seat;
+    const inOrder = cart.reduce((n, item) => n + (item.kind === 'extra' ? 1 : 0), 0);
+    giftDialog.open({
+        place: `${seat.section}, ряд ${seat.row}, место ${seat.seat}`,
+        price: seat.price,
+        giftPrice: GIFT.price,
+        available: Math.max(0, Math.min(GIFT.maxPerTicket, GIFT.maxPerOrder - inOrder)),
+        noRoomText: `В заказе уже ${GIFT.maxPerOrder} подарков`,
+    });
+    focusSeat(seat);   // шторка уже открыта — место встаёт в центр полосы над ней
+}
+
+/* «Добавить в корзину» в шторке подарков: место и n подарков сразу после него, активная — карточка места */
+function addSeatWithGifts(seat, n) {
+    giftSeat = null;
+    if (!seat || seat.selected || ticketCount() >= MAX_SEATS) return;
+    seat.selected = true;
+    cart.push(seat);
+    const seatIndex = cart.length - 1;
+    for (let i = 0; i < n; i++) {
+        cart.push({ kind: 'extra', name: GIFT.name, sort: `Ряд ${seat.row} место ${seat.seat}`, price: GIFT.price, parent: seat });
+    }
+    activeTicket = seatIndex;
+    refreshCart();
+    focusSeat(seat);
+}
+
 /* Добавить место: отметить selected, положить в корзину, показать билет активным,
    поставить место в центр видимой полосы. Молча игнорируем 9-е место. */
 function addSeat(seat) {
-    if (cart.length >= MAX_SEATS) return;
+    if (ticketCount() >= MAX_SEATS) return;
     seat.selected = true;
     cart.push(seat);
     activeTicket = cart.length - 1;     // новый билет — активная карточка
@@ -749,7 +806,7 @@ let dancefloorFocusing = false;   // схема едет к танцполу п�
 
 function openSeatlessDialog() {
     const photo = photoMap ? photoMap.photoOf({ kind: 'seatless', photoKey: DANCEFLOOR.photoKey }) : null;
-    seatlessDialog.prepare({ name: DANCEFLOOR.name, price: dancefloorPrice(), photo, left: dancefloorLeft, available: MAX_SEATS - cart.length });
+    seatlessDialog.prepare({ name: DANCEFLOOR.name, price: dancefloorPrice(), photo, left: dancefloorLeft, available: MAX_SEATS - ticketCount() });
     dancefloorView = null;
     const c = dancefloorCenter();
     if (!c || !hall) { seatlessDialog.show(); return; }
@@ -778,7 +835,7 @@ function sameView(a, b) {
 /* «Добавить» в диалоге: n билетов в конец заказа, активный — последний добавленный.
    Схема уже стоит на танцполе с открытия диалога; едет к нему, только если человек её успел сдвинуть */
 function addSeatless(n) {
-    const count = Math.min(n, MAX_SEATS - cart.length, dancefloorLeft);
+    const count = Math.min(n, MAX_SEATS - ticketCount(), dancefloorLeft);
     if (count < 1) return;
     dancefloorLeft -= count;
     const c = dancefloorCenter();
@@ -800,7 +857,7 @@ function removeSeat(seat) {
     const i = cart.indexOf(seat);
     if (i === -1) return;
     seat.selected = false;
-    cart.splice(i, 1);
+    dropFromCart(seat);   // вместе с местом уходят его подарки
     refreshCart();
 }
 
@@ -852,6 +909,12 @@ function handleTap(clientX, clientY) {
     // Попадание в ДОСТУПНОЕ место → выбрать/снять + подзум
     if (seat && seat.status === 'available') {
         if (seat.selected) { removeSeat(seat); return; }   // повторный тап — снять
+        // место амфитеатра: сначала шторка подарков, в заказ — по «Добавить в корзину»;
+        // заказ полон — как у любого места: ничего
+        if (seat.sectionKey === GIFT.sectionKey) {
+            if (ticketCount() < MAX_SEATS) openGiftDialog(seat);
+            return;
+        }
         addSeat(seat);
         return;
     }
@@ -1129,6 +1192,7 @@ const hall = new HallViewport(viewportEl, $('.map-content'), {
     bottomInset: () => Math.max(
         floatingEl.getBoundingClientRect().height,
         dancefloorFocusing || seatlessDialog.isOpen() ? seatlessDialog.height() : 0,
+        giftDialog.isOpen() ? giftDialog.height() : 0,
     ),
     // Оффсет покоя: при ПУСТОЙ корзине (снизу нет блока) опускаем вписанную схему
     // на половину высоты шапки, чтобы вертикальный воздух распределился симметрично.
