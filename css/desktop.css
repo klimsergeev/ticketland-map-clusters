@@ -1,0 +1,416 @@
+/* ============================================================
+   Desktop layout of index.html: window from 1024 px wide (= DESKTOP_QUERY in js/app.js), designed at 1366.
+   Figma file Z4wmhHaKhZMV8UI79y1a9Y, frame 4987:27879 «[ Hall ] page»:
+   «Title» 4987:27885 and «Hall container» 4987:27886. Mobile layout — css/styles.css.
+   Shared rules (pills, scheme, checkout button) live in css/hall-common.css.
+   ============================================================ */
+
+@media (min-width: 1024px) {
+
+    html, body {
+        margin: 0;
+        height: 100%;
+        background: #ffffff;
+        font-family: var(--font-compact);
+    }
+
+    .app {
+        display: flex;
+        flex-direction: column;
+        height: 100dvh;
+    }
+
+    /* ---- Title: padding 16, gap 12, Background/Primary Elevated, Shadows/Middle
+       (#0000000A offset 0,8 radius 16; #0000000F offset 0,4 radius 24) ---- */
+    .header {
+        position: relative;
+        z-index: 2;
+        flex: none;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 16px;
+        background: #ffffff;
+        box-shadow: 0 8px 16px 0 rgba(0, 0, 0, .04), 0 4px 24px 0 rgba(0, 0, 0, .06);
+    }
+
+    /* 980 column centred: at 1366 the left offset is 193 */
+    .header-col {
+        width: 980px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .title {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    /* H1 Mobile Comp: MTS Compact Medium 20/24, Text/Primary */
+    .header .ttl {
+        flex: 1 0 0;
+        min-width: 0;
+        font: 500 20px/24px var(--font-compact);
+        color: #1d2023;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Date row: P2 Regular Comp 14/20, gap 8 */
+    .date {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font: 400 14px/20px var(--font-compact);
+        white-space: nowrap;
+    }
+    .hd-date {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        color: #1d2023;            /* Text/Primary */
+    }
+    .hd-place {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        color: #626c77;            /* Text/Secondary */
+    }
+    .hd-ico {
+        display: block;
+        flex: none;
+    }
+
+    /* «Hall price filter» Breakpoint=Desktop, Rows=Multiple, «Row»: wrap, gap 8, right padding 8.
+       Pills themselves: .legend .pill in hall-common.css */
+    .header .legend {
+        width: 980px;
+        display: flex;
+        flex-wrap: wrap;
+        align-content: flex-start;
+        gap: 8px;
+        padding-right: 8px;
+    }
+
+    /* ---- Hall container: below the title, Background/Primary; title shadow falls onto it ---- */
+    .hall {
+        position: relative;
+        z-index: 1;
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+        background: #ffffff;
+    }
+
+    /* Desktop cursor over the scheme: plain arrow instead of the shared grab hand, seats included
+       (the SVG has pointer-events: none, so the viewport's cursor applies). While a mouse drag is on,
+       hall.js puts .grabbing on the viewport: keep the closed hand */
+    .hall .map-viewport { cursor: default; }
+    .hall .map-viewport.grabbing { cursor: grabbing; }
+
+    /* ---- «Checkout form» (Figma 5180:33882): bottom of the page over the scheme, full width, height 96,
+       Background/Primary, no shadow. «Content» — the 980 column (x 193 at 1366), height 88 centred
+       (4 above and below), padding 8 top and bottom, gap 16: ticket strip and «Оформить» at the column's right end;
+       the strip takes what the button leaves (768 next to the 196 button).
+       The hidden «Tickets amount» and the Alert button on the left are not made.
+       Hidden below the page bottom while the order is empty; slides up with the first ticket and down when the
+       order empties (not in the mockup: 250 ms decelerating in, 240 ms accelerating out, as the strip cards) ---- */
+    .d-checkout {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 3;
+        height: 96px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #ffffff;
+        transform: translateY(100%);
+        visibility: hidden;
+        transition: transform 240ms cubic-bezier(.4, 0, 1, 1), visibility 0s 240ms;
+    }
+    .d-checkout.is-shown {
+        transform: none;
+        visibility: visible;
+        transition: transform 250ms cubic-bezier(.2, .8, .2, 1), visibility 0s;
+    }
+    .d-checkout-col {
+        width: 980px;
+        height: 88px;
+        box-sizing: border-box;
+        padding: 8px 0;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    /* ---- Ticket strip (js/desktop-strip.js): «Frame 19», the rest of the column × 72; cards — Figma 5122:31333 «Ticket preview / citrus»,
+       Breakpoint=Desktop. Card boxes (translate, width, height) come from JS ---- */
+    .d-strip {
+        position: relative;
+        flex: 1 1 0;
+        min-width: 0;
+        height: 72px;
+    }
+    /* Inactive: 146×64, radius 16, Background/Modal, 1 px stroke Background/Stroke rgba(188,195,208,.5), no shadow
+       (Figma 5122:31335). The stroke is an overlay, as in Figma it takes no room from the content */
+    .ds-card {
+        position: absolute;
+        left: 0;
+        top: 0;
+        display: flex;
+        align-items: center;
+        border-radius: 16px;
+        overflow: hidden;
+        background: #ffffff;
+        box-shadow: 0 6px 24px 0 rgba(0, 0, 0, 0), 0 18px 20px 0 rgba(0, 0, 0, 0);
+        pointer-events: auto;
+        cursor: default;
+        user-select: none;
+        /* same duration and curve as the box tween in desktop-strip.js (MOVE_MS, moveEase) */
+        transition: box-shadow 200ms cubic-bezier(.2, .8, .2, 1);
+    }
+    .ds-card::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border: 1px solid rgba(188, 195, 208, .5);
+        border-radius: inherit;
+        pointer-events: none;
+        transition: opacity 200ms cubic-bezier(.2, .8, .2, 1);
+    }
+    .ds-card.is-active::after { opacity: 0; }
+    /* Active: 232×72, Shadows/High (#0000000F 0,6 r24; #00000014 0,18 r20) */
+    .ds-card.is-active {
+        box-shadow: 0 6px 24px 0 rgba(0, 0, 0, .06), 0 18px 20px 0 rgba(0, 0, 0, .08);
+    }
+    /* Hall preview: full card height, aspect 108/80; only on the active card.
+       Collapsed to zero width and transparent on other cards, so it grows and fades in with the card */
+    .ds-photo {
+        position: relative;
+        flex: none;
+        display: block;
+        height: 100%;
+        aspect-ratio: 108 / 80;
+        max-width: 0;
+        opacity: 0;
+        overflow: hidden;
+        transition: max-width 200ms cubic-bezier(.2, .8, .2, 1), opacity 200ms cubic-bezier(.2, .8, .2, 1);
+    }
+    .ds-card.is-active .ds-photo {
+        max-width: 98px;           /* above the 97.2 px the 72 px card needs */
+        opacity: 1;
+    }
+    .ds-photo-img {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: calc(100% - .4px);  /* Figma: image inset 0 0.4 0 0 */
+        height: 100%;
+        object-fit: cover;
+        pointer-events: none;
+        -webkit-user-drag: none;
+    }
+    /* Icon button 32, radius 6, right 4.4, bottom 4; Search 24 white */
+    .ds-zoom {
+        position: absolute;
+        right: 4.4px;
+        bottom: 4px;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+    }
+    .ds-zoom img { display: block; width: 24px; height: 24px; }
+    /* Details: padding left 12 (8 next to the photo), right 40; C1 Comp 12/18, Text/Primary.
+       On inactive cards JS narrows the padding box to the part of the card not covered by its neighbour */
+    .ds-text {
+        flex: 1 0 0;
+        min-width: 1px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 0 40px 0 12px;
+        font: 400 12px/18px var(--font-compact);
+        color: #1d2023;
+    }
+    .ds-card.is-active.has-photo .ds-text { padding-left: 8px; }
+    .ds-line {
+        display: block;
+        width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .ds-title { font-weight: 500; }  /* C1 Medium Comp */
+    /* Close icon button: Cross 16 #8D969F, top 8, right 8; only on the active card */
+    .ds-x {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 16px;
+        height: 16px;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        display: block;
+        opacity: 0;
+        pointer-events: none;
+        cursor: pointer;
+        transition: opacity 200ms cubic-bezier(.2, .8, .2, 1);
+    }
+    .ds-card.is-active .ds-x {
+        opacity: 1;
+        pointer-events: auto;
+    }
+    .ds-x img { display: block; width: 16px; height: 16px; }
+    /* Removed card while it leaves: under the strip, no input */
+    .ds-exit { pointer-events: none; }
+
+    /* «Controls / Zoom»: right 0, padding 16 top/right/bottom, gap 8, centre at 50% + 24 */
+    .d-zoom {
+        position: absolute;
+        right: 0;
+        top: calc(50% + 24px);
+        transform: translateY(-50%);
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 16px 16px 16px 0;
+    }
+
+    /* «Icon button» Type=Secondary, 44 Medium: radius 8, Controls/Tertiary Active */
+    .d-zoom-btn {
+        width: 44px;
+        height: 44px;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        border-radius: 8px;
+        background: #f2f3f7;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+    }
+    /* «Zoom out» Disabled: Controls/Inactive #BCC3D080 */
+    .d-zoom-btn:disabled {
+        background: rgba(188, 195, 208, .5);
+        cursor: default;
+    }
+
+    /* Icons are the mockup's Plus 24 / Minus 24 used as masks; colour comes from background.
+       The shorthand mask must precede the mask-image rules below */
+    .d-zoom-ico {
+        display: block;
+        width: 24px;
+        height: 24px;
+        background: #1d2023;       /* Icons/Primary */
+        -webkit-mask: center / 24px 24px no-repeat;
+        mask: center / 24px 24px no-repeat;
+    }
+    .d-zoom-ico-plus {
+        -webkit-mask-image: url('../assets/dialog-plus-citrus-24.svg');
+        mask-image: url('../assets/dialog-plus-citrus-24.svg');
+    }
+    .d-zoom-ico-minus {
+        -webkit-mask-image: url('../assets/dialog-minus-citrus-24.svg');
+        mask-image: url('../assets/dialog-minus-citrus-24.svg');
+    }
+    .d-zoom-btn:disabled .d-zoom-ico {
+        background: #8d969f;       /* Icons/Secondary */
+    }
+
+    /* ---- Lightbox (shared js/photo-ui.js, base styles css/photos.css): desktop layout of
+       Figma 5132:10436 «Gallery / Modal / Desktop» 1366×768 — Background/Modal, padding 40, column with gap 16:
+       «Header» with Close 52 on the right, «Images» filling the rest, «Thumbs» 120 with caption and button.
+       At 768 high the photo is 724×484; its size follows the window height (fitSlot in photo-ui.js) ---- */
+    .lb {
+        position: fixed;           /* over the whole page, not only the hall */
+        padding: 40px;
+    }
+    /* Close: 52×52, radius 8, Controls/Alternative #FFFFFF, Cross 32 #1D2023; top right in the 40 padding */
+    .lb-close {
+        top: 40px;
+        right: 40px;
+        background: #ffffff;
+    }
+    /* «Images»: below the header 52 + gap 16 */
+    .lb-stage { margin-top: 68px; }
+    /* «Image»: radius 8; frame proportions 1107/740 are passed to createLightbox in app-core.js */
+    .lb-photo { border-radius: 8px; }
+    /* Previous / Next 52 on the photo edges, vertically in the middle of the photo */
+    .lb-arrow--prev { left: calc(50% - var(--lb-frame-w, 0px) / 2); }
+    .lb-arrow--next { right: calc(50% - var(--lb-frame-w, 0px) / 2); }
+    /* «Thumbs» 120 high, gap 16 above; inside «.lightbox-label-citrus» 386 wide: padding 16 / 16 / 24, gap 16,
+       caption Statika 14/21 #1D2023 centred (as on mobile), button 52 full width. The block is 129 high,
+       centred in 120 as in Figma */
+    .lb-bottom {
+        position: static;
+        flex: none;
+        align-self: center;
+        justify-content: center;
+        width: 386px;
+        height: 120px;
+        margin-top: 16px;
+        padding: 16px 16px 24px;
+        background: none;
+    }
+
+    /* ---- Dancefloor and gift dialogs (shared js/seatless-dialog.js, js/gift-dialog.js, base styles css/seatless.css):
+       Figma 5138:10613 «Dialog / Desktop» — a dialog centred on the screen over Background/Overlay rgba(29,32,35,.4)
+       instead of the mobile bottom sheet. «Content»: Background/Modal, width 440 (max-width 440), max height 728,
+       radius 16, bottom padding 20, Shadows/High (#0000000F 0,6 r24; #00000014 0,18 r20). Appears by fading in ---- */
+    .sd-scrim { position: fixed; }
+    .sd-sheet,
+    .sd-sheet.is-open {
+        position: fixed;
+        inset: 0;
+        margin: auto;
+        width: 440px;
+        height: fit-content;
+        max-height: 728px;
+        border-radius: 16px;
+        box-shadow: 0 6px 24px 0 rgba(0, 0, 0, .06), 0 18px 20px 0 rgba(0, 0, 0, .08);
+        transform: none;
+    }
+    .sd-sheet {
+        opacity: 0;
+        transition: opacity 250ms cubic-bezier(.2, .8, .2, 1), visibility 0s linear 250ms;
+    }
+    .sd-sheet.is-open {
+        opacity: 1;
+        transition: opacity 250ms cubic-bezier(.2, .8, .2, 1), visibility 0s;
+    }
+    /* «Dialog title»: padding 20 on all sides (mobile: 16 below), 4 between title and subtitle (mobile: 2) */
+    .sd-title { padding: 20px; }
+    .sd-title-text { gap: 4px; }
+
+    /* ---- «Button» in the checkout bar: height 44, padding 10 + content 8 on the sides, radius 8,
+       Controls/Primary-active #FF0032, P1 Medium Comp 17/24 white (the rest — .cta in css/hall-common.css,
+       hover white 20%). Width follows the text: 196 in the mockup for «Оформить • 7 800 ₽», not less than that */
+    .d-cta {
+        flex: none;
+        width: auto;
+        min-width: 196px;
+        height: 44px;
+        padding: 10px 18px;
+    }
+
+    /* mobile-only parts of the shared markup: header cross, bottom block with the ticket carousel */
+    .hd-close,
+    .floating { display: none !important; }
+
+}

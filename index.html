@@ -5,40 +5,63 @@
     <title>Схема зала — TLND-15971</title>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <link rel="stylesheet" href="css/colors_and_type.css">
+    <link rel="stylesheet" href="css/hall-common.css">
+    <!-- mobile layout below 1024 px, desktop layout from 1024 px (media queries inside; = DESKTOP_QUERY in js/app.js) -->
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/photos.css">
     <link rel="stylesheet" href="css/seatless.css">
+    <link rel="stylesheet" href="css/desktop.css">
 </head>
 <body>
 <div class="app">
-    <!-- 1. Шапка — Citrus «Hall / Title / Mobile» -->
+    <!-- Header: mobile — Citrus «Hall / Title / Mobile» over the scheme (title and cross, date row, price pills);
+         desktop — «Hall / Title / Desktop» (Figma 4987:27885): back chevron, date and venue with icons, 980 column -->
     <header class="header">
-        <!-- название и крестик -->
-        <div class="title">
-            <div class="ttl"></div>
-            <button class="icon-btn" type="button" aria-label="Закрыть"><img src="assets/title-cross-24.svg" width="24" height="24" alt=""></button>
+        <div class="header-col">
+            <div class="title">
+                <!-- back chevron (desktop) and cross (mobile): no action -->
+                <button class="icon-btn hd-back" type="button" aria-label="Назад"><img src="assets/title-chevron-left-24.svg" width="24" height="24" alt=""></button>
+                <div class="ttl"></div>
+                <button class="icon-btn hd-close" type="button" aria-label="Закрыть"><img src="assets/title-cross-24.svg" width="24" height="24" alt=""></button>
+            </div>
+            <!-- session date and venue; the icons are desktop only -->
+            <div class="date">
+                <span class="hd-date"><img class="hd-ico" src="assets/title-calendar-16.svg" width="16" height="16" alt=""><span class="dt"></span></span>
+                <span class="hd-place"><img class="hd-ico" src="assets/title-map-pin-16.svg" width="16" height="16" alt=""><span class="sub"></span></span>
+            </div>
         </div>
-        <!-- строка даты: дата и время сеанса, площадка -->
-        <div class="date"><span class="dt"></span><span class="sub"></span></div>
-        <!-- легенда цен = фильтр по ценам -->
+        <!-- price pills = price filter (js/price-filter.js) -->
         <div class="legend"></div>
     </header>
 
-    <!-- 2. Схема зала (пан/зум) -->
-    <div class="map-viewport">
-        <div class="map-content">
-            <!-- инлайн-SVG схемы инжектится из assets/hall.svg (вектор в DOM) -->
-            <div class="hall-svg" role="img" aria-label="Схема зала"></div>
+    <!-- Hall: the scheme (pan / zoom); desktop also the zoom buttons and the checkout bar over the bottom of the scheme -->
+    <main class="hall">
+        <div class="map-viewport">
+            <div class="map-content">
+                <!-- inline SVG of the scheme from assets/hall.svg -->
+                <div class="hall-svg" role="img" aria-label="Схема зала"></div>
+            </div>
         </div>
-    </div>
+        <div class="d-zoom">
+            <button class="d-zoom-btn" type="button" data-zoom="in" aria-label="Приблизить"><span class="d-zoom-ico d-zoom-ico-plus"></span></button>
+            <button class="d-zoom-btn" type="button" data-zoom="out" aria-label="Отдалить"><span class="d-zoom-ico d-zoom-ico-minus"></span></button>
+        </div>
+        <!-- Desktop «Checkout form» (Figma 5180:33882): full-width bar, 980 column with the ticket strip
+             (js/desktop-strip.js puts it first) and the checkout button; shown while the order is not empty -->
+        <div class="d-checkout">
+            <div class="d-checkout-col">
+                <button class="cta d-cta" type="button"><span class="cta-label"></span></button>
+            </div>
+        </div>
+    </main>
 
-    <!-- 3. Нижний блок: билеты + CTA -->
+    <!-- Mobile bottom block: ticket carousel and checkout button (js/mobile-ribbon.js) -->
     <div class="floating">
         <div class="slider"><div class="slider-track"></div></div>
         <button class="cta" type="button"></button>
     </div>
 </div>
 
-<script type="module" src="js/main.js"></script>
+<script type="module" src="js/app.js"></script>
 </body>
 </html>

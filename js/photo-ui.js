@@ -41,7 +41,12 @@ const FRAME_SHIFT_Y = 0.33;
    Фото в рамке 3 : 2 на всю ширину, по центру экрана; подпись и кнопка — блоком поверх низа экрана. Без приближения фото стоит на месте: тап по краям листает, вертикальный свайп закрывает,
    протяжка вбок ничего не делает. Щипок приближает, приближенное фото двигается пальцем, двойной тап сбрасывает.
    close(onDone) — onDone через LB_MS по таймеру, а не по transitionend: колбэк приходит, даже если переход не сыграл. */
-export function createLightbox({ parentEl, onShow }) {
+/* getLayout() — optional, read on every use (the page switches between the mobile and desktop layouts); returns settings
+   that override the mobile defaults above: frameAspect, frameShiftY — photo frame proportions and vertical shift;
+   tapOnFrame — a tap pages only inside the photo frame, zones are shares of the frame (default: of the whole area);
+   swipeClose — vertical swipe closes the lightbox */
+export function createLightbox({ parentEl, onShow, getLayout }) {
+    const opt = () => ({ frameAspect: FRAME_ASPECT, frameShiftY: FRAME_SHIFT_Y, tapOnFrame: false, swipeClose: true, ...(getLayout ? getLayout() : {}) });
     const el = document.createElement('div');
     el.className = SHOW_ARROWS ? 'lb' : 'lb no-arrows';
     el.setAttribute('role', 'dialog');
@@ -130,11 +135,13 @@ export function createLightbox({ parentEl, onShow }) {
         const sw = stage.clientWidth;
         const sh = stage.clientHeight;
         let w = sw;
-        let h = sw / FRAME_ASPECT;
-        if (h > sh) { h = sh; w = sh * FRAME_ASPECT; }
+        const { frameAspect, frameShiftY } = opt();
+        let h = sw / frameAspect;
+        if (h > sh) { h = sh; w = sh * frameAspect; }
         slot.photo.style.width = `${w}px`;
         slot.photo.style.height = `${h}px`;
-        slot.rest = { x: (sw - w) / 2, y: (sh - h) / 2 + FRAME_SHIFT_Y };
+        slot.rest = { x: (sw - w) / 2, y: (sh - h) / 2 + frameShiftY };
+        stage.style.setProperty('--lb-frame-w', `${w}px`);   // frame width for CSS (desktop arrows sit on the photo edges)
         paint(slot, { s: 1, tx: slot.rest.x, ty: slot.rest.y }, 0);
     }
 
@@ -317,6 +324,14 @@ export function createLightbox({ parentEl, onShow }) {
             return;
         }
         lastTap = null;
+        if (opt().tapOnFrame) {
+            const r = cur().photo.getBoundingClientRect();
+            if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) return;   // white field: nothing
+            const fx = (e.clientX - r.left) / r.width;
+            if (fx < ZONE_PREV) go(-1);
+            else if (fx >= ZONE_NEXT) go(1);
+            return;
+        }
         const x = (e.clientX - origin().x) / stage.clientWidth;
         if (x < ZONE_PREV) go(-1);
         else if (x >= ZONE_NEXT) go(1);
@@ -347,7 +362,7 @@ export function createLightbox({ parentEl, onShow }) {
             // направление — по первому заметному сдвигу. Приближенное фото двигается во все стороны;
             // без приближения вертикаль — свайп закрытия, протяжка вбок ничего не делает и не листает
             if (zoom.s > 1) gesture.type = 'pan';
-            else gesture.type = Math.abs(dx) >= Math.abs(dy) ? 'none' : 'vertical';
+            else gesture.type = Math.abs(dx) >= Math.abs(dy) || !opt().swipeClose ? 'none' : 'vertical';
             if (gesture.type === 'vertical') el.style.transition = 'none';
         }
         if (gesture.type === 'none') return;

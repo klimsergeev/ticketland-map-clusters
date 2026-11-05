@@ -35,7 +35,7 @@ export function formatPrice(n) {
 }
 
 /* Секция без мест — Танцпол (<g class="seatless"> в assets/hall.svg). Цена — по тиру заливки (TIER_PRICES),
-   фото — ключ photoKey в photos/sections.json. Билеты на неё — позиции заказа { kind: 'seatless' } (js/main.js).
+   фото — ключ photoKey в photos/sections.json. Билеты на неё — позиции заказа { kind: 'seatless' } (js/app-core.js).
    name — единственное название танцпола в интерфейсе: диалог, карточка билета, подпись в лайтбоксе */
 export const DANCEFLOOR = {
     name: 'Танцпол',
@@ -55,6 +55,6 @@ export const GIFT = {
     maxPerOrder: 5,
 };
 
-/* Корзина стартует ПУСТОЙ и наполняется выбором мест на схеме (см. js/main.js).
+/* Корзина стартует ПУСТОЙ и наполняется выбором мест на схеме (см. js/app-core.js).
    Максимум мест в заказе. */
 export const MAX_SEATS = 8;

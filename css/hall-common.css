@@ -1,0 +1,159 @@
+/* ============================================================
+   Hall styles shared by the mobile (index.html, css/styles.css) and desktop
+   (css/desktop.css) layouts of index.html: reset, font smoothing, icon button,
+   price pills and the hall scheme. Moved from css/styles.css as is.
+   ============================================================ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+    /* сглаживание шрифта на весь текст прототипа: свойства наследуются от корня, нигде не перебиваются */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+.icon-btn {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.icon-btn img { display: block; }
+
+/* Пилюля «Price item»: высота 32, отступы 8/12, промежуток 8, радиус 8, фон Background/Secondary #F2F3F7,
+   текст P2 Regular Comp 14/20 #1D2023 (MTS Compact).
+   Нажатой в Citrus нет — как в текущем UI схемы: белый фон и обводка 1.5 в цвет тира (--ring);
+   прозрачная обводка у обычной держит размер */
+.legend .pill {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-sizing: border-box;
+    height: 32px;
+    margin: 0;
+    padding: 8px 12px;
+    border: 1.5px solid transparent;
+    border-radius: 8px;
+    background: #f2f3f7;
+    font: 400 14px/20px var(--font-compact, var(--font-sans));
+    color: #1d2023;
+    white-space: nowrap;
+    cursor: pointer;                    /* пилюля = кликабельный фильтр цены */
+    -webkit-tap-highlight-color: transparent;
+    -webkit-appearance: none;
+    appearance: none;
+    transition: background 160ms cubic-bezier(0.2, 0, 0, 1), border-color 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+.legend .pill.active {
+    background: #ffffff;
+    border-color: var(--ring);
+}
+/* Маркер цены «Color»: 12×12, радиус 4, цвет тира */
+.legend .pill .sw {
+    width: 12px;
+    height: 12px;
+    border-radius: 4px;
+    flex: 0 0 auto;
+}
+
+/* ============================================================
+   2. Схема зала (пан/зум)
+   ============================================================ */
+/* Схема — слой на ВЕСЬ вьюпорт (край в край, полная ширина и высота),
+   абсолют inset:0, ПОД оверлеями (шапка z5, нижний блок z4). */
+.map-viewport {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    overflow: hidden;
+    background: var(--bg-primary);
+    touch-action: none;
+    cursor: grab;
+}
+.map-viewport.grabbing { cursor: grabbing; }
+.map-content {
+    /* COVER: коробка заполняет весь вьюпорт; SVG внутри заполняет коробку.
+       Аспект окна viewBox = аспекту коробки (считает JS) → SVG заполняет слой
+       без леттербокса. Зум/пан идут через viewBox инлайн-SVG, а НЕ через CSS
+       transform — здесь НЕТ will-change/translateZ/transform, иначе слой
+       промоутится в GPU-текстуру и вектор мылит на зуме (композитинг). */
+    position: absolute;
+    inset: 0;
+}
+.map-content .hall-svg { display: block; width: 100%; height: 100%; }
+/* инлайн-SVG схемы: заполняет box; зум через viewBox → всегда вектор */
+.map-content .hall-svg svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    user-select: none;
+    pointer-events: none;
+}
+
+/* --- Фильтр цены: бледнение невыбранных мест ---
+   Активен ≥1 тир → на <svg> класс .filtering (см. updateFade в js/price-filter.js).
+   Бледнеют базовые 8×8-места схемы: доступные НЕ активных тиров и ВСЕ
+   занятые (у занятого — оба rect: заливка + белая обводка, обе width=8).
+   Места активного тира помечены .tier-active → остаются в полном цвете.
+   Слои увеличения (.filter-layer) и выбора (.sel-layer) из бледнения ИСКЛЮЧЕНЫ,
+   поэтому увеличенные копии и оранжевый маркер выбора не приглушаются. */
+.map-content .hall-svg svg rect[width="8"] { transition: opacity .18s ease; }
+.map-content .hall-svg svg.filtering rect[width="8"] { opacity: .25; }
+.map-content .hall-svg svg.filtering rect[width="8"].tier-active { opacity: 1; }
+.map-content .hall-svg svg.filtering .filter-layer rect[width="8"],
+.map-content .hall-svg svg.filtering .sel-layer rect[width="8"] { opacity: 1; }
+/* Танцпол (.seatless) бледнеет так же, как места; при активном своём тире (.tier-active) — полный цвет */
+.map-content .hall-svg svg .seatless { transition: opacity .18s ease; }
+.map-content .hall-svg svg.filtering .seatless { opacity: .25; }
+.map-content .hall-svg svg.filtering .seatless.tier-active { opacity: 1; }
+
+/* Checkout button, shared by the mobile bottom block and the desktop strip line (moved from css/styles.css as is) */
+/* ---- 3.2 CTA — Citrus Button из «Bottomsheet / citrus» (4982:4875): высота 52, радиус 8,
+   фон Controls/Primary-active #FF0032, отступы 14 и ещё 8 по бокам у содержимого, «Оформить» P1 Medium Comp 17/24 белый
+   (MTS Compact). Только надпись, без таймера. Hover — белая заливка 20% поверх фона, как было. */
+.cta {
+    position: relative;                   /* опора таймера и слоя hover; нужен для z-index */
+    z-index: 1;                           /* ниже .slider (z-index 2) → тень активного билета ложится поверх кнопки */
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 328px;
+    height: 52px;
+    border: 0;
+    border-radius: 8px;
+    background: #ff0032;                  /* Controls/Primary-active */
+    color: #ffffff;                       /* Constant/Greyscale 0 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px 22px;
+    overflow: hidden;
+    font: 500 17px/24px var(--font-compact, var(--font-sans));
+    text-align: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.cta::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--gs-0);
+    opacity: 0;
+    pointer-events: none;
+}
+@media (hover: hover) {
+    .cta:hover::before { opacity: .2; }   /* Hover=True: белый слой, непрозрачность 20% */
+}
+.cta .cta-label {
+    position: relative;                   /* над слоем hover */
+    flex: none;                           /* 52 Large: текст по ширине содержимого, по центру кнопки */
+    white-space: nowrap;
+}

@@ -105,7 +105,7 @@ export class HallViewport {
     }
 
     /* Единая точка «пользователь взаимодействует со схемой» (pan/zoom/tap/фокус):
-       уведомляет наружу (opts.onInteract) — на неё main.js вешает сброс фильтра цены.
+       уведомляет наружу (opts.onInteract) — на неё app-core.js вешает сброс фильтра цены.
        Вызывается из всех точек начала взаимодействия: _onPointerDown/_onWheel/
        _onTouchStart/focusOnSvgPoint/focusInBand. */
     _userInteract() {
@@ -113,7 +113,7 @@ export class HallViewport {
     }
 
     /* px на один SVG-юнит при текущем зуме = cover * scale. Экранный размер
-       места (8 юнитов) = 8 * pxPerUnit(). Используется main.js для расчёта
+       места (8 юнитов) = 8 * pxPerUnit(). Используется price-filter.js для расчёта
        обратного масштаба увеличенного места (постоянный экранный размер). */
     pxPerUnit() {
         const { cover } = this._dims();
@@ -203,6 +203,39 @@ export class HallViewport {
        1.001 (защита от накопленной погрешности cover/contain-фита). */
     atMinScale() {
         return this.scale <= this._fitScale() * 1.001;
+    }
+
+    /* Zoom buttons: scale × factor around the viewport centre, animated with the same tween as focus.
+       Pan grows in the same proportion as scale, so the scheme point in the centre stays in the centre. */
+    zoomBy(factor) {
+        this._userInteract();   // same as wheel: clears the price filter
+        const s = Math.max(this._fitScale(), Math.min(MAX_SCALE, this.scale * factor));
+        const k = s / this.scale;
+        this._animateTo(s, this.tx * k, this.ty * k);
+    }
+
+    /* false at MAX_SCALE (with the same tolerance as atMinScale) */
+    canZoomIn() {
+        return this.scale < MAX_SCALE / 1.001;
+    }
+
+    /* Snapshot of the view for a layout switch: scheme point at the viewport centre, px per unit,
+       and whether the view is at the minimum (whole hall fitted) */
+    captureView() {
+        const { cover } = this._dims();
+        const ppu = cover * this.scale;
+        return { cx: BASE_W / 2 - this.tx / ppu, cy: BASE_H / 2 - this.ty / ppu, ppu, atMin: this.atMinScale() };
+    }
+
+    /* Put a snapshot back after the viewport changed size: a fitted view stays fitted (with the rest offset);
+       otherwise the same point in the centre at the same px per unit, within the zoom limits of the new viewport */
+    restoreView(v) {
+        cancelAnimationFrame(this._raf);
+        if (!v || v.atMin) { this._apply(this._fitScale(), 0, this._clampPan(0, this._inset('restOffsetY'), this._fitScale())[1]); return; }
+        const { cover } = this._dims();
+        const s = Math.max(this._fitScale(), Math.min(MAX_SCALE, v.ppu / cover));
+        const ppu = cover * s;
+        this._apply(s, (BASE_W / 2 - v.cx) * ppu, (BASE_H / 2 - v.cy) * ppu);
     }
 
     /* Мгновенный пан (с клампом) на текущем зуме — реклампинг после resize */
