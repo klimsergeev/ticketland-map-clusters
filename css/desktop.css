@@ -150,64 +150,96 @@
         gap: 16px;
     }
 
-    /* ---- Ticket strip (js/desktop-strip.js): «Frame 19», the rest of the column × 72; cards — Figma 5122:31333 «Ticket preview / citrus»,
-       Breakpoint=Desktop. Card boxes (translate, width, height) come from JS ---- */
+    /* ---- Ticket strip (js/desktop-strip.js): the rest of the column × 72 (the bar line from 16 to 80);
+       cards — Figma 5181:34021 «Frame 23». Card boxes (translate, width, height) come from JS ---- */
     .d-strip {
         position: relative;
         flex: 1 1 0;
         min-width: 0;
         height: 72px;
     }
-    /* Inactive: 146×64, radius 16, Background/Modal, 1 px stroke Background/Stroke rgba(188,195,208,.5), no shadow
-       (Figma 5122:31335). The stroke is an overlay, as in Figma it takes no room from the content */
+    /* Compact: 146×64, radius 12, Background/Modal, 1 px stroke Background/Stroke rgba(188,195,208,.5), no shadow.
+       Active (232×72, photo on the left) and open (focus view, 232 wide): radius 16, no stroke,
+       Shadows/High (#0000000F 0,6 r24; #00000014 0,18 r20).
+       The stroke is an overlay, as in Figma it takes no room from the content */
     .ds-card {
         position: absolute;
         left: 0;
         top: 0;
-        display: flex;
-        align-items: center;
-        border-radius: 16px;
+        border-radius: 12px;
         overflow: hidden;
         background: #ffffff;
         box-shadow: 0 6px 24px 0 rgba(0, 0, 0, 0), 0 18px 20px 0 rgba(0, 0, 0, 0);
-        pointer-events: auto;
         cursor: default;
         user-select: none;
         /* same duration and curve as the box tween in desktop-strip.js (MOVE_MS, moveEase) */
-        transition: box-shadow 200ms cubic-bezier(.2, .8, .2, 1);
+        transition: box-shadow 200ms cubic-bezier(.2, .8, .2, 1), border-radius 200ms cubic-bezier(.2, .8, .2, 1);
     }
     .ds-card::after {
         content: '';
         position: absolute;
         inset: 0;
+        z-index: 2;
         border: 1px solid rgba(188, 195, 208, .5);
         border-radius: inherit;
         pointer-events: none;
         transition: opacity 200ms cubic-bezier(.2, .8, .2, 1);
     }
-    .ds-card.is-active::after { opacity: 0; }
-    /* Active: 232×72, Shadows/High (#0000000F 0,6 r24; #00000014 0,18 r20) */
     .ds-card.is-active {
+        border-radius: 16px;
         box-shadow: 0 6px 24px 0 rgba(0, 0, 0, .06), 0 18px 20px 0 rgba(0, 0, 0, .08);
     }
-    /* Hall preview: full card height, aspect 108/80; only on the active card.
-       Collapsed to zero width and transparent on other cards, so it grows and fades in with the card */
-    .ds-photo {
+    .ds-card.is-active::after { opacity: 0; }
+
+    /* The views stand on the card's bottom left corner, so the open card grows upwards over them;
+       they cross-fade with the box tween: compact — other cards, active — the active card, focus — the open one */
+    .ds-compact,
+    .ds-active,
+    .ds-focus {
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        transition: opacity 200ms cubic-bezier(.2, .8, .2, 1);
+    }
+    .ds-compact {
+        width: 146px;
+        height: 64px;
+        display: flex;
+        align-items: center;
+    }
+    .ds-card.is-active .ds-compact { opacity: 0; pointer-events: none; }
+    .ds-focus {
+        width: 232px;
+        display: flex;
+        flex-direction: column;
+        opacity: 0;
+        pointer-events: none;
+    }
+    .ds-card.is-open .ds-focus { opacity: 1; pointer-events: auto; }
+    .ds-active {
+        top: 0;
+        width: 232px;
+        display: flex;
+        align-items: center;
+        opacity: 0;
+        pointer-events: none;
+    }
+    .ds-card.is-active:not(.is-open) .ds-active { opacity: 1; pointer-events: auto; }
+
+    /* Active view, as the former strip (Figma 5122:31333): «Hall preview» full card height, aspect 108/80,
+       Icon button 32 radius 6 at right 4.4 bottom 4 with Search 24 white; lines padding 8 left (12 without a photo)
+       and 40 right; Cross 16 at top 8 right 8; a ticket with gifts has the badge there instead, centred on the
+       cross's place (top 7: 18 high on the 16 cross; not in Figma) */
+    .ds-aphoto {
         position: relative;
         flex: none;
         display: block;
         height: 100%;
         aspect-ratio: 108 / 80;
-        max-width: 0;
-        opacity: 0;
         overflow: hidden;
-        transition: max-width 200ms cubic-bezier(.2, .8, .2, 1), opacity 200ms cubic-bezier(.2, .8, .2, 1);
+        cursor: pointer;
     }
-    .ds-card.is-active .ds-photo {
-        max-width: 98px;           /* above the 97.2 px the 72 px card needs */
-        opacity: 1;
-    }
-    .ds-photo-img {
+    .ds-aphoto-img {
         position: absolute;
         top: 0;
         left: 0;
@@ -217,8 +249,7 @@
         pointer-events: none;
         -webkit-user-drag: none;
     }
-    /* Icon button 32, radius 6, right 4.4, bottom 4; Search 24 white */
-    .ds-zoom {
+    .ds-azoom {
         position: absolute;
         right: 4.4px;
         bottom: 4px;
@@ -230,10 +261,8 @@
         justify-content: center;
         pointer-events: none;
     }
-    .ds-zoom img { display: block; width: 24px; height: 24px; }
-    /* Details: padding left 12 (8 next to the photo), right 40; C1 Comp 12/18, Text/Primary.
-       On inactive cards JS narrows the padding box to the part of the card not covered by its neighbour */
-    .ds-text {
+    .ds-azoom img { display: block; width: 24px; height: 24px; }
+    .ds-atext {
         flex: 1 0 0;
         min-width: 1px;
         display: flex;
@@ -243,7 +272,26 @@
         font: 400 12px/18px var(--font-compact);
         color: #1d2023;
     }
-    .ds-card.is-active.has-photo .ds-text { padding-left: 8px; }
+    .ds-card.has-photo .ds-atext { padding-left: 8px; }
+    .ds-ax {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+    }
+    .ds-active .ds-badge { top: 7px; right: 8px; }
+
+    /* Compact «Details»: padding 12 / 12, C1 Comp 12/18, Text/Primary; the first line C1 Medium.
+       On a covered card JS narrows the padding box to its visible part */
+    .ds-text {
+        flex: 1 0 0;
+        min-width: 1px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 0 12px;
+        font: 400 12px/18px var(--font-compact);
+        color: #1d2023;
+    }
     .ds-line {
         display: block;
         width: 100%;
@@ -251,12 +299,119 @@
         text-overflow: ellipsis;
         white-space: nowrap;
     }
-    .ds-title { font-weight: 500; }  /* C1 Medium Comp */
-    /* Close icon button: Cross 16 #8D969F, top 8, right 8; only on the active card */
-    .ds-x {
+    .ds-title { font-weight: 500; }
+    /* Badge «N 🎟» (Figma «Frame 24»): top 5, right 8, gap 2; C1 Regular 12/18 Controls/Primary-active #FF0032,
+       Ticket 16 one px lower. The first line keeps clear of it (25 wide, 4 apart; not in Figma) */
+    .ds-badge {
         position: absolute;
-        top: 8px;
+        top: 5px;
         right: 8px;
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        font: 400 12px/18px var(--font-compact);
+        color: #ff0032;
+        pointer-events: none;
+    }
+    .ds-badge img { display: block; width: 16px; height: 16px; }
+    .ds-card.has-gifts .ds-text .ds-title { padding-right: 25px; }   /* 134 − (113 − 4) */
+
+    /* Focus «Hall preview»: 232 wide, aspect 108/80 (171.85); Icon button 32, radius 22, right 8, bottom 7.85,
+       rgba(253,249,245,.2) with Background blur 15; Search 16 white */
+    .ds-photo {
+        position: relative;
+        flex: none;
+        display: block;
+        width: 100%;
+        aspect-ratio: 108 / 80;
+        overflow: hidden;
+        cursor: pointer;
+    }
+    .ds-photo-img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        pointer-events: none;
+        -webkit-user-drag: none;
+    }
+    .ds-zoom {
+        position: absolute;
+        right: 8px;
+        bottom: 7.85px;
+        width: 32px;
+        height: 32px;
+        border-radius: 22px;
+        background: rgba(253, 249, 245, .2);
+        -webkit-backdrop-filter: blur(7.5px);
+        backdrop-filter: blur(7.5px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+    }
+    .ds-zoom img { display: block; width: 16px; height: 16px; }
+    /* Focus «Details»: padding 12 top and sides, gap 4: name H3 Mobile Comp 14/18 Medium #231D1F and
+       row and seat P2 Regular 14/20 Text/Secondary #626C77; price H3 14/18 Medium right-aligned; Cross 16.
+       Without gifts 12 below as well (not in Figma: there the gift rows close the card) */
+    .ds-head {
+        display: flex;
+        align-items: flex-start;
+        gap: 4px;
+        padding: 12px 12px 0;
+    }
+    .ds-card:not(.has-gifts) .ds-head { padding-bottom: 12px; }
+    .ds-head-title {
+        flex: 0 1 auto;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        white-space: nowrap;
+    }
+    .ds-name,
+    .ds-sub {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .ds-name { font: 500 14px/18px var(--font-compact); color: #231d1f; }
+    .ds-sub { font: 400 14px/20px var(--font-compact); color: #626c77; }
+    .ds-price {
+        flex: 1 0 auto;
+        text-align: right;
+        white-space: nowrap;
+        font: 500 14px/18px var(--font-compact);
+        color: #231d1f;
+    }
+    /* Gift rows («Frame 20» 5181:34946): padding 8 top, 12 bottom and sides, 8 between rows;
+       in a row gap 4: name C1 Medium, price C1 Regular, Cross 16 */
+    .ds-gifts {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 8px 12px 12px;
+    }
+    .ds-gift {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font: 400 12px/18px var(--font-compact);
+        color: #1d2023;
+    }
+    .ds-gift-name {
+        flex: 1 0 0;
+        min-width: 1px;
+        font-weight: 500;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .ds-gift-price { flex: none; white-space: nowrap; text-align: right; }
+    /* Close icon button: Cross 16 #8D969F */
+    .ds-x,
+    .ds-ax,
+    .ds-gx {
+        flex: none;
         width: 16px;
         height: 16px;
         margin: 0;
@@ -264,16 +419,11 @@
         border: 0;
         background: transparent;
         display: block;
-        opacity: 0;
-        pointer-events: none;
         cursor: pointer;
-        transition: opacity 200ms cubic-bezier(.2, .8, .2, 1);
     }
-    .ds-card.is-active .ds-x {
-        opacity: 1;
-        pointer-events: auto;
-    }
-    .ds-x img { display: block; width: 16px; height: 16px; }
+    .ds-x img,
+    .ds-ax img,
+    .ds-gx img { display: block; width: 16px; height: 16px; }
     /* Removed card while it leaves: under the strip, no input */
     .ds-exit { pointer-events: none; }
 

@@ -1,37 +1,38 @@
 /* ============================================================
    Desktop ticket strip (desktop layout of index.html; the mobile ribbon is mobile-ribbon.js).
-   Figma Z4wmhHaKhZMV8UI79y1a9Y, node 5122:31333 «Ticket preview / citrus», Breakpoint=Desktop:
-     • active card 232×72 (232×64 when it is the only one): photo, lines, cross;
-     • three kinds of order entries, as in the mobile ribbon: seat (part, row and seat, price),
-       seatless ticket { kind: 'seatless' } (name, price), gift { kind: 'extra' } (name, its ticket, price; never a photo);
-     • other cards 146×64, text only;
-     • the strip is «Frame 19» of «Checkout form» (Figma 5180:33882): what the checkout button leaves of the
-       980 column (768 next to the 196 button); cards from its left edge, 8 apart while they fit, then overlapping
-       with an even step so that the whole row takes the strip width (768: 5 cards — step 134, 7 — 89).
-       The layout uses the strip's actual width; refit() re-lays the cards when it changes.
-   Hover makes a card active in its own place, cards to its right move right. The last hovered card
-   stays active. A click on the active card's photo opens the lightbox, a click elsewhere on a card moves
-   the scheme to its seat.
-   Motion: card boxes move with a 200 ms decelerating tween, no bounce (photo, padding, cross and
-   shadow follow with the same CSS transition); a new card appears half a card to the right of its
-   place and slides in while fading in, 250 ms; the removed card goes down 40 px and fades
-   (240 ms, as on mobile) before the strip closes up.
+   Figma Z4wmhHaKhZMV8UI79y1a9Y, node 5181:34021 «[ Hall ] page», strip «Frame 23»; card markup — desktop-ticket-card.js.
+     • One card per ticket (seat or dancefloor ticket); gifts are rows inside their ticket's card, not cards.
+     • One card is active (232×72 with the photo on the left, 232×64 when it is the only one; its seat marker on the
+       scheme is larger), the others are compact 146×64; 8 apart from the strip's left edge. When they do not fit,
+       they overlap with an even step so that the row takes the strip width; the active card is on top, then by
+       distance from it; a covered card's text ends with an ellipsis at the edge of its visible part.
+     • A new ticket becomes the active one. Hover makes a card active (the last hovered card stays active, as in the
+       former strip); a ticket with gifts also opens upwards into the focus view (its bottom stays on the strip
+       line) while the mouse is on the strip, leaving it closes the card back to the active one.
+     • Active and focus views: click on the photo — lightbox; Cross (in the focus view — in the title) — the ticket
+       leaves with its gifts; Cross of a gift row — only that gift leaves. A click elsewhere on a card moves the
+       scheme to its place.
+     • The strip is what the checkout button leaves of the 980 column; refit() re-lays the cards when it changes.
+   Motion: card boxes move with a 200 ms decelerating tween, no bounce (views cross-fade with the same CSS curve);
+   a new card appears half a card to the right of its place and slides in while fading in, 250 ms; a removed card
+   goes down 40 px and fades (240 ms, as on mobile) before the strip closes up.
    ============================================================ */
 import { fillTicketCard } from './desktop-ticket-card.js';
 
-const CARD_W = 146;            // inactive card
+const CARD_W = 146;            // compact card
 const CARD_H = 64;
-const ACTIVE_W = 232;          // active card
-const ACTIVE_H = 72;
+const FOCUS_W = 232;           // focus view
+const STRIP_W = 768;           // used only while the strip has no size (hidden layout)
+const GAP = 8;                 // between cards while they fit
+const CARD_TOP = 4;            // compact card top in the 72 strip: the bar line 16 below its top (Figma «Frame 23» py 16)
+const CARD_BOTTOM = CARD_TOP + CARD_H;   // the focus view grows upwards from here
+const ACTIVE_H = 72;           // active card, Figma 5122:31333
 const SINGLE_H = 64;           // the only ticket: Figma «Frame 14» 232×64
 const STRIP_H = 72;
-const STRIP_W = 768;           // Figma 5180:33882 «Frame 19»; used only while the strip has no size (hidden layout)
-const GAP = 8;                 // between cards while they fit
 
-// inactive card text: Figma paddings 12 left / 40 right on a fully visible card;
-// on a partly covered card the text keeps TEXT_GAP from the covering card and 12 from the free edge (not in Figma)
+// compact card text: Figma paddings 12 / 12; on a partly covered card the text keeps TEXT_GAP from the covering card
 const TEXT_PL = 12;
-const TEXT_PR = 40;
+const TEXT_PR = 12;
 const TEXT_GAP = 8;
 
 const MOVE_MS = 200;           // boxes of cards that change size or place
@@ -40,7 +41,6 @@ const ENTER_SHIFT = 0.5;       // new card starts this share of its width to the
 const EXIT_MS = 240;
 const EXIT_DY = 40;
 const EXIT_EASING = 'cubic-bezier(.4,0,1,1)';
-
 
 /* cubic-bezier(x1,y1,x2,y2) as in CSS: time share → path share */
 function cubicBezier(x1, y1, x2, y2) {
@@ -63,94 +63,117 @@ function cubicBezier(x1, y1, x2, y2) {
 // decelerating, no overshoot; the same curve is used by the card transitions in desktop.css
 const moveEase = cubicBezier(0.2, 0.8, 0.2, 1);
 
-/* Card boxes for n cards with the active one at index a, from the strip's left edge.
-   Step between card starts: card width + GAP while the row fits into stripW, else the even step that makes
-   the row exactly stripW (whole px, as in Figma: 536 / 6 → 89). Cards right of the active one are shifted
-   by its extra width (232 − 146) */
-function layout(n, a, stripW) {
-    const s = n > 1 ? Math.min(CARD_W + GAP, Math.floor((stripW - ACTIVE_W) / (n - 1))) : 0;
-    const inactiveTop = (STRIP_H - CARD_H) / 2;   // inactive 64 centred on the 72 active one (Figma: y 4)
+/* Card boxes for n cards, the active one at index a (232 wide), open (focus view, focusH high) or not, in a strip
+   stripW wide. Step between card starts: card width + GAP while the row fits, else the even step (whole px) that
+   makes the row exactly stripW; cards right of the active one are shifted by its extra width */
+function layout(n, a, open, stripW, focusH) {
+    const rowExtra = a >= 0 ? FOCUS_W : CARD_W;
+    const s = n > 1 ? Math.min(CARD_W + GAP, Math.floor((stripW - rowExtra) / (n - 1))) : 0;
     return Array.from({ length: n }, (_, k) => {
         if (k === a) {
+            if (open) return { x: k * s, y: CARD_BOTTOM - focusH, w: FOCUS_W, h: focusH };
             const h = n === 1 ? SINGLE_H : ACTIVE_H;
-            return { x: k * s, y: (STRIP_H - h) / 2, w: ACTIVE_W, h };
+            return { x: k * s, y: (STRIP_H - h) / 2, w: FOCUS_W, h };
         }
-        const x = k < a ? k * s : k * s + ACTIVE_W - CARD_W;
-        return { x, y: inactiveTop, w: CARD_W, h: CARD_H };
+        return { x: k * s + (a >= 0 && k > a ? FOCUS_W - CARD_W : 0), y: CARD_TOP, w: CARD_W, h: CARD_H };
     });
 }
 
-/* parentEl — the checkout bar column, the strip goes first in it; getPhoto(entry) → { url, thumb } | null;
-   onRemove(entry) — the cross removed an entry; returns entries that leave with it (gifts of a seat);
-   onFocus(entry) — a click on a card; onPhoto(entry) — a click on the active card's photo;
-   onActive(entry | null) — the active card changed (hover, add, remove) */
-export function createDesktopStrip({ parentEl, getPhoto, onRemove, onFocus, onPhoto, onActive }) {
+/* Stacking: the active card on top, then by distance from it */
+const zOf = (k, a) => (a >= 0 ? 100 - Math.abs(k - a) : 100 - k);
+
+/* parentEl — the checkout bar column, the strip goes first in it;
+   getPhoto(entry) → { url, thumb } | null; getGifts(entry) → its gifts (order entries);
+   onRemove(entry) — a cross removed a ticket or a gift; returns entries that leave with it (gifts of a ticket);
+   onFocus(entry) — a click on a card; onPhoto(entry) — a click on the photo of the open card;
+   onActive(entry | null) — the open card changed (its seat marker is larger) */
+export function createDesktopStrip({ parentEl, getPhoto, getGifts, onRemove, onFocus, onPhoto, onActive }) {
     const root = document.createElement('div');
     root.className = 'd-strip';
     parentEl.prepend(root);
 
-    const items = [];          // { entry, el, cur: { x, y, w, h, op } }
-    let active = -1;
+    const items = [];          // { entry, el, cur: { x, y, w, h, op } } — tickets only
+    let activeItem = null;     // active card
+    let open = false;          // the mouse is on the strip: the active card shows the focus view if it has gifts
     let raf = 0;               // running layout tween
     let deleting = false;
     let lastActive = null;     // entry last reported to onActive
     let laidW = 0;             // strip width the current layout was made for
     const stripW = () => root.clientWidth || STRIP_W;
+    const activeIndex = () => items.indexOf(activeItem);
+    const isTicket = (entry) => entry && entry.kind !== 'extra';
+    const isOpen = () => open && !!activeItem && getGifts(activeItem.entry).length > 0;
 
     function fill(item) {
         const { entry, el } = item;
-        const photo = entry.kind === 'extra' ? null : getPhoto(entry);
-        fillTicketCard(el, entry, photo);   // shared card markup (desktop-ticket-card.js)
-        el.querySelector('.ds-x').addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (deleting) return;
-            const i = items.indexOf(item);
-            if (i === active) removeWithExit(i);
+        fillTicketCard(el, entry, getGifts(entry), getPhoto(entry));   // shared card markup (desktop-ticket-card.js)
+        // Cross of the focus view (open) or of the active view (closed)
+        el.querySelectorAll('.ds-x, .ds-ax').forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (deleting || item !== activeItem || btn.classList.contains('ds-x') !== isOpen()) return;
+                removeWithExit(items.indexOf(item));
+            });
+        });
+        el.querySelectorAll('.ds-gx').forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (deleting || item !== activeItem || !isOpen()) return;
+                const gift = getGifts(entry)[+btn.dataset.gift];
+                if (!gift) return;
+                onRemove(gift);
+                fill(item);          // rows, price and badge without the gift; the open card gets shorter
+                relayout();
+            });
         });
     }
 
     function paint() {
+        const a = activeIndex();
         items.forEach((it, k) => {
             const { x, y, w, h, op } = it.cur;
             it.el.style.transform = `translate(${x}px, ${y}px)`;
             it.el.style.width = `${w}px`;
             it.el.style.height = `${h}px`;
             it.el.style.opacity = op >= 1 ? '' : String(op);
-            it.el.style.zIndex = String(100 - Math.abs(k - active));
-            it.el.classList.toggle('is-active', k === active);
+            it.el.style.zIndex = String(zOf(k, a));
+            it.el.classList.toggle('is-active', k === a);
+            it.el.classList.toggle('is-open', k === a && isOpen());
         });
-        items.forEach((it, k) => fitText(it, k));
+        items.forEach((it, k) => fitText(it, k, a));
     }
 
-    /* Text of an inactive card ends with an ellipsis at the edge of its visible part.
-       Cards left of the active one are covered on the right by the next card, cards right of it on the left
-       by the previous one (the card closer to the active is on top) */
-    function fitText(it, k) {
+    /* Text of a compact card ends with an ellipsis at the edge of its visible part: a neighbour higher in the stack
+       covers it from that side */
+    function fitText(it, k, a) {
         const t = it.el.querySelector('.ds-text');
         if (!t) return;
-        if (k === active) { t.style.paddingLeft = ''; t.style.paddingRight = ''; return; }
+        if (k === a) { t.style.paddingLeft = ''; t.style.paddingRight = ''; return; }
         const c = it.cur;
         let leftCover = 0;
         let rightCover = 0;
-        if (k > active && items[k - 1]) {
+        const z = zOf(k, a);
+        if (items[k - 1] && zOf(k - 1, a) > z) {
             const p = items[k - 1].cur;
             leftCover = Math.min(c.w, Math.max(0, p.x + p.w - c.x));
         }
-        if (k < active && items[k + 1]) {
+        if (items[k + 1] && zOf(k + 1, a) > z) {
             const q = items[k + 1].cur;
             rightCover = Math.min(c.w, Math.max(0, c.x + c.w - q.x));
         }
-        const covered = leftCover > 0 || rightCover > 0;
         t.style.paddingLeft = `${leftCover > 0 ? leftCover + TEXT_GAP : TEXT_PL}px`;
-        t.style.paddingRight = `${rightCover > 0 ? rightCover + TEXT_GAP : (covered ? TEXT_PL : TEXT_PR)}px`;
+        t.style.paddingRight = `${rightCover > 0 ? rightCover + TEXT_GAP : TEXT_PR}px`;
     }
 
-    /* Move every card from where it is now to the layout for the current active card.
+    // natural height of the open card's focus view (photo, title, gift rows)
+    const focusHeight = (item) => (item ? item.el.querySelector('.ds-focus').offsetHeight : 0);
+
+    /* Move every card from where it is now to the layout for the current open card.
        entering — new cards, which start half their width to the right of their place, transparent */
     function relayout(entering = []) {
         cancelAnimationFrame(raf);
-        // every change of the active card goes through here: report it once
-        const activeEntry = items[active] ? items[active].entry : null;
+        // every change of the open card goes through here: report it once
+        const activeEntry = activeItem ? activeItem.entry : null;
         if (activeEntry !== lastActive) {
             lastActive = activeEntry;
             if (onActive) onActive(activeEntry);
@@ -158,7 +181,7 @@ export function createDesktopStrip({ parentEl, getPhoto, onRemove, onFocus, onPh
         const n = items.length;
         if (!n) { paint(); return; }
         laidW = stripW();
-        const target = layout(n, active, laidW);
+        const target = layout(n, activeIndex(), isOpen(), laidW, isOpen() ? focusHeight(activeItem) : 0);
         const tracks = items.map((it, k) => {
             const to = target[k];
             if (entering.includes(it)) {
@@ -187,35 +210,44 @@ export function createDesktopStrip({ parentEl, getPhoto, onRemove, onFocus, onPh
         step(t0);
     }
 
-    /* Hover: the card becomes active in its own place; the scheme does not move */
-    function setActive(i) {
-        if (deleting || i === active || i < 0 || i >= items.length) return;
-        active = i;
+    /* Hover makes a card active and opens it; leaving the strip closes it, it stays active; the scheme does not move */
+    function hover(item) {
+        if (deleting || (item === activeItem && open)) return;
+        activeItem = item;
+        open = true;
         relayout();
     }
+    // the open card sticks out above the strip but is its child: leaving it upwards leaves the strip too
+    root.addEventListener('pointerleave', () => {
+        if (deleting || !open) return;
+        open = false;
+        relayout();
+    });
 
-    /* Card element for an entry, in the strip, with hover (active) and click (photo — lightbox, else — focus) */
+    /* Card element for a ticket, with hover (open) and click (photo of the open card — lightbox, else — focus) */
     function makeItem(entry) {
         const el = document.createElement('div');
         el.className = 'ds-card';
-        const item = { entry, el, cur: { x: 0, y: 0, w: ACTIVE_W, h: ACTIVE_H, op: 0 } };
+        const item = { entry, el, cur: { x: 0, y: CARD_TOP, w: CARD_W, h: CARD_H, op: 0 } };
         fill(item);
-        el.addEventListener('pointerenter', () => setActive(items.indexOf(item)));
-        // click on the active card's photo — lightbox; elsewhere on the card — the scheme goes to its place
-        // (the cross stops its own click; inactive cards have their photo collapsed to zero width)
+        el.addEventListener('pointerenter', () => hover(item));
         el.addEventListener('click', (e) => {
             if (deleting) return;
-            if (e.target.closest('.ds-photo') && el.classList.contains('is-active')) { if (onPhoto) onPhoto(item.entry); return; }
+            const photoHit = isOpen() ? e.target.closest('.ds-photo') : e.target.closest('.ds-aphoto');
+            if (photoHit && item === activeItem) { if (onPhoto) onPhoto(item.entry); return; }
             onFocus(item.entry);
         });
         root.appendChild(el);
         return item;
     }
 
-    /* New entries at the end of the strip; activeEntry (default: the last one) becomes the active card.
-       A seat with gifts: the seat is active, as on mobile; several dancefloor tickets: the last one */
+    // the card of an entry; a gift stands for its ticket
+    const itemOf = (entry) => items.find((it) => it.entry === entry || (entry && it.entry === entry.parent)) || null;
+
+    /* New entries: tickets become cards at the end of the strip, gifts come with their ticket;
+       activeEntry (default: the last new ticket) becomes the active card, closed */
     function add(entries, activeEntry) {
-        const list = Array.isArray(entries) ? entries : [entries];
+        const list = (Array.isArray(entries) ? entries : [entries]).filter(isTicket);
         if (!list.length) return;
         if (deleting && exitDone) exitDone();
         const added = list.map((entry) => {
@@ -223,21 +255,23 @@ export function createDesktopStrip({ parentEl, getPhoto, onRemove, onFocus, onPh
             items.push(item);
             return item;
         });
-        const a = items.findIndex((it) => it.entry === (activeEntry || list[list.length - 1]));
-        active = a === -1 ? items.length - 1 : a;
+        activeItem = itemOf(activeEntry) || added[added.length - 1];
+        open = false;
         relayout(added);
     }
 
+    /* The active card left: its place in the row stays active (the next card, or the last one), as on mobile */
     function dropAt(i) {
         const [it] = items.splice(i, 1);
         it.el.remove();
-        // the active position stays in the list, as on mobile
-        if (active >= items.length) active = items.length - 1;
-        else if (i < active) active -= 1;
+        if (it === activeItem) {
+            activeItem = items[Math.min(i, items.length - 1)] || null;
+            open = false;
+        }
         return it;
     }
 
-    /* Repeated click on the seat (with its gifts): the cards disappear at once, the strip closes up */
+    /* Repeated click on the seat (with its gifts): the card disappears at once, the strip closes up */
     function remove(entries) {
         const list = Array.isArray(entries) ? entries : [entries];
         if (deleting && exitDone) exitDone();
@@ -248,55 +282,51 @@ export function createDesktopStrip({ parentEl, getPhoto, onRemove, onFocus, onPh
         relayout();
     }
 
-    /* Cross on the active card: the card and the entries leaving with it go down and fade, then the strip closes up */
+    /* Cross in the open card's title: the card goes down and fades with its gifts, then the strip closes up */
     let exitDone = null;
     function removeWithExit(i) {
         deleting = true;
         cancelAnimationFrame(raf);
         const it = items[i];
-        const deps = (onRemove(it.entry) || []).map((e) => items.find((x) => x.entry === e)).filter(Boolean);
-        const leaving = [it, ...deps];
-        const clones = leaving.map((x) => {
-            const clone = x.el.cloneNode(true);
-            clone.classList.add('ds-exit');
-            clone.style.zIndex = '0';
-            clone.style.transition = `transform ${EXIT_MS}ms ${EXIT_EASING}, opacity ${EXIT_MS}ms ${EXIT_EASING}`;
-            root.appendChild(clone);
-            x.el.style.visibility = 'hidden';
-            return { clone, x };
-        });
+        onRemove(it.entry);   // the ticket and its gifts leave the order
+        const clone = it.el.cloneNode(true);
+        clone.classList.add('ds-exit');
+        clone.style.zIndex = '0';
+        clone.style.transition = `transform ${EXIT_MS}ms ${EXIT_EASING}, opacity ${EXIT_MS}ms ${EXIT_EASING}`;
+        root.appendChild(clone);
+        it.el.style.visibility = 'hidden';
         void root.offsetWidth;
         let gone = false;
         exitDone = () => {
             if (gone) return;
             gone = true;
             exitDone = null;
-            clones.forEach(({ clone }) => clone.remove());
-            leaving.forEach((x) => { const k = items.indexOf(x); if (k !== -1) dropAt(k); });
+            clone.remove();
+            const k = items.indexOf(it);
+            if (k !== -1) dropAt(k);   // the next card is active, closed: it opens on the next mouse move
             deleting = false;
             relayout();
         };
-        clones[0].clone.addEventListener('transitionend', (e) => { if (e.propertyName === 'opacity' && exitDone) exitDone(); });
+        clone.addEventListener('transitionend', (e) => { if (e.propertyName === 'opacity' && exitDone) exitDone(); });
         setTimeout(() => { if (exitDone) exitDone(); }, EXIT_MS + 120);
-        clones.forEach(({ clone, x }) => {
-            clone.style.transform = `translate(${x.cur.x}px, ${x.cur.y + EXIT_DY}px)`;
-            clone.style.opacity = '0';
-        });
+        clone.style.transform = `translate(${it.cur.x}px, ${it.cur.y + EXIT_DY}px)`;
+        clone.style.opacity = '0';
     }
 
-    /* The page switched to the desktop layout: cards built from the order at once, activeEntry active, no animation */
+    /* The page switched to the desktop layout: cards built from the order at once, activeEntry's card active
+       (default: the last), closed, no animation */
     function reset(entries, activeEntry) {
         if (deleting && exitDone) exitDone();
         cancelAnimationFrame(raf);
         items.splice(0).forEach((it) => it.el.remove());
         root.querySelectorAll('.ds-exit').forEach((c) => c.remove());
-        entries.forEach((entry) => items.push(makeItem(entry)));
-        const a = items.findIndex((it) => it.entry === activeEntry);
-        active = items.length ? (a === -1 ? items.length - 1 : a) : -1;
+        entries.filter(isTicket).forEach((entry) => items.push(makeItem(entry)));
+        activeItem = itemOf(activeEntry) || items[items.length - 1] || null;
+        open = false;
+        lastActive = activeItem ? activeItem.entry : null;
         laidW = stripW();
-        const target = items.length ? layout(items.length, active, laidW) : [];
+        const target = layout(items.length, activeIndex(), false, laidW, 0);
         items.forEach((it, k) => { it.cur = { ...target[k], op: 1 }; });
-        lastActive = items[active] ? items[active].entry : null;
         paint();
     }
 
@@ -319,6 +349,6 @@ export function createDesktopStrip({ parentEl, getPhoto, onRemove, onFocus, onPh
         reset,
         refit,
         refresh,
-        activeEntry: () => (items[active] ? items[active].entry : null),
+        activeEntry: () => (activeItem ? activeItem.entry : null),
     };
 }

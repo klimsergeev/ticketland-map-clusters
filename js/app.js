@@ -27,10 +27,11 @@ let core = null;
 const strip = createDesktopStrip({
     parentEl: checkoutEl.querySelector('.d-checkout-col'),
     getPhoto: (entry) => core.photoOf(entry),
-    onRemove: (entry) => core.dropEntry(entry),        // cross on the active card; returns the gifts leaving with it
+    getGifts: (entry) => order.filter((x) => x.parent === entry),   // rows of a ticket's focus view
+    onRemove: (entry) => core.dropEntry(entry),        // cross of a ticket (returns its gifts, they leave too) or a gift
     onFocus: (entry) => core.focusEntry(entry),        // click on a card: the scheme goes to its place
-    onPhoto: (entry) => core.openSectionPhotos(entry), // click on the active card's photo: lightbox
-    onActive: (entry) => { if (desktop) core.setActiveEntry(entry); },
+    onPhoto: (entry) => core.openSectionPhotos(entry), // click on the photo of the open (focus) card: lightbox
+    onActive: (entry) => { if (desktop) core.setActiveEntry(entry); },   // active card: its seat marker is larger
 });
 
 const ribbon = createMobileRibbon({
@@ -77,9 +78,9 @@ function renderDesktopCTA() {
 /* Build the current layout's order view from the order */
 function showView(activeEntry) {
     renderDesktopCTA();   // before the strip: its width depends on the button
-    if (desktop) strip.reset(order, activeEntry);
+    if (desktop) strip.reset(order, activeEntry);   // a gift stands for its ticket's card
     else ribbon.rebuild(activeEntry);
-    core.setActiveEntry(activeEntry);
+    core.setActiveEntry(desktop ? strip.activeEntry() : activeEntry);
 }
 showView(null);
 

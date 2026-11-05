@@ -2,7 +2,7 @@
    Hall scheme for index.html (both layouts): loading assets/hall.svg with its layers, hit-testing a tap
    and the decision on a seat tap. Focusing the scheme on a seat is in app-core.js (focus scale per layout).
    ============================================================ */
-import { TIER_COLORS, TIER_PRICES, MAX_SEATS, GIFT } from './data.js';
+import { TIER_COLORS, TIER_PRICES, MAX_ORDER_ITEMS, GIFT } from './data.js';
 import { buildSeats, createSelectionLayer, applySessionPrices, createFilterLayer, createHighlightLayer } from './seats.js';
 
 /* Mobile focus scale: a picked seat into the centre of the visible band at this zoom or more
@@ -68,10 +68,11 @@ export function hitTest(hall, seats, seatlessEls, clientX, clientY) {
     return { kind: 'miss', x: p.x, y: p.y };
 }
 
-// What a tap on an available seat does: 'remove' | 'gift' | 'add' | 'none' (order is full)
-export function seatTapAction(seat, ticketCount) {
+// What a tap on an available seat does: 'remove' | 'gift' | 'add' | 'none' (order is full);
+// itemCount — order entries, tickets and gifts together
+export function seatTapAction(seat, itemCount) {
     if (seat.selected) return 'remove';   // повторный тап — снять
-    if (ticketCount >= MAX_SEATS) return 'none';
+    if (itemCount >= MAX_ORDER_ITEMS) return 'none';
     if (seat.sectionKey === GIFT.sectionKey) return 'gift';
     return 'add';
 }

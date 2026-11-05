@@ -26,7 +26,7 @@ import { createPhotoMap } from './photo-map.js';
 import { createLightbox } from './photo-ui.js';
 import { createSeatlessDialog } from './seatless-dialog.js';
 import { createGiftDialog } from './gift-dialog.js';
-import { DANCEFLOOR, GIFT, MAX_SEATS, TIER_COLORS, TIER_PRICES } from './data.js';
+import { DANCEFLOOR, GIFT, MAX_ORDER_ITEMS, TIER_COLORS, TIER_PRICES } from './data.js';
 
 const ZOOM_STEP = 1.5;            // one click of "+" or "−" (desktop); not in the Figma mockup
 // Desktop zoom when a seat is picked, a card is clicked or a miss is clicked at the minimum scale.
@@ -59,8 +59,9 @@ export function createAppCore({
     let photoMap = null;          // section photos, after hall.svg is loaded
 
     /* Order (opts.order), as the mobile cart: seats (objects from seats.js), dancefloor tickets { kind: 'seatless' }
-       and gifts { kind: 'extra', parent } right after their seat. Gifts do not count towards MAX_SEATS */
-    const ticketCount = () => order.reduce((n, item) => n + (item.kind === 'extra' ? 0 : 1), 0);
+       and gifts { kind: 'extra', parent } right after their seat. Tickets and gifts together: not more than
+       MAX_ORDER_ITEMS */
+    const roomLeft = () => Math.max(0, MAX_ORDER_ITEMS - order.length);
     let activeEntry = null;       // its seat marker is larger (×1.4), as on mobile
     const focusScale = () => (isDesktop() ? DESKTOP_FOCUS_SCALE : FOCUS_SCALE);
 
@@ -158,7 +159,7 @@ export function createAppCore({
         if (hit.kind === 'seatless') { openSeatlessDialog(); return; }   // dancefloor: the scheme zooms to it, then the dialog
         if (hit.kind === 'seat') {
             const seat = hit.seat;
-            const action = seatTapAction(seat, ticketCount());
+            const action = seatTapAction(seat, order.length);
             if (action === 'remove') {   // repeated tap: the seat leaves with its gifts
                 const gifts = dropEntry(seat);
                 onRemove([seat, ...gifts]);
@@ -230,7 +231,7 @@ export function createAppCore({
        If the zoom is cut short by a touch, the dialog still opens by the timer, and «Добавить» then brings the scheme */
     function openSeatlessDialog() {
         const photo = photoMap ? photoMap.photoOf({ kind: 'seatless', photoKey: DANCEFLOOR.photoKey }) : null;
-        seatlessDialog.prepare({ name: DANCEFLOOR.name, price: dancefloorPrice(), photo, left: dancefloorLeft, available: MAX_SEATS - ticketCount() });
+        seatlessDialog.prepare({ name: DANCEFLOOR.name, price: dancefloorPrice(), photo, left: dancefloorLeft, available: roomLeft() });
         dancefloorView = null;
         const r = dancefloorRect();
         if (!r) { seatlessDialog.show(); return; }
@@ -268,7 +269,7 @@ export function createAppCore({
     /* «Добавить в корзину» in the dancefloor dialog: n tickets, each its own entry; the last one is active.
        The scheme already stands on the dancefloor; it goes there only if it was moved */
     function addSeatless(n) {
-        const count = Math.min(n, MAX_SEATS - ticketCount(), dancefloorLeft);
+        const count = Math.min(n, roomLeft(), dancefloorLeft);
         if (count < 1) return;
         dancefloorLeft -= count;
         const r = dancefloorRect();
@@ -283,17 +284,18 @@ export function createAppCore({
         dancefloorView = null;
     }
 
-    /* Free amphitheatre seat: the gift dialog; not more than GIFT.maxPerTicket and what is left of GIFT.maxPerOrder.
+    /* Free amphitheatre seat: the gift dialog (the seat has room: seatTapAction); gifts — not more than
+       GIFT.maxPerTicket and what the order has left after the seat itself.
        Mobile: the sheet is open — the seat goes into the centre of the band above it */
+    const giftRoom = () => Math.max(0, Math.min(GIFT.maxPerTicket, roomLeft() - 1));
     function openGiftDialog(seat) {
         giftSeat = seat;
-        const inOrder = order.reduce((n, item) => n + (item.kind === 'extra' ? 1 : 0), 0);
         giftDialog.open({
             place: `${seat.section}, ряд ${seat.row}, место ${seat.seat}`,
             price: seat.price,
             giftPrice: GIFT.price,
-            available: Math.max(0, Math.min(GIFT.maxPerTicket, GIFT.maxPerOrder - inOrder)),
-            noRoomText: `В заказе уже ${GIFT.maxPerOrder} подарков`,
+            available: giftRoom(),
+            noRoomText: 'В заказе нет мест для подарков',
         });
         if (!isDesktop()) focusSeat(seat);
     }
@@ -301,9 +303,9 @@ export function createAppCore({
     /* «Добавить в корзину» in the gift dialog: the seat and n gifts right after it; the seat is the active entry */
     function addSeatWithGifts(seat, n) {
         giftSeat = null;
-        if (!seat || seat.selected || ticketCount() >= MAX_SEATS) return;
+        if (!seat || seat.selected || roomLeft() < 1) return;
         seat.selected = true;
-        const gifts = Array.from({ length: n }, () => ({ kind: 'extra', name: GIFT.name, sort: `Ряд ${seat.row} место ${seat.seat}`, price: GIFT.price, parent: seat }));
+        const gifts = Array.from({ length: Math.min(n, giftRoom()) }, () => ({ kind: 'extra', name: GIFT.name, sort: `Ряд ${seat.row} место ${seat.seat}`, price: GIFT.price, parent: seat }));
         order.push(seat, ...gifts);
         renderMarks();
         onAdd([seat, ...gifts], seat);
