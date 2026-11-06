@@ -11,6 +11,7 @@
    ============================================================ */
 import { formatPrice } from './data.js';
 import { spring } from './spring.js';
+import { DURATION, EASE_OUT, easeOut, windowedVelocity, VELOCITY_WINDOW, criticalDamping, staggerDelay, prefersReducedMotion } from './motion.js';
 import { createCheckoutButton } from './checkout-button.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -115,6 +116,8 @@ export function createMobileRibbon({ floatingEl, order, getPhoto, onActive, onFo
         if (stopSpring) { stopSpring(); stopSpring = null; }
         stopSpring = spring({
             from: trackX, to: targetXFor(activeTicket), velocity,
+            // after a flick — the ribbon spring with a slight overshoot; without one — no overshoot
+            damping: velocity ? 44 : criticalDamping(840),
             onUpdate: (x) => setTrackX(x),
             onDone: () => { stopSpring = null; },
         });
@@ -202,36 +205,17 @@ export function createMobileRibbon({ floatingEl, order, getPhoto, onActive, onFo
        Анимация раскладки ленты (появление, удаление, перестановка карточек).
        После любой перестройки лента сразу стоит в целевом якоре, а карточки доезжают до своих мест:
          • карточки, которые уже были на экране, — FLIP от прежнего положения на экране той же пружиной,
-           что раньше закрывала зазор при удалении (stiffness 940 / damping 41);
+           stiffness 940 с критическим затуханием (≈ 61), без перелёта;
          • новые карточки выезжают от правого края слайдера на своё место и проявляются:
-           ENTER_MS, кривая шторки cubic-bezier(.2,.8,.2,1); несколько новых — одна за другой через ENTER_STAGGER,
+           ENTER_MS, кривая --ease-out; несколько новых — одна за другой с задержками staggerDelay (js/motion.js: 0, 30, 48, 59 … мс),
            все на путь последней («поездом»).
        Так движение ленты к новой карточке и выезд карточки складываются в одно движение, а не спорят. */
     const FLIP_STIFFNESS = 940;
-    const FLIP_DAMPING = 41;
-    const ENTER_MS = 320;
-    const ENTER_STAGGER = 60;         // мс между карточками пачки
+    const FLIP_DAMPING = criticalDamping(FLIP_STIFFNESS);   // ≈ 61: no throw behind it, no overshoot
+    const ENTER_MS = DURATION.enter;
     const ENTER_FADE = 0.6;           // карточка полностью проявляется к 60% своего выезда
 
-    /* cubic-bezier(x1,y1,x2,y2) как в CSS: t (доля времени) → доля пути */
-    function cubicBezier(x1, y1, x2, y2) {
-        const a = (p1, p2) => 1 - 3 * p2 + 3 * p1, b = (p1, p2) => 3 * p2 - 6 * p1, c = (p1) => 3 * p1;
-        const at = (t, p1, p2) => ((a(p1, p2) * t + b(p1, p2)) * t + c(p1)) * t;
-        const slope = (t, p1, p2) => 3 * a(p1, p2) * t * t + 2 * b(p1, p2) * t + c(p1);
-        return (x) => {
-            if (x <= 0) return 0;
-            if (x >= 1) return 1;
-            let t = x;
-            for (let i = 0; i < 8; i++) {
-                const d = at(t, x1, x2) - x;
-                const s = slope(t, x1, x2);
-                if (Math.abs(d) < 1e-5 || !s) break;
-                t -= d / s;
-            }
-            return at(Math.min(1, Math.max(0, t)), y1, y2);
-        };
-    }
-    const enterEase = cubicBezier(0.2, 0.8, 0.2, 1);
+    const enterEase = easeOut;   // --ease-out (js/motion.js)
 
     /* Остановить анимацию раскладки там, где она есть (снимок для следующего FLIP берётся с экрана) */
     function stopLayoutAnim() {
@@ -261,9 +245,18 @@ export function createMobileRibbon({ floatingEl, order, getPhoto, onActive, onFo
             if (b) {
                 if (Math.abs(b.left - left) > 0.5 || b.op < 1) flip.push({ i, dx0: b.left - left, op0: b.op });
             } else {
-                enter.push({ i, off: sliderRight - left, delay: enter.length * ENTER_STAGGER, t: 0 });
+                enter.push({ i, off: sliderRight - left, delay: staggerDelay(enter.length), t: 0 });
             }
         });
+        // «reduce motion»: cards that were on the screen stand at their places at once; new ones only fade in
+        // (DURATION.short, no shift, no stagger)
+        const reduce = prefersReducedMotion();
+        if (reduce) {
+            flip.length = 0;
+            enter.forEach((e) => { e.off = 0; e.delay = 0; });
+        }
+        const enterMs = reduce ? DURATION.short : ENTER_MS;
+        const enterFade = reduce ? 1 : ENTER_FADE;
         if (!flip.length && !enter.length) { if (onDone) onDone(); return; }
         // пачка выезжает «поездом»: все новые карточки сдвигаются на один и тот же путь — путь последней
         // (от правого края слайдера до её места). Без этого первые карточки пачки, чьё место далеко за левым
@@ -283,7 +276,7 @@ export function createMobileRibbon({ floatingEl, order, getPhoto, onActive, onFo
             });
             enter.forEach((e) => {
                 cardDX[e.i] = e.off * (1 - enterEase(e.t));
-                cardOp[e.i] = e.t >= 1 ? null : Math.min(1, e.t / ENTER_FADE);
+                cardOp[e.i] = e.t >= 1 ? null : Math.min(1, e.t / enterFade);
             });
             setTrackX(trackX);
         };
@@ -302,7 +295,7 @@ export function createMobileRibbon({ floatingEl, order, getPhoto, onActive, onFo
         };
         if (!flipDone) {
             stopFlip = spring({
-                from: 1, to: 0, stiffness: FLIP_STIFFNESS, damping: FLIP_DAMPING,
+                from: 1, to: 0, stiffness: FLIP_STIFFNESS, damping: FLIP_DAMPING, restDelta: 0.001, restSpeed: 0.001,
                 onUpdate: (v) => { flipP = v; apply(); },
                 onDone: () => { flipDone = true; finish(); },
             });
@@ -312,7 +305,7 @@ export function createMobileRibbon({ floatingEl, order, getPhoto, onActive, onFo
             const step = (now) => {
                 let all = true;
                 enter.forEach((e) => {
-                    e.t = Math.min(1, Math.max(0, (now - t0 - e.delay) / ENTER_MS));
+                    e.t = Math.min(1, Math.max(0, (now - t0 - e.delay) / enterMs));
                     if (e.t < 1) all = false;
                 });
                 apply();
@@ -399,7 +392,7 @@ export function createMobileRibbon({ floatingEl, order, getPhoto, onActive, onFo
     function onTicketDown(e, el) {
         if (deleting) return;
         if (e.target.closest('.t-x')) return;
-        finishLayoutAnim();
+        // a layout animation goes on under the finger: cards move by their own transform, the ribbon by the track's
         if (stopSpring) { stopSpring(); stopSpring = null; }
         const t0 = performance.now();
         tDrag = {
@@ -433,17 +426,9 @@ export function createMobileRibbon({ floatingEl, order, getPhoto, onActive, onFo
         setTrackX(x);
     }
 
-    /* Скорость отпускания — средняя по последним VX_WINDOW мс (последний сегмент занижает флик). */
-    const VX_WINDOW = 70;             // мс
-    function windowedVX(samples, now) {
-        if (!samples || samples.length < 2) return 0;
-        const cutoff = now - VX_WINDOW;
-        let i = samples.length - 1;
-        while (i > 0 && samples[i - 1].t >= cutoff) i--;
-        const a = samples[i], b = samples[samples.length - 1];
-        const dt = b.t - a.t;
-        return dt > 0 ? (b.x - a.x) / dt * 1000 : 0;
-    }
+    /* Скорость отпускания — средняя по последним VX_WINDOW мс (последний сегмент занижает флик): js/motion.js */
+    const VX_WINDOW = VELOCITY_WINDOW;
+    const windowedVX = (samples, now) => windowedVelocity(samples, now, VX_WINDOW);
 
     /* «Сила жеста → число шагов»: тормозной путь флика |vx|·VX_TAU в шагах неактивной карточки.
          • INTENT_FRACTION — доля пути до соседа: прошли её → жест намеренный;
@@ -513,18 +498,18 @@ export function createMobileRibbon({ floatingEl, order, getPhoto, onActive, onFo
 
     /* ============================================================
        Удаление активного билета крестиком — две фазы подряд:
-         1. клон уходящей карточки уходит вниз на EXIT_DY и гаснет: EXIT_MS, ускоряющаяся кривая
-            cubic-bezier(.4,0,1,1). Клон лежит в .floating слоем 0 — под лентой (2) и под кнопкой
+         1. клон уходящей карточки уходит вниз на EXIT_DY и гаснет: EXIT_MS (--duration-short), кривая
+            --ease-out. Клон лежит в .floating слоем 0 — под лентой (2) и под кнопкой
             «Оформить» (1): его нижняя часть заезжает под кнопку, а не поверх неё. Сама карточка в ленте
             на это время прячется (visibility), её место остаётся пустым — соседи стоят;
          2. когда клон ушёл целиком, лента перестраивается и соседи съезжаются анимацией раскладки
-            (FLIP, stiffness 940 / damping 41).
+            (FLIP, stiffness 940, критическое затухание).
        Активным становится билет на той же позиции (у последнего — левый сосед), схема едет на его место
        сразу, вместе с уходом карточки. deleting-флаг блокирует повторное удаление, драг, крестики и тапы
        по схеме до конца обеих фаз. Последний билет: после ухода клона прячется весь блок вместе с кнопкой. */
-    const EXIT_MS = 240;
+    const EXIT_MS = DURATION.short;
     const EXIT_DY = 40;               // px: насколько карточка уходит вниз (из 80 её высоты; низ уходит под кнопку)
-    const EXIT_EASING = 'cubic-bezier(.4,0,1,1)';
+    const EXIT_EASING = EASE_OUT;
 
     /* onGone — когда клон погас целиком (конец перехода opacity; страховка по таймеру, если перехода не было) */
     function spawnExit(leavingEl, onGone) {
@@ -553,7 +538,7 @@ export function createMobileRibbon({ floatingEl, order, getPhoto, onActive, onFo
         };
         clone.addEventListener('transitionend', (e) => { if (e.propertyName === 'opacity') done(); });
         setTimeout(done, EXIT_MS + 120);
-        clone.style.transform = `translateY(${EXIT_DY}px)`;
+        if (!prefersReducedMotion()) clone.style.transform = `translateY(${EXIT_DY}px)`;   // «reduce motion»: only fades
         clone.style.opacity = '0';
     }
 
@@ -592,19 +577,22 @@ export function createMobileRibbon({ floatingEl, order, getPhoto, onActive, onFo
         });
     }
 
-    /* --- Подложка нижнего блока: видна только при непустой корзине. Пустая корзина →
-       display:none, чтобы белый градиент не рисовался и высота не резервировалась. --- */
+    /* --- Нижний блок с лентой и кнопкой: выезжает снизу с первой позицией заказа и уезжает, когда заказ пуст
+       (css/styles.css .floating.is-shown). true — блок только что появился --- */
     function syncFloating() {
-        floatingEl.style.display = order.length === 0 ? 'none' : '';
+        const shown = order.length > 0;
+        const was = floatingEl.classList.contains('is-shown');
+        floatingEl.classList.toggle('is-shown', shown);
+        return shown && !was;
     }
 
     /* --- CTA «Оформить заказ» с суммой на плашке и скидкой (js/checkout-button.js) ---
        Сумма — общая стоимость всех позиций заказа; пересчитывается при каждом изменении заказа
-       (renderCTA зовут refreshCart и удаление). Пустая корзина → кнопки нет; есть билеты → кнопка видна */
+       (renderCTA зовут refreshCart и удаление). Кнопка едет вместе с блоком; пустой заказ — блок уехал,
+       на кнопке остаётся последняя сумма */
     const checkoutBtn = createCheckoutButton(ctaEl);
 
     function renderCTA() {
-        ctaEl.style.display = order.length === 0 ? 'none' : '';
         if (order.length) checkoutBtn.render(order);
     }
 
@@ -614,12 +602,10 @@ export function createMobileRibbon({ floatingEl, order, getPhoto, onActive, onFo
     }
 
     /* Перерисовать всё, что зависит от корзины: карусель, CTA, подложку, маркеры на схеме */
-    function refreshCart(opts) {
-        // сначала показать нижний блок: при пустом заказе он display: none, и карточки, разложенные внутри
-        // скрытого блока, меряются шириной 0 — лента считала, что всё влезает, и оставалась на первой карточке
-        // (пачка билетов танцпола в пустой заказ)
-        syncFloating();
-        renderTickets(opts);
+    function refreshCart(opts = {}) {
+        // блок только что появился: карточки уже стоят на местах и приезжают вместе с блоком, без своего выезда
+        const appeared = syncFloating();
+        renderTickets(appeared ? { ...opts, instant: true } : opts);
         renderCTA();
         renderMarks();
     }
@@ -647,6 +633,7 @@ export function createMobileRibbon({ floatingEl, order, getPhoto, onActive, onFo
         recenter: recenterTickets,
         isBusy: () => deleting,
         activeEntry: () => order[activeTicket] || null,
-        height: () => floatingEl.getBoundingClientRect().height,
+        // the hidden block (empty order) covers nothing; the slide (transform) does not change its height
+        height: () => (order.length ? floatingEl.getBoundingClientRect().height : 0),
     };
 }

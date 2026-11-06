@@ -89,7 +89,9 @@ export function fillTicketCard(el, entry, gifts, photo) {
     el.classList.toggle('has-photo', !!photo);
     el.classList.toggle('has-gifts', gifts.length > 0);
     el.dataset.kind = entry.kind || 'seat';
-    el.innerHTML = ticketCardInner(entry, gifts, photo);
+    // shadow layer outside the clip, body (background, stroke, clip) with the views
+    el.innerHTML = '<span class="ds-shadow" aria-hidden="true"></span>'
+        + `<span class="ds-body"><span class="ds-views">${ticketCardInner(entry, gifts, photo)}</span></span>`;
     // a broken photo falls back to the other size, then to empty
     el.querySelectorAll('.ds-photo-img, .ds-aphoto-img').forEach((img) => {
         img.addEventListener('error', () => {

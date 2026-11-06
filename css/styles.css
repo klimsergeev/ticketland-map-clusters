@@ -131,6 +131,21 @@
         background: linear-gradient(180deg, rgba(255, 255, 255, 0), #ffffff 12.766%);
         /* пустоты блока пропускают касания к схеме; ловят только билеты и кнопка (children ниже) */
         pointer-events: none;
+        /* пустой заказ — блок уехал вниз на свою высоту (js/mobile-ribbon.js syncFloating): уход 200 мс, --ease-exit */
+        transform: translateY(100%);
+        visibility: hidden;
+        transition: transform var(--duration-short) var(--ease-exit), visibility 0s linear var(--duration-short);
+    }
+    /* с первой позицией заказа блок выезжает: 250 мс */
+    .floating.is-shown {
+        transform: none;
+        visibility: visible;
+        transition: transform var(--duration-enter) var(--ease-out), visibility 0s;
+    }
+    /* «уменьшить движение»: блок не выезжает, а проявляется */
+    @media (prefers-reduced-motion: reduce) {
+        .floating { transform: none; opacity: 0; transition: opacity var(--duration-short) ease, visibility 0s linear var(--duration-short); }
+        .floating.is-shown { opacity: 1; transition: opacity var(--duration-short) ease, visibility 0s; }
     }
     .floating > * { pointer-events: auto; }
 
@@ -162,7 +177,6 @@
         display: flex;
         align-items: center;
         gap: 8px;               /* зазор между билетами */
-        will-change: transform;
     }
     /* Карточка билета — макет «Ticket preview / svklimenk3-cards» 4767:11622 (файл Z4wmhHaKhZMV8UI79y1a9Y).
        Три типа, у каждого активная (Selected=True) и неактивная (Selected=False):
@@ -185,14 +199,29 @@
         width: 192px;                         /* Photo=False: 192 */
         height: 80px;                         /* 80 у обоих состояний */
         border-radius: 16px;
-        overflow: hidden;                     /* overflow-clip карточки */
         background: #ffffff;                  /* Selected=False: Background/Modal #FFFFFF */
-        box-shadow: 0 4px 24px 0 rgba(0, 0, 0, .06), 0 8px 16px 0 rgba(0, 0, 0, .04);   /* Citrus, не выбрана: Shadows/Middle */
         cursor: grab;
         user-select: none;
         /* transform/opacity правит JS покадрово — их НЕ анимируем; размеры у состояний одинаковые */
-        transition: background-color 160ms ease-out, box-shadow 160ms ease-out;
+        transition: background-color var(--duration-state) ease-out;
     }
+    /* Тени — на псевдоэлементах, смена состояния идёт по их прозрачности (не перерисовка box-shadow каждый кадр):
+       ::before — Citrus, не выбрана: Shadows/Middle; ::after — выбрана: Shadows/High.
+       z-index −1 — под содержимым карточки; тень лежит снаружи рамки, фон карточки она не задевает */
+    .ticket::before,
+    .ticket::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        border-radius: inherit;
+        pointer-events: none;
+        transition: opacity var(--duration-state) ease-out;
+    }
+    .ticket::before { box-shadow: 0 4px 24px 0 rgba(0, 0, 0, .06), 0 8px 16px 0 rgba(0, 0, 0, .04); }
+    .ticket::after { box-shadow: 0 6px 24px 0 rgba(0, 0, 0, .06), 0 18px 20px 0 rgba(0, 0, 0, .08); opacity: 0; }
+    .ticket.active::before { opacity: 0; }
+    .ticket.active::after { opacity: 1; }
     .ticket.has-photo { width: 280px; }       /* Photo=True: 280 */
     /* Один билет в заказе — карточка тянется на всю ширину слайдера (ширина приложения минус отступы
        .floating по 16): фото 108×80 слева, текст занимает остальное. Два и больше — 280 / 192, как выше.
@@ -201,8 +230,7 @@
     .slider-track.is-single .ticket { width: 100%; }
     .slider.grabbing .ticket { cursor: grabbing; }
     .ticket.active {
-        background: #ffffff;                  /* Selected=True: Background/Modal #FFFFFF */
-        box-shadow: 0 6px 24px 0 rgba(0, 0, 0, .06), 0 18px 20px 0 rgba(0, 0, 0, .08);   /* Citrus, выбрана: Shadows/High */
+        background: #ffffff;                  /* Selected=True: Background/Modal #FFFFFF; тень — .ticket.active::after */
     }
 
     /* Hall preview: 108×80, фото cover. Своего скругления у превью нет: левые углы срезает скругление
@@ -213,6 +241,7 @@
         width: 108px;
         height: 80px;
         overflow: hidden;
+        border-radius: 16px 0 0 16px;         /* левые углы карточки: у самой карточки нет overflow, тени снаружи */
     }
     .ticket .t-photo-img {
         position: absolute;

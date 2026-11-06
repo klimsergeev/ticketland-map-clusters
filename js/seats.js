@@ -29,6 +29,7 @@
    возвращает массив объектов-мест.
    ============================================================ */
 import { TIER_COLORS } from './data.js';
+import { DURATION } from './motion.js';
 
 const OCCUPIED = '#D8E0E8';
 const SEAT = 8;           // сторона места в единицах схемы
@@ -50,6 +51,16 @@ const norm = (c) => (c || '').toUpperCase();
 
 export function buildSeats(svgRoot) {
     if (!svgRoot) return [];
+
+    // Base seats 8×8 (with the stroke copies of occupied seats) go into one group <g class="seat-base"> in place of the
+    // first of them: the price filter fades the whole group with one opacity instead of hundreds of elements
+    const baseRects = [...svgRoot.querySelectorAll(':scope > rect[width="8"][height="8"]')];
+    if (baseRects.length) {
+        const base = document.createElementNS(SVG_NS, 'g');
+        base.setAttribute('class', 'seat-base');
+        svgRoot.insertBefore(base, baseRects[0]);
+        baseRects.forEach((r) => base.appendChild(r));
+    }
 
     // только rect-места с заливкой (обводочные дубли занятых мест отсеиваются)
     const rects = [...svgRoot.querySelectorAll('rect[width="8"][height="8"]')]
@@ -253,9 +264,9 @@ export function createSelectionLayer(svgRoot) {
    Пока контуры горят, схема стоит: любое касание её гасит. */
 const HL_GAP = 2;          // px экрана, белый зазор между фигурой и контуром
 const HL_LINE = 3;         // px экрана, линия контура
-const HL_SHOW_MS = 100;    // загорание: непрозрачность 0 → 1
-const HL_HOLD_MS = 1000;   // горит
-const HL_OFF_MS = 350;     // гаснет
+const HL_SHOW_MS = DURATION.highlightIn;    // загорание: непрозрачность 0 → 1
+const HL_HOLD_MS = DURATION.highlightHold;   // горит
+const HL_OFF_MS = DURATION.highlightOut;     // гаснет
 
 export function createHighlightLayer(svgRoot) {
     const layer = document.createElementNS(SVG_NS, 'g');

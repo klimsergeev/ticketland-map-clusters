@@ -6,18 +6,23 @@
        scheme is larger), the others are compact 146×64; 8 apart from the strip's left edge. When they do not fit,
        they overlap with an even step so that the row takes the strip width; the active card is on top, then by
        distance from it; a covered card's text ends with an ellipsis at the edge of its visible part.
-     • A new ticket becomes the active one. Hover makes a card active (the last hovered card stays active, as in the
-       former strip); a ticket with gifts also opens upwards into the focus view (its bottom stays on the strip
-       line) while the mouse is on the strip, leaving it closes the card back to the active one.
+     • A new ticket becomes the active one. Hover (mouse only) makes a card active (the last hovered card stays active,
+       as in the former strip); a ticket with gifts also opens upwards into the focus view (its bottom stays on the
+       strip line) while the mouse is on the strip, leaving it closes the card back to the active one.
+     • Touch on a screen from 1024 px: a tap on an inactive card makes it active and moves the scheme to its place;
+       a tap on the active card of a ticket with gifts opens it; a tap outside the strip closes it.
      • Active and focus views: click on the photo — lightbox; Cross (in the focus view — in the title) — the ticket
        leaves with its gifts; Cross of a gift row — only that gift leaves. A click elsewhere on a card moves the
        scheme to its place.
      • The strip is what the checkout button leaves of the 980 column; refit() re-lays the cards when it changes.
-   Motion: card boxes move with a 200 ms decelerating tween, no bounce (views cross-fade with the same CSS curve);
+   Motion: card boxes move with a 200 ms decelerating tween, no bounce (views cross-fade with the same CSS curve).
+   No layout per frame: while a card changes size, its element keeps one size (the union of the old and the new box)
+   for the whole tween, and only transform and clip-path change per frame (layers — css/desktop.css .ds-card);
    a new card appears half a card to the right of its place and slides in while fading in, 250 ms; a removed card
-   goes down 40 px and fades (240 ms, as on mobile) before the strip closes up.
+   goes down 40 px and fades (--duration-short, --ease-out, as on mobile) before the strip closes up.
    ============================================================ */
 import { fillTicketCard } from './desktop-ticket-card.js';
+import { DURATION, EASE_OUT, easeOut, staggerDelay, prefersReducedMotion } from './motion.js';
 
 const CARD_W = 146;            // compact card
 const CARD_H = 64;
@@ -35,33 +40,16 @@ const TEXT_PL = 12;
 const TEXT_PR = 12;
 const TEXT_GAP = 8;
 
-const MOVE_MS = 200;           // boxes of cards that change size or place
-const ENTER_MS = 250;          // new card slides in
+const MOVE_MS = DURATION.short;           // boxes of cards that change size or place (add, remove)
+const HOVER_MS = DURATION.hover;          // hover and touch: a card becomes active, opens, closes
+const ENTER_MS = DURATION.enter;          // new card slides in
 const ENTER_SHIFT = 0.5;       // new card starts this share of its width to the right of its place
-const EXIT_MS = 240;
+const EXIT_MS = DURATION.short;
 const EXIT_DY = 40;
-const EXIT_EASING = 'cubic-bezier(.4,0,1,1)';
+const EXIT_EASING = EASE_OUT;
 
-/* cubic-bezier(x1,y1,x2,y2) as in CSS: time share → path share */
-function cubicBezier(x1, y1, x2, y2) {
-    const a = (p1, p2) => 1 - 3 * p2 + 3 * p1, b = (p1, p2) => 3 * p2 - 6 * p1, c = (p1) => 3 * p1;
-    const at = (t, p1, p2) => ((a(p1, p2) * t + b(p1, p2)) * t + c(p1)) * t;
-    const slope = (t, p1, p2) => 3 * a(p1, p2) * t * t + 2 * b(p1, p2) * t + c(p1);
-    return (x) => {
-        if (x <= 0) return 0;
-        if (x >= 1) return 1;
-        let t = x;
-        for (let i = 0; i < 8; i++) {
-            const d = at(t, x1, x2) - x;
-            const s = slope(t, x1, x2);
-            if (Math.abs(d) < 1e-5 || !s) break;
-            t -= d / s;
-        }
-        return at(Math.min(1, Math.max(0, t)), y1, y2);
-    };
-}
-// decelerating, no overshoot; the same curve is used by the card transitions in desktop.css
-const moveEase = cubicBezier(0.2, 0.8, 0.2, 1);
+// decelerating, no overshoot: --ease-out, the same curve as the card transitions in desktop.css
+const moveEase = easeOut;
 
 /* Card boxes for n cards, the active one at index a (232 wide), open (focus view, focusH high) or not, in a strip
    stripW wide. Step between card starts: card width + GAP while the row fits, else the even step (whole px) that
@@ -81,6 +69,13 @@ function layout(n, a, open, stripW, focusH) {
 
 /* Stacking: the active card on top, then by distance from it */
 const zOf = (k, a) => (a >= 0 ? 100 - Math.abs(k - a) : 100 - k);
+
+const RADIUS = 12;             // compact card
+const RADIUS_ACTIVE = 16;      // active and open card
+const union = (a, b) => {
+    const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y);
+    return { x, y, w: Math.max(a.x + a.w, b.x + b.w) - x, h: Math.max(a.y + a.h, b.y + b.h) - y };
+};
 
 /* parentEl — the checkout bar column, the strip goes first in it;
    getPhoto(entry) → { url, thumb } | null; getGifts(entry) → its gifts (order entries);
@@ -107,6 +102,10 @@ export function createDesktopStrip({ parentEl, getPhoto, getGifts, onRemove, onF
     function fill(item) {
         const { entry, el } = item;
         fillTicketCard(el, entry, getGifts(entry), getPhoto(entry));   // shared card markup (desktop-ticket-card.js)
+        item.shadow = el.querySelector('.ds-shadow');
+        item.body = el.querySelector('.ds-body');
+        item.views = el.querySelector('.ds-views');
+        if (item.frame) draw(item, items.indexOf(item), activeIndex());
         // Cross of the focus view (open) or of the active view (closed)
         el.querySelectorAll('.ds-x, .ds-ax').forEach((btn) => {
             btn.addEventListener('click', (e) => {
@@ -128,41 +127,69 @@ export function createDesktopStrip({ parentEl, getPhoto, getGifts, onRemove, onF
         });
     }
 
-    function paint() {
+    /* Element size of a card: set when a tween starts and when it ends, never per frame */
+    function setFrame(it, f) {
+        it.frame = { x: f.x, y: f.y, w: f.w, h: f.h };
+        it.el.style.width = `${f.w}px`;
+        it.el.style.height = `${f.h}px`;
+    }
+
+    /* One frame of a card: position, stacking, opacity; while its box differs from the element — the clip of the body,
+       the views at the bottom left corner of the visible box and the shadow fitted to it */
+    function draw(it, k, a) {
+        const c = it.cur;
+        const f = it.frame;
+        if (!f || !it.body) return;
+        it.el.style.transform = `translate(${f.x}px, ${f.y}px)`;
+        it.el.style.opacity = c.op >= 1 ? '' : String(c.op);
+        it.el.style.zIndex = String(zOf(k, a));
+        const l = c.x - f.x, t = c.y - f.y;
+        const r = f.x + f.w - (c.x + c.w), b = f.y + f.h - (c.y + c.h);
+        const clipped = Math.abs(l) + Math.abs(t) + Math.abs(r) + Math.abs(b) > 0.01;
+        it.body.style.clipPath = clipped ? `inset(${t}px ${r}px ${b}px ${l}px round ${c.r}px)` : '';
+        it.views.style.transform = clipped ? `translate(${l}px, ${-b}px)` : '';
+        it.shadow.style.transform = clipped ? `translate(${l}px, ${t}px) scale(${c.w / f.w}, ${c.h / f.h})` : '';
+    }
+
+    /* State classes of every card for the current active card; set once per layout change */
+    function setClasses() {
         const a = activeIndex();
         items.forEach((it, k) => {
-            const { x, y, w, h, op } = it.cur;
-            it.el.style.transform = `translate(${x}px, ${y}px)`;
-            it.el.style.width = `${w}px`;
-            it.el.style.height = `${h}px`;
-            it.el.style.opacity = op >= 1 ? '' : String(op);
-            it.el.style.zIndex = String(zOf(k, a));
             it.el.classList.toggle('is-active', k === a);
             it.el.classList.toggle('is-open', k === a && isOpen());
+            it.el.classList.toggle('is-single', items.length === 1);
         });
-        items.forEach((it, k) => fitText(it, k, a));
     }
 
     /* Text of a compact card ends with an ellipsis at the edge of its visible part: a neighbour higher in the stack
-       covers it from that side */
-    function fitText(it, k, a) {
-        const t = it.el.querySelector('.ds-text');
-        if (!t) return;
-        if (k === a) { t.style.paddingLeft = ''; t.style.paddingRight = ''; return; }
-        const c = it.cur;
-        let leftCover = 0;
-        let rightCover = 0;
-        const z = zOf(k, a);
-        if (items[k - 1] && zOf(k - 1, a) > z) {
-            const p = items[k - 1].cur;
-            leftCover = Math.min(c.w, Math.max(0, p.x + p.w - c.x));
-        }
-        if (items[k + 1] && zOf(k + 1, a) > z) {
-            const q = items[k + 1].cur;
-            rightCover = Math.min(c.w, Math.max(0, c.x + c.w - q.x));
-        }
-        t.style.paddingLeft = `${leftCover > 0 ? leftCover + TEXT_GAP : TEXT_PL}px`;
-        t.style.paddingRight = `${rightCover > 0 ? rightCover + TEXT_GAP : TEXT_PR}px`;
+       covers it from that side. Counted once for the boxes the cards are going to */
+    function fitTexts(boxes) {
+        const a = activeIndex();
+        items.forEach((it, k) => {
+            const t = it.el.querySelector('.ds-text');
+            if (!t) return;
+            if (k === a) { t.style.paddingLeft = ''; t.style.paddingRight = ''; return; }
+            const c = boxes[k];
+            let leftCover = 0;
+            let rightCover = 0;
+            const z = zOf(k, a);
+            if (boxes[k - 1] && zOf(k - 1, a) > z) {
+                const p = boxes[k - 1];
+                leftCover = Math.min(c.w, Math.max(0, p.x + p.w - c.x));
+            }
+            if (boxes[k + 1] && zOf(k + 1, a) > z) {
+                const q = boxes[k + 1];
+                rightCover = Math.min(c.w, Math.max(0, c.x + c.w - q.x));
+            }
+            t.style.paddingLeft = `${leftCover > 0 ? leftCover + TEXT_GAP : TEXT_PL}px`;
+            t.style.paddingRight = `${rightCover > 0 ? rightCover + TEXT_GAP : TEXT_PR}px`;
+        });
+    }
+
+    /* Every card at its box, no tween */
+    function pinAll() {
+        const a = activeIndex();
+        items.forEach((it, k) => { setFrame(it, it.cur); draw(it, k, a); });
     }
 
     // natural height of the open card's focus view (photo, title, gift rows)
@@ -170,7 +197,7 @@ export function createDesktopStrip({ parentEl, getPhoto, getGifts, onRemove, onF
 
     /* Move every card from where it is now to the layout for the current open card.
        entering — new cards, which start half their width to the right of their place, transparent */
-    function relayout(entering = []) {
+    function relayout(entering = [], ms = MOVE_MS) {
         cancelAnimationFrame(raf);
         // every change of the open card goes through here: report it once
         const activeEntry = activeItem ? activeItem.entry : null;
@@ -179,32 +206,54 @@ export function createDesktopStrip({ parentEl, getPhoto, getGifts, onRemove, onF
             if (onActive) onActive(activeEntry);
         }
         const n = items.length;
-        if (!n) { paint(); return; }
+        if (!n) return;
+        setClasses();   // before measuring: the open card's focus view must be laid out
         laidW = stripW();
-        const target = layout(n, activeIndex(), isOpen(), laidW, isOpen() ? focusHeight(activeItem) : 0);
+        const a = activeIndex();
+        const radiusOf = (k) => (k === a ? RADIUS_ACTIVE : RADIUS);
+        const target = layout(n, a, isOpen(), laidW, isOpen() ? focusHeight(activeItem) : 0)
+            .map((box, k) => ({ ...box, r: radiusOf(k), op: 1 }));
+        fitTexts(target);
+        root.style.setProperty('--ds-move', `${ms}ms`);
+        // a batch into a strip that already had cards: starts one after another (0, 30, 48 … ms)
+        const stagger = entering.length > 1 && entering.length < items.length;
+        // «reduce motion»: boxes go to their places at once; new cards only fade in (DURATION.short, no shift)
+        const reduce = prefersReducedMotion();
         const tracks = items.map((it, k) => {
             const to = target[k];
-            if (entering.includes(it)) {
-                return { it, to, from: { ...to, x: to.x + to.w * ENTER_SHIFT, op: 0 }, ms: ENTER_MS };
+            if (reduce) {
+                const fresh = entering.includes(it);
+                it.cur = { ...to, op: fresh ? 0 : 1 };
+                setFrame(it, to);
+                return { it, k, to, from: { ...it.cur }, resize: false, ms: fresh ? DURATION.short : 1, delay: 0 };
             }
-            return { it, to, from: { ...it.cur }, ms: MOVE_MS };
+            const from = entering.includes(it)
+                ? { ...to, x: to.x + to.w * ENTER_SHIFT, op: 0 }
+                : { ...it.cur, r: it.cur.r ?? radiusOf(k) };
+            const resize = Math.abs(from.w - to.w) > 0.01 || Math.abs(from.h - to.h) > 0.01;
+            setFrame(it, resize ? union(from, to) : from);
+            const e = entering.indexOf(it);
+            return { it, k, to, from, resize, ms: e !== -1 ? ENTER_MS : ms, delay: e !== -1 && stagger ? staggerDelay(e) : 0 };
         });
         const t0 = performance.now();
         const step = (now) => {
             let running = false;
-            tracks.forEach(({ it, from, to, ms }) => {
-                const t = Math.min(1, (now - t0) / ms);
+            tracks.forEach(({ it, k, from, to, resize, ms: dur, delay }) => {
+                const t = Math.min(1, Math.max(0, (now - t0 - delay) / dur));
                 if (t < 1) running = true;
-                const k = moveEase(t);
+                const e = moveEase(t);
                 it.cur = {
-                    x: from.x + (to.x - from.x) * k,
-                    y: from.y + (to.y - from.y) * k,
-                    w: from.w + (to.w - from.w) * k,
-                    h: from.h + (to.h - from.h) * k,
-                    op: from.op + (1 - from.op) * k,
+                    x: from.x + (to.x - from.x) * e,
+                    y: from.y + (to.y - from.y) * e,
+                    w: from.w + (to.w - from.w) * e,
+                    h: from.h + (to.h - from.h) * e,
+                    r: from.r + (to.r - from.r) * e,
+                    op: from.op + (1 - from.op) * e,
                 };
+                if (t >= 1) { it.cur = { ...to }; setFrame(it, to); }
+                else if (!resize) { it.frame.x = it.cur.x; it.frame.y = it.cur.y; }
+                draw(it, k, a);
             });
-            paint();
             if (running) raf = requestAnimationFrame(step);
         };
         step(t0);
@@ -215,24 +264,47 @@ export function createDesktopStrip({ parentEl, getPhoto, getGifts, onRemove, onF
         if (deleting || (item === activeItem && open)) return;
         activeItem = item;
         open = true;
-        relayout();
+        relayout([], HOVER_MS);
     }
-    // the open card sticks out above the strip but is its child: leaving it upwards leaves the strip too
-    root.addEventListener('pointerleave', () => {
+    function close() {
         if (deleting || !open) return;
         open = false;
-        relayout();
-    });
+        relayout([], HOVER_MS);
+    }
+    // the open card sticks out above the strip but is its child: leaving it upwards leaves the strip too
+    root.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') close(); });
+    // touch: a tap outside the strip closes the open card
+    document.addEventListener('pointerdown', (e) => {
+        if (e.pointerType !== 'mouse' && open && !root.contains(e.target)) close();
+    }, true);
+
+    /* Touch on a card (instead of hover): true — the tap is used up */
+    function touchCard(item, e) {
+        if (item !== activeItem) {
+            activeItem = item;
+            open = false;
+            relayout([], HOVER_MS);
+            onFocus(item.entry);   // the scheme goes to its place
+            return true;
+        }
+        if (!open && getGifts(item.entry).length) {
+            open = true;
+            relayout([], HOVER_MS);
+            return true;
+        }
+        return false;   // the active card: photo, crosses and the rest as with the mouse
+    }
 
     /* Card element for a ticket, with hover (open) and click (photo of the open card — lightbox, else — focus) */
     function makeItem(entry) {
         const el = document.createElement('div');
         el.className = 'ds-card';
-        const item = { entry, el, cur: { x: 0, y: CARD_TOP, w: CARD_W, h: CARD_H, op: 0 } };
+        const item = { entry, el, cur: { x: 0, y: CARD_TOP, w: CARD_W, h: CARD_H, r: RADIUS, op: 0 }, frame: null };
         fill(item);
-        el.addEventListener('pointerenter', () => hover(item));
+        el.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') hover(item); });
         el.addEventListener('click', (e) => {
             if (deleting) return;
+            if (e.pointerType && e.pointerType !== 'mouse' && touchCard(item, e)) return;
             const photoHit = isOpen() ? e.target.closest('.ds-photo') : e.target.closest('.ds-aphoto');
             if (photoHit && item === activeItem) { if (onPhoto) onPhoto(item.entry); return; }
             onFocus(item.entry);
@@ -287,6 +359,7 @@ export function createDesktopStrip({ parentEl, getPhoto, getGifts, onRemove, onF
     function removeWithExit(i) {
         deleting = true;
         cancelAnimationFrame(raf);
+        pinAll();          // a tween cut short: every card at its current box, nothing clipped
         const it = items[i];
         onRemove(it.entry);   // the ticket and its gifts leave the order
         const clone = it.el.cloneNode(true);
@@ -309,7 +382,7 @@ export function createDesktopStrip({ parentEl, getPhoto, getGifts, onRemove, onF
         };
         clone.addEventListener('transitionend', (e) => { if (e.propertyName === 'opacity' && exitDone) exitDone(); });
         setTimeout(() => { if (exitDone) exitDone(); }, EXIT_MS + 120);
-        clone.style.transform = `translate(${it.cur.x}px, ${it.cur.y + EXIT_DY}px)`;
+        clone.style.transform = `translate(${it.cur.x}px, ${it.cur.y + (prefersReducedMotion() ? 0 : EXIT_DY)}px)`;
         clone.style.opacity = '0';
     }
 
@@ -325,9 +398,12 @@ export function createDesktopStrip({ parentEl, getPhoto, getGifts, onRemove, onF
         open = false;
         lastActive = activeItem ? activeItem.entry : null;
         laidW = stripW();
-        const target = layout(items.length, activeIndex(), false, laidW, 0);
-        items.forEach((it, k) => { it.cur = { ...target[k], op: 1 }; });
-        paint();
+        const a = activeIndex();
+        const target = layout(items.length, a, false, laidW, 0);
+        items.forEach((it, k) => { it.cur = { ...target[k], r: k === a ? RADIUS_ACTIVE : RADIUS, op: 1 }; });
+        setClasses();
+        fitTexts(items.map((it) => it.cur));
+        pinAll();
     }
 
     /* The strip width changed (the checkout button got wider or narrower with the sum): cards move to the
@@ -340,7 +416,8 @@ export function createDesktopStrip({ parentEl, getPhoto, getGifts, onRemove, onF
     /* Refill cards after section photos arrive */
     function refresh() {
         items.forEach(fill);
-        paint();
+        setClasses();
+        fitTexts(items.map((it) => it.cur));
     }
 
     return {

@@ -51,7 +51,7 @@ html, body {
     -webkit-tap-highlight-color: transparent;
     -webkit-appearance: none;
     appearance: none;
-    transition: background 160ms cubic-bezier(0.2, 0, 0, 1), border-color 160ms cubic-bezier(0.2, 0, 0, 1);
+    transition: background var(--duration-state) var(--ease-state), border-color var(--duration-state) var(--ease-state);
 }
 .legend .pill.active {
     background: #ffffff;
@@ -99,20 +99,15 @@ html, body {
     pointer-events: none;
 }
 
-/* --- Фильтр цены: бледнение невыбранных мест ---
+/* --- Фильтр цены: бледнение мест ---
    Активен ≥1 тир → на <svg> класс .filtering (см. updateFade в js/price-filter.js).
-   Бледнеют базовые 8×8-места схемы: доступные НЕ активных тиров и ВСЕ
-   занятые (у занятого — оба rect: заливка + белая обводка, обе width=8).
-   Места активного тира помечены .tier-active → остаются в полном цвете.
-   Слои увеличения (.filter-layer) и выбора (.sel-layer) из бледнения ИСКЛЮЧЕНЫ,
-   поэтому увеличенные копии и оранжевый маркер выбора не приглушаются. */
-.map-content .hall-svg svg rect[width="8"] { transition: opacity .18s ease; }
-.map-content .hall-svg svg.filtering rect[width="8"] { opacity: .25; }
-.map-content .hall-svg svg.filtering rect[width="8"].tier-active { opacity: 1; }
-.map-content .hall-svg svg.filtering .filter-layer rect[width="8"],
-.map-content .hall-svg svg.filtering .sel-layer rect[width="8"] { opacity: 1; }
-/* Танцпол (.seatless) бледнеет так же, как места; при активном своём тире (.tier-active) — полный цвет */
-.map-content .hall-svg svg .seatless { transition: opacity .18s ease; }
+   Бледнеет одна группа базовых 8×8-мест .seat-base (js/seats.js buildSeats) — все места, занятые и свободные.
+   Места выбранных цен полноцветны за счёт копий в слое .filter-layer поверх группы; слой выбора .sel-layer
+   в группу не входит. */
+.map-content .hall-svg svg .seat-base { transition: opacity var(--duration-fade) ease; }
+.map-content .hall-svg svg.filtering .seat-base { opacity: .25; }
+/* Танцпол (.seatless) бледнеет так же; при активном своём тире (.tier-active) — полный цвет */
+.map-content .hall-svg svg .seatless { transition: opacity var(--duration-fade) ease; }
 .map-content .hall-svg svg.filtering .seatless { opacity: .25; }
 .map-content .hall-svg svg.filtering .seatless.tier-active { opacity: 1; }
 

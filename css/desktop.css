@@ -119,7 +119,7 @@
        the strip takes what the button leaves (768 next to the 196 button).
        The hidden «Tickets amount» and the Alert button on the left are not made.
        Hidden below the page bottom while the order is empty; slides up with the first ticket and down when the
-       order empties (not in the mockup: 250 ms decelerating in, 240 ms accelerating out, as the strip cards) ---- */
+       order empties (not in the mockup: 250 ms in with --ease-out, 200 ms out with --ease-exit) ---- */
     .d-checkout {
         position: absolute;
         left: 0;
@@ -133,12 +133,17 @@
         background: #ffffff;
         transform: translateY(100%);
         visibility: hidden;
-        transition: transform 240ms cubic-bezier(.4, 0, 1, 1), visibility 0s 240ms;
+        transition: transform var(--duration-short) var(--ease-exit), visibility 0s var(--duration-short);
     }
     .d-checkout.is-shown {
         transform: none;
         visibility: visible;
-        transition: transform 250ms cubic-bezier(.2, .8, .2, 1), visibility 0s;
+        transition: transform var(--duration-enter) var(--ease-out), visibility 0s;
+    }
+    /* «reduce motion»: the bar fades instead of sliding */
+    @media (prefers-reduced-motion: reduce) {
+        .d-checkout { transform: none; opacity: 0; transition: opacity var(--duration-short) ease, visibility 0s var(--duration-short); }
+        .d-checkout.is-shown { opacity: 1; transition: opacity var(--duration-short) ease, visibility 0s; }
     }
     .d-checkout-col {
         width: 980px;
@@ -161,21 +166,44 @@
     /* Compact: 146×64, radius 12, Background/Modal, 1 px stroke Background/Stroke rgba(188,195,208,.5), no shadow.
        Active (232×72, photo on the left) and open (focus view, 232 wide): radius 16, no stroke,
        Shadows/High (#0000000F 0,6 r24; #00000014 0,18 r20).
-       The stroke is an overlay, as in Figma it takes no room from the content */
+       The card box (size, position) comes from js/desktop-strip.js. While it changes size, the element keeps one size
+       for the whole tween and only transform and clip-path change per frame:
+         .ds-card — position (translate), stacking, entering opacity; takes no pointer events itself;
+         .ds-shadow — Shadows/High on its own layer, outside the clip, fitted to the visible box by transform;
+         .ds-body — background, stroke and the views, clipped to the visible box (clip-path inset … round R);
+         .ds-views — the views, moved to the bottom left corner of the visible box.
+       Transitions of the views, stroke and shadow take the strip's tween duration (--ds-move, set by JS) */
     .ds-card {
         position: absolute;
         left: 0;
         top: 0;
+        pointer-events: none;
+        cursor: default;
+        user-select: none;
+    }
+    .ds-shadow {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        border-radius: 16px;
+        box-shadow: 0 6px 24px 0 rgba(0, 0, 0, .06), 0 18px 20px 0 rgba(0, 0, 0, .08);
+        transform-origin: 0 0;
+        opacity: 0;
+        transition: opacity var(--ds-move, var(--duration-short)) var(--ease-out);
+    }
+    .ds-card.is-active .ds-shadow { opacity: 1; }
+    .ds-body {
+        position: absolute;
+        inset: 0;
         border-radius: 12px;
         overflow: hidden;
         background: #ffffff;
-        box-shadow: 0 6px 24px 0 rgba(0, 0, 0, 0), 0 18px 20px 0 rgba(0, 0, 0, 0);
-        cursor: default;
-        user-select: none;
-        /* same duration and curve as the box tween in desktop-strip.js (MOVE_MS, moveEase) */
-        transition: box-shadow 200ms cubic-bezier(.2, .8, .2, 1), border-radius 200ms cubic-bezier(.2, .8, .2, 1);
+        pointer-events: auto;
     }
-    .ds-card::after {
+    .ds-card.is-active .ds-body { border-radius: 16px; }
+    .ds-body::after {
         content: '';
         position: absolute;
         inset: 0;
@@ -183,15 +211,18 @@
         border: 1px solid rgba(188, 195, 208, .5);
         border-radius: inherit;
         pointer-events: none;
-        transition: opacity 200ms cubic-bezier(.2, .8, .2, 1);
+        transition: opacity var(--ds-move, var(--duration-short)) var(--ease-out);
     }
-    .ds-card.is-active {
-        border-radius: 16px;
-        box-shadow: 0 6px 24px 0 rgba(0, 0, 0, .06), 0 18px 20px 0 rgba(0, 0, 0, .08);
+    .ds-card.is-active .ds-body::after { opacity: 0; }
+    .ds-views {
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        height: 100%;
     }
-    .ds-card.is-active::after { opacity: 0; }
 
-    /* The views stand on the card's bottom left corner, so the open card grows upwards over them;
+    /* The views stand on the bottom left corner of the visible box, so the open card grows upwards over them;
        they cross-fade with the box tween: compact — other cards, active — the active card, focus — the open one */
     .ds-compact,
     .ds-active,
@@ -199,7 +230,7 @@
         position: absolute;
         left: 0;
         bottom: 0;
-        transition: opacity 200ms cubic-bezier(.2, .8, .2, 1);
+        transition: opacity var(--ds-move, var(--duration-short)) var(--ease-out);
     }
     .ds-compact {
         width: 146px;
@@ -217,14 +248,15 @@
     }
     .ds-card.is-open .ds-focus { opacity: 1; pointer-events: auto; }
     .ds-active {
-        top: 0;
         width: 232px;
+        height: 72px;              /* 64 when it is the only ticket (.is-single) */
         display: flex;
         align-items: center;
         opacity: 0;
         pointer-events: none;
     }
     .ds-card.is-active:not(.is-open) .ds-active { opacity: 1; pointer-events: auto; }
+    .ds-card.is-single .ds-active { height: 64px; }
 
     /* Active view, as the former strip (Figma 5122:31333): «Hall preview» full card height, aspect 108/80,
        Icon button 32 radius 6 at right 4.4 bottom 4 with Search 24 white; lines padding 8 left (12 without a photo)
@@ -522,8 +554,10 @@
     /* ---- Dancefloor and gift dialogs (shared js/seatless-dialog.js, js/gift-dialog.js, base styles css/seatless.css):
        Figma 5138:10613 «Dialog / Desktop» — a dialog centred on the screen over Background/Overlay rgba(29,32,35,.4)
        instead of the mobile bottom sheet. «Content»: Background/Modal, width 440 (max-width 440), max height 728,
-       radius 16, bottom padding 20, Shadows/High (#0000000F 0,6 r24; #00000014 0,18 r20). Appears by fading in ---- */
-    .sd-scrim { position: fixed; }
+       radius 16, bottom padding 20, Shadows/High (#0000000F 0,6 r24; #00000014 0,18 r20).
+       Comes in from scale .96 with opacity, centred (250 ms), goes out faster (200 ms); the scrim keeps the same timing ---- */
+    .sd-scrim { position: fixed; transition: opacity var(--duration-short) var(--ease-out), visibility 0s linear var(--duration-short); }
+    .sd-scrim.is-shown { transition: opacity var(--duration-enter) var(--ease-out), visibility 0s; }
     .sd-sheet,
     .sd-sheet.is-open {
         position: fixed;
@@ -534,15 +568,23 @@
         max-height: 728px;
         border-radius: 16px;
         box-shadow: 0 6px 24px 0 rgba(0, 0, 0, .06), 0 18px 20px 0 rgba(0, 0, 0, .08);
-        transform: none;
+        transform-origin: 50% 50%;
     }
     .sd-sheet {
         opacity: 0;
-        transition: opacity 250ms cubic-bezier(.2, .8, .2, 1), visibility 0s linear 250ms;
+        transform: scale(.96);
+        transition: opacity var(--duration-short) var(--ease-out), transform var(--duration-short) var(--ease-out),
+            visibility 0s linear var(--duration-short);
     }
     .sd-sheet.is-open {
         opacity: 1;
-        transition: opacity 250ms cubic-bezier(.2, .8, .2, 1), visibility 0s;
+        transform: none;
+        transition: opacity var(--duration-enter) var(--ease-out), transform var(--duration-enter) var(--ease-out), visibility 0s;
+    }
+    /* «reduce motion»: the dialog fades without the scale */
+    @media (prefers-reduced-motion: reduce) {
+        .sd-sheet,
+        .sd-sheet.is-open { transform: none; }
     }
     /* «Dialog title»: padding 20 on all sides (mobile: 16 below), 4 between title and subtitle (mobile: 2) */
     .sd-title { padding: 20px; }

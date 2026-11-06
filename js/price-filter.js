@@ -5,6 +5,7 @@
    ============================================================ */
 import { TIER_COLORS, TIER_PRICES, formatPrice } from './data.js';
 import { spring } from './spring.js';
+import { DURATION, criticalDamping } from './motion.js';
 
 /* --- Рендер легенды (цвет→цена). Пилюли = ФИЛЬТР цены:
        клик по пилюле увеличивает доступные места её тира (см. toggleTierFilter).
@@ -113,7 +114,7 @@ export function createPriceFilter({ legendEl, getHall, getScheme }) {
         st.target = target;
         if (st.stop) { st.stop(); st.stop = null; }
         st.stop = spring({
-            from: st.p, to: target,
+            from: st.p, to: target, damping: criticalDamping(840), restDelta: 0.001, restSpeed: 0.001,
             onUpdate: (v) => { st.p = v; renderFilter(); },
             onDone: () => {
                 st.stop = null;
@@ -132,27 +133,20 @@ export function createPriceFilter({ legendEl, getHall, getScheme }) {
         updateFade();
     }
 
-    /* Бледнение при активном фильтре. Активен ≥1 тир (target===1) → на корневой
-       <svg> вешаем класс .filtering: CSS приглушает ВСЕ базовые 8×8-места,
-       а места активных тиров помечаем классом .tier-active (CSS возвращает им полный цвет).
-       Слои .filter-layer/.sel-layer из бледнения исключены в CSS, поэтому
-       увеличенные копии и оранжевый маркер остаются в полном цвете. */
+    /* Бледнение при активном фильтре. Активен ≥1 тир (target===1) → на корневой <svg> класс .filtering:
+       CSS приглушает одну группу базовых мест .seat-base. Места активных тиров полноцветны за счёт копий
+       в .filter-layer (renderFilter), оранжевый маркер — в .sel-layer вне группы */
     function updateFade() {
-        const { seats, svgEl: hallSvgEl, seatlessEls } = getScheme();
+        const { svgEl: hallSvgEl, seatlessEls } = getScheme();
         if (!hallSvgEl) return;
         const active = new Set();
         filterTiers.forEach((st, color) => { if (st.target === 1) active.add(color); });
         if (active.size === 0) {
             hallSvgEl.classList.remove('filtering');
-            seats.forEach((s) => s.el.classList.remove('tier-active'));
             seatlessEls.forEach((g) => g.classList.remove('tier-active'));
             return;
         }
         hallSvgEl.classList.add('filtering');
-        seats.forEach((s) => {
-            const on = s.status === 'available' && s.tier && active.has(s.tier);
-            s.el.classList.toggle('tier-active', on);
-        });
         // танцпол: свой тир (data-tier) — в полном цвете, только если активен его тир
         seatlessEls.forEach((g) => g.classList.toggle('tier-active', active.has((g.dataset.tier || '').toUpperCase())));
     }
@@ -167,14 +161,22 @@ export function createPriceFilter({ legendEl, getHall, getScheme }) {
 
     /* Сброс фильтра: мгновенно вернуть размеры и погасить обводки пилюль.
        Вызывается при любом взаимодействии со схемой (hall.onInteract). */
+    let clearTimer = 0;
     function clearFilters() {
         if (!filterTiers.size) { updateLegendActive(); updateFade(); return; }
-        const { renderFilterLayer } = getScheme();
+        const { seats, renderFilterLayer } = getScheme();
         filterTiers.forEach((st) => { if (st.stop) st.stop(); });
+        // places of the active prices: copies at their own size stay over the group while it comes back from
+        // the fade, so they do not dim for a moment; the enlarged size goes at once
+        const tiers = new Set([...filterTiers].filter(([, st]) => st.target === 1).map(([c]) => c));
         filterTiers.clear();
-        if (renderFilterLayer) renderFilterLayer([]);
+        if (renderFilterLayer) {
+            renderFilterLayer(seats.filter((s) => s.status === 'available' && !s.selected && tiers.has(s.tier)).map((s) => ({ s, sc: 1 })));
+            clearTimeout(clearTimer);
+            clearTimer = setTimeout(() => { if (!filterTiers.size) renderFilterLayer([]); }, DURATION.fade);
+        }
         updateLegendActive();
-        updateFade();       // снять .filtering и все .tier-active → полный цвет у всех
+        updateFade();       // снять .filtering → группа мест возвращается к полной непрозрачности
     }
 
     return { render: renderLegend, redraw: renderFilter, clear: clearFilters };

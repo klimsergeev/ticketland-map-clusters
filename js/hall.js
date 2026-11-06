@@ -18,6 +18,7 @@
    схема вправо, положительный ty — вниз). viewBox выводится из
    состояния. ppu (px на SVG-юнит) = cover(vp) * scale.
    ============================================================ */
+import { DURATION, easeOutCubic, rubberband, releaseSpring, windowedVelocity, FLICK_SPEED, prefersReducedMotion } from './motion.js';
 
 const MAX_SCALE = 5;
 
@@ -33,6 +34,18 @@ const BASE_H = 582;
 /* Небольшой отступ клэмпа пана (экранные px): до крайних мест можно
    доехать с этим зазором, но без гигантского пустого поля. */
 const PAD = 24;
+
+/* Pan gestures: past the pan bound the scheme follows with growing friction (rubberband, constant RUBBER);
+   after the release it coasts with the release velocity, the velocity × INERTIA_DECAY every millisecond,
+   and comes back to the bound by a spring (js/motion.js releaseSpring) */
+const RUBBER = 0.55;
+const INERTIA_DECAY = 0.998;
+const INERTIA_STOP = 0.1;   // px per frame: the coast stops below this
+// inverse of rubberband(): the raw overshoot that gives the visible one (to grab a scheme that is past its bound)
+const unrubber = (o, d, c = RUBBER) => {
+    const a = Math.min(Math.abs(o), d * 0.999);
+    return Math.sign(o) * (a * d) / (c * (d - a));
+};
 
 export class HallViewport {
     /* opts: { topInset, bottomInset, restOffsetY, onTap, onInteract } — insets в экранных px (число|fn):
@@ -158,6 +171,66 @@ export class HallViewport {
         if (this.opts.onView) this.opts.onView();
     }
 
+    /* Pan by a gesture: past the bound the scheme follows with growing friction */
+    _applyRubber(nx, ny) {
+        const { VW, VH } = this._dims();
+        const [cx, cy] = this._clampPan(nx, ny, this.scale);
+        this.tx = cx + rubberband(nx - cx, VW, RUBBER);
+        this.ty = cy + rubberband(ny - cy, VH, RUBBER);
+        this._renderViewBox();
+        if (this.opts.onView) this.opts.onView();
+    }
+
+    /* Raw (before friction) pan that shows the current one: a new grab of a scheme past its bound goes on from it */
+    _rawPan() {
+        const { VW, VH } = this._dims();
+        const [cx, cy] = this._clampPan(this.tx, this.ty, this.scale);
+        return [cx + unrubber(this.tx - cx, VW), cy + unrubber(this.ty - cy, VH)];
+    }
+
+    /* Release of a pan with velocity (px/s): coast with decay, past the bound — spring back to it.
+       Each axis on its own. Any touch, press, wheel or programmatic move stops it (they cancel this._raf) */
+    _release(vx, vy) {
+        cancelAnimationFrame(this._raf);
+        const flick = Math.hypot(vx, vy) / 1000 > FLICK_SPEED;
+        if (prefersReducedMotion()) { this._apply(this.scale, this.tx, this.ty); return; }
+        const axes = [
+            { p: this.tx, v: flick ? vx : 0, spring: null },
+            { p: this.ty, v: flick ? vy : 0, spring: null },
+        ];
+        let last = performance.now();
+        const step = (now) => {
+            const dt = Math.min(now - last, 34) / 1000;   // s
+            last = now;
+            const bounds = this._clampPan(axes[0].p, axes[1].p, this.scale);
+            let moving = false;
+            axes.forEach((a, i) => {
+                const b = bounds[i];
+                if (!a.spring && Math.abs(a.p - b) > 0.01) a.spring = releaseSpring(a.v);   // left the bound: spring back
+                if (a.spring) {
+                    const sub = Math.max(1, Math.ceil(dt / (1 / 240)));
+                    const h = dt / sub;
+                    for (let k = 0; k < sub; k++) {
+                        const acc = -a.spring.stiffness * (a.p - b) - a.spring.damping * a.v;
+                        a.v += acc * h;
+                        a.p += a.v * h;
+                    }
+                    if (Math.abs(a.p - b) < 0.35 && Math.abs(a.v) < 0.35) { a.p = b; a.v = 0; } else moving = true;
+                } else {
+                    a.v *= Math.pow(INERTIA_DECAY, dt * 1000);
+                    const d = a.v * dt;
+                    if (Math.abs(d) < INERTIA_STOP) a.v = 0; else { a.p += d; moving = true; }
+                }
+            });
+            this.tx = axes[0].p;
+            this.ty = axes[1].p;
+            this._renderViewBox();
+            if (this.opts.onView) this.opts.onView();
+            if (moving) this._raf = requestAnimationFrame(step);
+        };
+        this._raf = requestAnimationFrame(step);
+    }
+
     /* Вывести viewBox из (scale, tx, ty).
        ppu = cover*scale; окно viewBox = VW/ppu × VH/ppu (аспект = аспекту
        вьюпорта → SVG заполняет слой без леттербокса). Центр окна в
@@ -183,11 +256,17 @@ export class HallViewport {
     /* Плавный переход состояния (фокус на точке) — твин по rAF,
        т.к. CSS-transition к атрибуту viewBox не применяется. */
     _animateTo(s, nx, ny, onDone) {
+        cancelAnimationFrame(this._raf);
+        if (prefersReducedMotion()) {   // the camera does not travel across the whole surface: the end view at once
+            this._apply(s, nx, ny);
+            if (onDone) onDone();
+            return;
+        }
         const fromS = this.scale, fromX = this.tx, fromY = this.ty;
-        const dur = 260;
+        const dur = DURATION.camera;
         const t0 = performance.now();
         cancelAnimationFrame(this._raf);
-        const ease = (t) => 1 - Math.pow(1 - t, 3); // ease-out cubic
+        const ease = easeOutCubic;
         const step = (now) => {
             const p = Math.min(1, (now - t0) / dur);
             const k = ease(p);
@@ -339,7 +418,9 @@ export class HallViewport {
         cancelAnimationFrame(this._raf);
         this._userInteract();   // жест пользователя → сброс фильтра
         this._tap = { x: e.clientX, y: e.clientY, t: performance.now() };
-        this.drag = { active: true, startX: e.clientX, startY: e.clientY, baseTx: this.tx, baseTy: this.ty, pid: e.pointerId };
+        const [bx, by] = this._rawPan();
+        this.drag = { active: true, startX: e.clientX, startY: e.clientY, baseTx: bx, baseTy: by, pid: e.pointerId,
+            samples: [{ t: performance.now(), x: e.clientX, y: e.clientY }] };
         try { this.vp.setPointerCapture(e.pointerId); } catch {}
         this.vp.classList.add('grabbing');
     };
@@ -347,16 +428,31 @@ export class HallViewport {
         if (!this.drag.active || e.pointerType === 'touch') return;
         const dx = e.clientX - this.drag.startX;
         const dy = e.clientY - this.drag.startY;
-        this._apply(this.scale, this.drag.baseTx + dx, this.drag.baseTy + dy);
+        this._sample(this.drag.samples, e.clientX, e.clientY);
+        this._applyRubber(this.drag.baseTx + dx, this.drag.baseTy + dy);
     };
+
+    /* Last positions of a pan for its release velocity */
+    _sample(samples, x, y) {
+        samples.push({ t: performance.now(), x, y });
+        if (samples.length > 12) samples.shift();
+    }
+    _releaseFrom(samples) {
+        const now = performance.now();
+        const vx = windowedVelocity(samples.map((p) => ({ t: p.t, x: p.x })), now);
+        const vy = windowedVelocity(samples.map((p) => ({ t: p.t, x: p.y })), now);
+        this._release(vx, vy);
+    }
     _onPointerUp = (e) => {
         // палец: тап считает touchend (_onTouchEnd) — там же гасится «призрачный» click. pointerup касания
         // приходит раньше touchend и раньше забирал тап себе, тогда touchend уже нечего было отменять
         if (e.pointerType === 'touch') return;
+        const wasDragging = this.drag.active;
         this.drag.active = false;
         this.vp.classList.remove('grabbing');
         try { this.vp.releasePointerCapture(e.pointerId); } catch {}
-        this._maybeTap(e.clientX, e.clientY);
+        if (this._maybeTap(e.clientX, e.clientY) || !wasDragging) return;
+        this._releaseFrom(this.drag.samples || []);
     };
 
     /* Если жест не превратился в пан (смещение < TAP_DIST, время < TAP_TIME) —
@@ -380,7 +476,12 @@ export class HallViewport {
         this._userInteract();   // жест пользователя → сброс фильтра
         const delta = -e.deltaY * 0.003;
         const next = Math.max(this._fitScale(), Math.min(MAX_SCALE, this.scale + delta));
-        this._apply(next, this.tx, this.ty);
+        // the scheme point under the cursor stays under it: t' = p − (p − t) · k, p — from the viewport centre
+        const r = this.vp.getBoundingClientRect();
+        const px = e.clientX - r.left - r.width / 2;
+        const py = e.clientY - r.top - r.height / 2;
+        const k = next / this.scale;
+        this._apply(next, px - (px - this.tx) * k, py - (py - this.ty) * k);
     };
 
     /* ---- touch: pinch-зум + 1-палец пан ---- */
@@ -389,16 +490,24 @@ export class HallViewport {
         this._userInteract();   // жест пользователя → сброс фильтра
         if (e.touches.length === 2) {
             const [a, b] = e.touches;
+            const r = this.vp.getBoundingClientRect();
             this.pinch = {
                 active: true,
                 baseDist: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
                 baseScale: this.scale,
+                // the scheme point under the middle of the fingers follows the middle (from the viewport centre)
+                mx0: (a.clientX + b.clientX) / 2 - r.left - r.width / 2,
+                my0: (a.clientY + b.clientY) / 2 - r.top - r.height / 2,
+                tx0: this.tx,
+                ty0: this.ty,
             };
             this.touchPan.active = false;
         } else if (e.touches.length === 1) {
             const t = e.touches[0];
             this._tap = { x: t.clientX, y: t.clientY, t: performance.now() };
-            this.touchPan = { active: true, startX: t.clientX, startY: t.clientY, baseTx: this.tx, baseTy: this.ty };
+            const [bx, by] = this._rawPan();
+            this.touchPan = { active: true, startX: t.clientX, startY: t.clientY, baseTx: bx, baseTy: by,
+                samples: [{ t: performance.now(), x: t.clientX, y: t.clientY }] };
             this.pinch.active = false;
             this.vp.classList.add('grabbing');
         }
@@ -410,13 +519,18 @@ export class HallViewport {
             const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
             const ratio = d / (this.pinch.baseDist || 1);
             const next = Math.max(this._fitScale(), Math.min(MAX_SCALE, this.pinch.baseScale * ratio));
-            this._apply(next, this.tx, this.ty);
+            const r = this.vp.getBoundingClientRect();
+            const mx = (a.clientX + b.clientX) / 2 - r.left - r.width / 2;
+            const my = (a.clientY + b.clientY) / 2 - r.top - r.height / 2;
+            const k = next / this.pinch.baseScale;
+            this._apply(next, mx - (this.pinch.mx0 - this.pinch.tx0) * k, my - (this.pinch.my0 - this.pinch.ty0) * k);
         } else if (this.touchPan.active && e.touches.length === 1) {
             e.preventDefault();
             const t = e.touches[0];
             const dx = t.clientX - this.touchPan.startX;
             const dy = t.clientY - this.touchPan.startY;
-            this._apply(this.scale, this.touchPan.baseTx + dx, this.touchPan.baseTy + dy);
+            this._sample(this.touchPan.samples, t.clientX, t.clientY);
+            this._applyRubber(this.touchPan.baseTx + dx, this.touchPan.baseTy + dy);
         }
     };
     _onTouchEnd = (e) => {
@@ -426,7 +540,8 @@ export class HallViewport {
             // тап обработан здесь — гасим совместимые mouse-события и click, которые браузер иначе пришлёт
             // в ту же точку после touchend: под пальцем к этому моменту уже открытый диалог, и «призрачный»
             // click по затемнению сразу его закрывал (тап по танцполу на телефоне и в режиме устройства DevTools)
-            if (this._maybeTap(t.clientX, t.clientY) && e.cancelable) e.preventDefault();
+            if (this._maybeTap(t.clientX, t.clientY)) { if (e.cancelable) e.preventDefault(); }
+            else if (this.touchPan.active) this._releaseFrom(this.touchPan.samples || []);
         } else {
             this._tap = null;
         }

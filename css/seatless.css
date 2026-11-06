@@ -14,12 +14,12 @@
     background: rgba(29, 32, 35, .4);
     opacity: 0;
     visibility: hidden;
-    transition: opacity 250ms cubic-bezier(.2, .8, .2, 1), visibility 0s linear 250ms;
+    transition: opacity var(--duration-enter) var(--ease-out), visibility 0s linear var(--duration-enter);
 }
 .sd-scrim.is-shown {
     opacity: 1;
     visibility: visible;
-    transition: opacity 250ms cubic-bezier(.2, .8, .2, 1), visibility 0s;
+    transition: opacity var(--duration-enter) var(--ease-out), visibility 0s;
 }
 
 /* Шторка «Content»: белая (Background/Modal), сверху скругление 16, снизу отступ 20;
@@ -42,14 +42,28 @@
     touch-action: none;                        /* свайп вниз ловит js */
     transform: translateY(100%);
     visibility: hidden;
-    transition: transform 250ms cubic-bezier(.2, .8, .2, 1), visibility 0s linear 250ms;
+    transition: transform var(--duration-enter) var(--ease-out), visibility 0s linear var(--duration-enter);
 }
 .sd-sheet.is-open {
     transform: none;
     visibility: visible;
-    transition: transform 250ms cubic-bezier(.2, .8, .2, 1), visibility 0s;
+    transition: transform var(--duration-enter) var(--ease-out), visibility 0s;
 }
-.sd-sheet.is-dragging { transition: none; }
+.sd-sheet.is-dragging,
+.sd-scrim.is-dragging { transition: none; }
+/* «уменьшить движение»: шторка не выезжает, а проявляется; затемнение — тоже прозрачностью */
+@media (prefers-reduced-motion: reduce) {
+    .sd-scrim,
+    .sd-scrim.is-shown { transition: opacity var(--duration-short) ease, visibility 0s linear var(--duration-short); }
+    .sd-scrim.is-shown { transition-delay: 0s; }
+    .sd-sheet,
+    .sd-sheet.is-open { transform: none; }
+    .sd-sheet { opacity: 0; transition: opacity var(--duration-short) ease, visibility 0s linear var(--duration-short); }
+    .sd-sheet.is-open { opacity: 1; transition: opacity var(--duration-short) ease, visibility 0s; }
+}   /* шторку и затемнение ведёт палец или пружина (js/bottom-sheet.js) */
+/* closed from the keyboard (Esc): no transition */
+.sd-sheet[data-instant],
+.sd-scrim[data-instant] { transition: none !important; }
 
 /* ---------- Фото в шапке — в Citrus его нет, выводится только при SHOW_PHOTO в js/seatless-dialog.js ---------- */
 .sd-photo {

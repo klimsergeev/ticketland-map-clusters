@@ -2,6 +2,9 @@
    Лайтбокс с фото секций зала (вид с места).
    ============================================================ */
 
+import { DURATION, EASE_OUT, windowedVelocity, releaseSpring, FLICK_SPEED, prefersReducedMotion } from './motion.js';
+import { spring } from './spring.js';
+
 // Иконки Citrus «Lightbox / citrus» (файл Z4wmhHaKhZMV8UI79y1a9Y, 4982:4980), 32×32, файлами:
 // крестик Cross #1D2023 (I4982:4982), шевроны Chevron Left и Right белые (I4982:5443, I4982:5454)
 const ICON_CLOSE = 'assets/lightbox-close-32.svg';
@@ -11,16 +14,16 @@ const ICON_NEXT = 'assets/lightbox-chevron-right-32.svg';
 // Стрелки «‹ ›»: false — спрятать (класс no-arrows). Листание тапом по краям фото и клавишами работает в обоих случаях
 const SHOW_ARROWS = true;
 
-const RETURN_MS = 150;      // возврат фото к краю после пана за край, возврат после короткого вертикального свайпа
+const RETURN_MS = DURATION.return;      // возврат фото к краю после пана за край, возврат после короткого вертикального свайпа
 const SWIPE_CLOSE = 80;     // px: вертикальный свайп дальше — закрытие, вверх или вниз
 const SWIPE_SLOP = 6;       // px: меньше — это тап, а не свайп
 
-const LB_MS = 200;          // проявление и гашение лайтбокса
-const SLIDE_MS = 250;       // листание
+const LB_MS = DURATION.short;      // проявление и гашение лайтбокса
+const SLIDE_MS = DURATION.enter;      // листание
 const SLIDE_GAP = 16;       // px между фото на ленте, видно только во время листания
 const EDGE_RUBBER = 0.35;   // сопротивление пана за краем фото: мягкий упор
 const MAX_ZOOM = 3;
-const ZOOM_RESET_MS = 200;  // сброс двойным тапом
+const ZOOM_RESET_MS = DURATION.short;  // сброс двойным тапом
 const DOUBLE_TAP_MS = 300;
 const DOUBLE_TAP_PX = 30;
 
@@ -54,7 +57,9 @@ export function createLightbox({ parentEl, onShow, getLayout }) {
     el.setAttribute('aria-label', 'Фото секций зала');
     const slideHtml = '<div class="lb-slide"><div class="lb-photo"><img class="lb-img" alt="" draggable="false"></div></div>';
     el.innerHTML =
-        '<div class="lb-stage">'
+        // white background on its own layer: the vertical swipe fades it by opacity (no full-screen repaint)
+        '<div class="lb-bg" aria-hidden="true"></div>'
+        + '<div class="lb-stage">'
         + `<div class="lb-track">${slideHtml}${slideHtml}${slideHtml}</div>`
         + `<button class="lb-arrow lb-arrow--prev" type="button" aria-label="Предыдущее фото"><img src="${ICON_PREV}" width="32" height="32" alt=""></button>`
         + `<button class="lb-arrow lb-arrow--next" type="button" aria-label="Следующее фото"><img src="${ICON_NEXT}" width="32" height="32" alt=""></button>`
@@ -77,6 +82,20 @@ export function createLightbox({ parentEl, onShow, getLayout }) {
 
     const q = (s) => el.querySelector(s);
     const stage = q('.lb-stage');
+    const bgEl = q('.lb-bg');
+    const edgeEls = [q('.lb-close'), q('.lb-bottom')];
+
+    /* Vertical swipe: f = 1 − |shift| / half the stage height, not below 0. The white background takes f,
+       the cross, the caption and the button fade twice as fast and are gone at its half */
+    const fadeOf = (dy) => Math.max(0, 1 - Math.abs(dy) / (stage.clientHeight / 2));
+    function setFade(f) {
+        bgEl.style.opacity = f >= 1 ? '' : String(f);
+        const edge = Math.max(0, f * 2 - 1);
+        edgeEls.forEach((e) => { e.style.opacity = edge >= 1 ? '' : String(edge); });
+    }
+    function cancelReturn() {
+        if (stopReturn) { stopReturn(); stopReturn = null; }
+    }
     const track = q('.lb-track');
     const prevBtn = q('.lb-arrow--prev');
     const nextBtn = q('.lb-arrow--next');
@@ -101,7 +120,7 @@ export function createLightbox({ parentEl, onShow, getLayout }) {
     let zoom = { s: 1, tx: 0, ty: 0 };
     let doneTimer = null;
     let slideTimer = null;
-    let returnTimer = null;
+    let stopReturn = null;   // spring that brings the photo back after a short vertical swipe
     const pts = new Map();   // pointerId → { x, y }: пальцы на области фото, не больше двух
     let gesture = null;      // { type: 'pending' | 'pan' | 'vertical' | 'none' | 'pinch', … }
     let lastTap = null;      // прошлый тап по приближенному фото — для двойного
@@ -125,7 +144,7 @@ export function createLightbox({ parentEl, onShow, getLayout }) {
     /* ---------- положение фото ---------- */
     function paint(slot, z, ms) {
         const p = slot.photo;
-        p.style.transition = ms ? `transform ${ms}ms cubic-bezier(.2, .8, .2, 1)` : 'none';
+        p.style.transition = ms ? `transform ${ms}ms ${EASE_OUT}` : 'none';
         p.style.transform = `translate(${z.tx}px, ${z.ty}px) scale(${z.s})`;
     }
 
@@ -168,7 +187,7 @@ export function createLightbox({ parentEl, onShow, getLayout }) {
                 ty: axis(ty, h * s, stage.clientHeight, slot.rest.y + h / 2, soft),
             };
         }
-        paint(slot, zoom, ms);
+        paint(slot, zoom, prefersReducedMotion() ? 0 : ms);   // «reduce motion»: the photo moves at once
     }
 
     // каждое фото вписано и без приближения; текущее — в zoom
@@ -199,7 +218,7 @@ export function createLightbox({ parentEl, onShow, getLayout }) {
     }
 
     function setTrack(x, y, ms) {
-        track.style.transition = ms ? `transform ${ms}ms cubic-bezier(.2, .8, .2, 1)` : 'none';
+        track.style.transition = ms ? `transform ${ms}ms ${EASE_OUT}` : 'none';
         track.style.transform = x || y ? `translate(${x}px, ${y}px)` : '';
     }
 
@@ -221,8 +240,8 @@ export function createLightbox({ parentEl, onShow, getLayout }) {
         layout();
     }
 
-    // dir: 1 — следующее, −1 — предыдущее. false — листать некуда
-    function go(dir) {
+    // dir: 1 — следующее, −1 — предыдущее. false — листать некуда. opts.instant — без перехода (клавиши ← →)
+    function go(dir, opts = {}) {
         if (!isOpen) return false;
         finishSlide();
         const to = index + dir;
@@ -233,6 +252,11 @@ export function createLightbox({ parentEl, onShow, getLayout }) {
         lastTap = null;
         paintInfo();
         sr.textContent = `Фото ${index + 1} из ${list.length}: ${list[index].label}`;
+        if (opts.instant || prefersReducedMotion()) {   // keyboard or «reduce motion»: the photo changes at once
+            setTrack(-dir * pitch(), 0, 0);
+            finishSlide();
+            return true;
+        }
         setTrack(-dir * pitch(), 0, SLIDE_MS);
         slideTimer = setTimeout(finishSlide, SLIDE_MS);
         return true;
@@ -245,13 +269,13 @@ export function createLightbox({ parentEl, onShow, getLayout }) {
         index = clamp(start, 0, items.length - 1);
         clearTimeout(doneTimer);
         clearTimeout(slideTimer);
-        clearTimeout(returnTimer);
         sliding = 0;
         gesture = null;
         pts.clear();
         lastTap = null;
         el.style.transition = '';
-        el.style.removeProperty('--lb-fade');   // фон и края — снова непрозрачные после свайпа, которым закрыли
+        cancelReturn();
+        setFade(1);   // фон и края — снова непрозрачные после свайпа, которым закрыли
         setTrack(0, 0, 0);
         paintInfo();   // сначала подпись и кнопка: от них зависит высота области фото
         layout();      // закрытый лайтбокс visibility: hidden, раскладка у него есть — размеры области известны
@@ -259,8 +283,9 @@ export function createLightbox({ parentEl, onShow, getLayout }) {
         isOpen = true;
     }
 
-    function close(onDone) {
-        clearTimeout(returnTimer);
+    // opts.instant — без перехода (Esc)
+    function close(onDone, opts = {}) {
+        cancelReturn();
         if (!isOpen) {
             if (onDone) onDone();
             return;
@@ -270,9 +295,13 @@ export function createLightbox({ parentEl, onShow, getLayout }) {
         pts.clear();
         // после вертикального свайпа фон остаётся полупрозрачным, каким его отпустили: гаснет весь лайтбокс от него
         el.style.transition = '';
+        if (opts.instant) {
+            el.classList.add('lb-instant');
+            requestAnimationFrame(() => requestAnimationFrame(() => el.classList.remove('lb-instant')));
+        }
         el.classList.remove('is-open');
         clearTimeout(doneTimer);
-        doneTimer = setTimeout(() => { if (onDone) onDone(); }, LB_MS);
+        doneTimer = setTimeout(() => { if (onDone) onDone(); }, opts.instant ? 0 : LB_MS);
     }
 
     /* ---------- жесты на фото ---------- */
@@ -288,9 +317,9 @@ export function createLightbox({ parentEl, onShow, getLayout }) {
 
     function startPinch() {
         // вертикальный свайп одним пальцем обрывается: лента и фон сразу на месте
+        cancelReturn();
         setTrack(0, 0, 0);
-        el.style.transition = '';
-        el.style.removeProperty('--lb-fade');
+        setFade(1);
         const [a, b] = [...pts.values()];
         const o = origin();
         const mx = (a.x + b.x) / 2 - o.x;
@@ -341,6 +370,7 @@ export function createLightbox({ parentEl, onShow, getLayout }) {
         // стрелки — кнопки со своим click; третий палец и не левая кнопка мыши не считаются
         if (!isOpen || e.target.closest('.lb-arrow') || pts.size >= 2 || e.button !== 0) return;
         finishSlide();   // жест во время листания — по уже доехавшему фото
+        if (stopReturn) { cancelReturn(); setTrack(0, 0, 0); setFade(1); }   // фото возвращалось после свайпа — уже на месте
         try { stage.setPointerCapture(e.pointerId); } catch {}
         pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (pts.size === 2) startPinch();
@@ -363,15 +393,18 @@ export function createLightbox({ parentEl, onShow, getLayout }) {
             // без приближения вертикаль — свайп закрытия, протяжка вбок ничего не делает и не листает
             if (zoom.s > 1) gesture.type = 'pan';
             else gesture.type = Math.abs(dx) >= Math.abs(dy) || !opt().swipeClose ? 'none' : 'vertical';
-            if (gesture.type === 'vertical') el.style.transition = 'none';
+            if (gesture.type === 'vertical') gesture.samples = [];
         }
         if (gesture.type === 'none') return;
         if (gesture.type === 'pan') {
             setZoom(zoom.s, gesture.tx0 + dx, gesture.ty0 + dy, 0, true);
         } else {
             setTrack(0, dy, 0);
+            gesture.dy = dy;
+            gesture.samples.push({ t: performance.now(), x: dy });
+            if (gesture.samples.length > 12) gesture.samples.shift();
             // фото уходит за пальцем непрозрачным, белый фон и края тают — сквозь них видна схема
-            el.style.setProperty('--lb-fade', String(Math.max(0, 1 - Math.abs(dy) / (stage.clientHeight / 2))));
+            setFade(fadeOf(dy));
         }
     });
 
@@ -399,13 +432,18 @@ export function createLightbox({ parentEl, onShow, getLayout }) {
             setZoom(zoom.s, zoom.tx, zoom.ty, RETURN_MS);   // фото остаётся, где отпустили; за краем — к краю
             return;
         }
-        // вертикальный свайп: вверх или вниз дальше SWIPE_CLOSE — закрытие, короче — фото на место
-        if (!cancel && Math.abs(e.clientY - d.y0) > SWIPE_CLOSE) { close(); return; }
-        setTrack(0, 0, RETURN_MS);
-        el.style.transition = `--lb-fade ${RETURN_MS}ms ease-out`;
-        el.style.removeProperty('--lb-fade');
-        clearTimeout(returnTimer);
-        returnTimer = setTimeout(() => { el.style.transition = ''; }, RETURN_MS);
+        // вертикальный свайп: вверх или вниз дальше SWIPE_CLOSE или бросок быстрее FLICK_SPEED от середины —
+        // закрытие; иначе фото на место пружиной со скоростью отпускания, фон и края — кадрами той же пружины
+        const dy0 = d.dy || 0;
+        const v = cancel ? 0 : windowedVelocity(d.samples, performance.now());   // px/s
+        const flick = Math.abs(v) / 1000 > FLICK_SPEED && Math.sign(v) === Math.sign(dy0);
+        if (!cancel && (Math.abs(e.clientY - d.y0) > SWIPE_CLOSE || flick)) { close(); return; }
+        cancelReturn();
+        stopReturn = spring({
+            from: dy0, to: 0, velocity: v, ...releaseSpring(v),
+            onUpdate: (y) => { setTrack(0, y, 0); setFade(fadeOf(y)); },
+            onDone: () => { stopReturn = null; setTrack(0, 0, 0); setFade(1); },
+        });
     }
     stage.addEventListener('pointerup', onUp);
     stage.addEventListener('pointercancel', onUp);
@@ -423,9 +461,10 @@ export function createLightbox({ parentEl, onShow, getLayout }) {
 
     document.addEventListener('keydown', (e) => {
         if (!isOpen) return;
-        if (e.key === 'Escape') close();
-        else if (e.key === 'ArrowLeft') go(-1);
-        else if (e.key === 'ArrowRight') go(1);
+        // keyboard actions are not animated
+        if (e.key === 'Escape') close(null, { instant: true });
+        else if (e.key === 'ArrowLeft') go(-1, { instant: true });
+        else if (e.key === 'ArrowRight') go(1, { instant: true });
     });
 
     // поворот или смена ширины окна: лента и фото заново под новые размеры области

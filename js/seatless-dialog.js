@@ -105,7 +105,7 @@ export function createSeatlessDialog({ parentEl, onAdd, onPhoto, onClose }) {
     addBtn.addEventListener('click', () => {
         if (!bs.isOpen() || addBtn.disabled) return;
         const n = count;
-        close();
+        close({ action: true });   // the positions go into the order: the leaving sheet cannot be grabbed back
         onAdd(n);
     });
 

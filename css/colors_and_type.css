@@ -226,6 +226,17 @@
   --fs-promo1: 88px; --lh-promo1: 99px;
   --fs-promo2: 72px; --lh-promo2: 81px;
   --fs-promo3: 56px; --lh-promo3: 63px;
+
+  /* ---------- Motion (curves and durations; js/motion.js reads the same tokens) ---------- */
+  --ease-out:   cubic-bezier(.2, .8, .2, 1);   /* main project curve: sheets, scrim, dialog, lightbox, order blocks, cards */
+  --ease-state: cubic-bezier(0.2, 0, 0, 1);    /* price pill state */
+  --ease-exit:  ease-out;                      /* mobile order block and desktop order bar going away */
+  --duration-hover:  120ms;   /* desktop strip relayout on hover */
+  --duration-state:  160ms;   /* pill, mobile active card */
+  --duration-fade:   180ms;   /* seats fading under the price filter */
+  --duration-short:  200ms;   /* lightbox open, double tap, every exit, desktop strip relayout on add / remove */
+  --duration-enter:  250ms;   /* sheets, scrim, dialog, order blocks, lightbox paging, cards entering */
+  --duration-return: 150ms;   /* zoomed photo back to its edge */
 }
 
 /* Mobile overrides (apply with media query when needed) */

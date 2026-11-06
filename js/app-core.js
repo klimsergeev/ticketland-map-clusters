@@ -27,13 +27,14 @@ import { createLightbox } from './photo-ui.js';
 import { createSeatlessDialog } from './seatless-dialog.js';
 import { createGiftDialog } from './gift-dialog.js';
 import { DANCEFLOOR, GIFT, MAX_ORDER_ITEMS, TIER_COLORS, TIER_PRICES } from './data.js';
+import { DURATION } from './motion.js';
 
 const ZOOM_STEP = 1.5;            // one click of "+" or "−" (desktop); not in the Figma mockup
 // Desktop zoom when a seat is picked, a card is clicked or a miss is clicked at the minimum scale.
 // Weaker than FOCUS_SCALE (1.8, mobile)
 const DESKTOP_FOCUS_SCALE = 1.3;
 const PLACE_SHARE = 0.8;          // «Показать на схеме», dancefloor: the place takes this share of the scheme width
-const DANCEFLOOR_ZOOM_MS = 260;   // = _animateTo in hall.js
+const DANCEFLOOR_ZOOM_MS = DURATION.camera;   // = _animateTo in hall.js
 const PHOTOS_URL = 'photos/sections.json';   // one photo per section: { "<part>-<side>": { url, caption } }
 
 /* Desktop lightbox: Figma 5132:10436 «Gallery / Modal / Desktop» — photo frame 1107/740 fitted to the height
@@ -105,8 +106,9 @@ export function createAppCore({
     document.body.addEventListener('pointerdown', (e) => { if (isDesktop() && e.target.closest('.sd-sheet')) e.stopPropagation(); }, true);
     document.addEventListener('keydown', (e) => {
         if (e.key !== 'Escape' || !isDesktop()) return;
-        if (seatlessDialog.isOpen()) seatlessDialog.close();
-        if (giftDialog.isOpen()) giftDialog.close();
+        // a keyboard action is not animated
+        if (seatlessDialog.isOpen()) seatlessDialog.close({ instant: true });
+        if (giftDialog.isOpen()) giftDialog.close({ instant: true });
     });
 
     let dancefloorLeft = DANCEFLOOR.stock;   // dancefloor tickets on sale: «Добавить» takes, removing a ticket gives back

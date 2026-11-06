@@ -14,14 +14,6 @@
     white-space: nowrap;
 }
 
-/* Непрозрачность фона лайтбокса при вертикальном свайпе: 1 — белый, 0 — сквозь фон видна схема.
-   Зарегистрирована как число — возврат после короткого свайпа идёт плавно (transition в js) */
-@property --lb-fade {
-    syntax: '<number>';
-    inherits: true;
-    initial-value: 1;
-}
-
 /* ---------- Лайтбокс с фото: на весь экран поверх шапки (z 5) и нижнего блока (z 4).
    Citrus «Lightbox / citrus», файл Z4wmhHaKhZMV8UI79y1a9Y, узел 4982:4980 (360×800): белый фон,
    фото 3 : 2 на всю ширину по центру экрана, на нём шевроны; крестик справа сверху; снизу поверх — подпись
@@ -32,24 +24,31 @@
     z-index: 20;
     display: flex;
     flex-direction: column;
-    /* #FFFFFF — Background/Modal (= --bg-primary): светлый лайтбокс.
-       --lb-fade — вертикальный свайп закрытия: белый фон тает, фото остаётся непрозрачным (js) */
-    background: color-mix(in srgb, var(--bg-primary) calc(var(--lb-fade) * 100%), transparent);
+    /* фон — отдельный слой .lb-bg: вертикальный свайп закрытия гасит его прозрачностью (js) */
+    background: transparent;
     touch-action: none;                     /* жесты на фото считает js */
     user-select: none;
     /* закрыт: прозрачный; visibility гаснет после ухода */
     opacity: 0;
     visibility: hidden;
-    transition: opacity 200ms cubic-bezier(.4, 0, 1, 1), visibility 0s linear 200ms;
+    transition: opacity var(--duration-short) var(--ease-out), visibility 0s linear var(--duration-short);
 }
+/* closed from the keyboard (Esc): no transition */
+.lb.lb-instant { transition: none !important; }
 .lb.is-open {
     opacity: 1;
     visibility: visible;
-    transition: opacity 200ms cubic-bezier(.2, .8, .2, 1), visibility 0s linear 0s;
+    transition: opacity var(--duration-short) var(--ease-out), visibility 0s linear 0s;
 }
-/* крестик, подпись и кнопка тают вдвое быстрее фона: пропадают к его половине и не путаются с тем, что под ним */
-.lb-close,
-.lb-bottom { opacity: max(0, var(--lb-fade) * 2 - 1); }
+/* #FFFFFF — Background/Modal (= --bg-primary): светлый лайтбокс. Свайп закрытия гасит слой прозрачностью,
+   крестик, подпись и кнопку — вдвое быстрее (js/photo-ui.js setFade) */
+.lb-bg {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: var(--bg-primary);
+    pointer-events: none;
+}
 /* Close, Previous и Next (Citrus): кнопка 52×52 без заливки, радиус 8, иконка 32 по центру */
 .lb-close,
 .lb-arrow {
