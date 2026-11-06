@@ -11,6 +11,7 @@
    ============================================================ */
 import { formatPrice } from './data.js';
 import { spring } from './spring.js';
+import { createCheckoutButton } from './checkout-button.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -597,17 +598,14 @@ export function createMobileRibbon({ floatingEl, order, getPhoto, onActive, onFo
         floatingEl.style.display = order.length === 0 ? 'none' : '';
     }
 
-    /* --- CTA «Оформить • сумма» — Citrus Button из «Bottomsheet / citrus», без таймера ---
-       Сумма — общая стоимость всех позиций заказа: места, билеты танцпола, допинвентарь (у каждой позиции своё price).
-       Пересчитывается при каждом изменении заказа (renderCTA зовут refreshCart и удаление).
-       Пустая корзина → кнопки нет; есть билеты → кнопка видна */
-    ctaEl.innerHTML = '<span class="cta-label"></span>';
-    const ctaLabelEl = $('.cta-label', ctaEl);
+    /* --- CTA «Оформить заказ» с суммой на плашке и скидкой (js/checkout-button.js) ---
+       Сумма — общая стоимость всех позиций заказа; пересчитывается при каждом изменении заказа
+       (renderCTA зовут refreshCart и удаление). Пустая корзина → кнопки нет; есть билеты → кнопка видна */
+    const checkoutBtn = createCheckoutButton(ctaEl);
 
     function renderCTA() {
         ctaEl.style.display = order.length === 0 ? 'none' : '';
-        const total = order.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
-        ctaLabelEl.textContent = `Оформить • ${formatPrice(total)}`;
+        if (order.length) checkoutBtn.render(order);
     }
 
     /* Перерисовать маркеры выбранных мест (активное — крупнее) */

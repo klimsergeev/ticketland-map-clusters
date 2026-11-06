@@ -9,7 +9,7 @@
 import { createAppCore } from './app-core.js';
 import { createDesktopStrip } from './desktop-strip.js';
 import { createMobileRibbon } from './mobile-ribbon.js';
-import { formatPrice } from './data.js';
+import { createCheckoutButton } from './checkout-button.js';
 
 export const DESKTOP_QUERY = '(min-width: 1024px)';   // = the media queries in css/styles.css and css/desktop.css
 
@@ -64,15 +64,16 @@ core = createAppCore({
 });
 
 /* Desktop checkout bar: shown while the order is not empty (slides up / down, css/desktop.css);
-   «Оформить • сумма» — total of all order entries, no action yet. The label keeps the last sum while the bar leaves.
-   The button width follows the sum and the strip takes the rest of the column: its cards are re-laid */
-const ctaLabelEl = checkoutEl.querySelector('.d-cta .cta-label');
+   «Оформить заказ» with the sum (js/checkout-button.js), no action yet. The button keeps the last sum while the bar
+   leaves. Its width follows the sum and the strip takes the rest of the column: its cards are re-laid */
+const checkoutBtn = createCheckoutButton(checkoutEl.querySelector('.d-cta'), {
+    hug: true,
+    onRender: () => { if (desktop) strip.refit(); },
+});
 function renderDesktopCTA() {
     checkoutEl.classList.toggle('is-shown', order.length > 0);
-    if (!order.length) return;
-    const total = order.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
-    ctaLabelEl.textContent = `Оформить • ${formatPrice(total)}`;
-    if (desktop) strip.refit();
+    if (!order.length || !desktop) return;   // the mobile layout hides the bar: fitted when the page is desktop
+    checkoutBtn.render(order);
 }
 
 /* Build the current layout's order view from the order */

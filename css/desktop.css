@@ -548,15 +548,12 @@
     .sd-title { padding: 20px; }
     .sd-title-text { gap: 4px; }
 
-    /* ---- «Button» in the checkout bar: height 44, padding 10 + content 8 on the sides, radius 8,
-       Controls/Primary-active #FF0032, P1 Medium Comp 17/24 white (the rest — .cta in css/hall-common.css,
-       hover white 20%). Width follows the text: 196 in the mockup for «Оформить • 7 800 ₽», not less than that */
+    /* ---- «Button» in the checkout bar (Figma 7203:37466, 7203:38806): the shared .cta (css/hall-common.css) —
+       52 high, at the column's right end; as wide as its content with «Оформить», not less than 264 (width set by
+       js/checkout-button.js), the strip takes the rest ---- */
     .d-cta {
         flex: none;
         width: auto;
-        min-width: 196px;
-        height: 44px;
-        padding: 10px 18px;
     }
 
     /* mobile-only parts of the shared markup: header cross, bottom block with the ticket carousel */

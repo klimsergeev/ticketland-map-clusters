@@ -117,15 +117,16 @@ html, body {
 .map-content .hall-svg svg.filtering .seatless.tier-active { opacity: 1; }
 
 /* Checkout button, shared by the mobile bottom block and the desktop strip line (moved from css/styles.css as is) */
-/* ---- 3.2 CTA — Citrus Button из «Bottomsheet / citrus» (4982:4875): высота 52, радиус 8,
-   фон Controls/Primary-active #FF0032, отступы 14 и ещё 8 по бокам у содержимого, «Оформить» P1 Medium Comp 17/24 белый
-   (MTS Compact). Только надпись, без таймера. Hover — белая заливка 20% поверх фона, как было. */
+/* ---- 3.2 CTA «Оформить заказ» — Figma «Скидки на заказ» (Bottomsheet 7203:36116, 7203:36600): высота 52,
+   ширина не меньше 264, радиус 8, фон Controls/Primary-active #FF0032, отступы 8 сверху и снизу, 20 слева, 12 справа;
+   содержимое (js/checkout-button.js): подпись P1 Medium Comp 17/24 белая и плашка суммы через 8.
+   Hover — белая заливка 20% поверх фона, как было. */
 .cta {
     position: relative;                   /* опора таймера и слоя hover; нужен для z-index */
     z-index: 1;                           /* ниже .slider (z-index 2) → тень активного билета ложится поверх кнопки */
     box-sizing: border-box;
     width: 100%;
-    min-width: 328px;
+    min-width: 264px;
     height: 52px;
     border: 0;
     border-radius: 8px;
@@ -134,7 +135,7 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 14px 22px;
+    padding: 8px 12px 8px 20px;
     overflow: hidden;
     font: 500 17px/24px var(--font-compact, var(--font-sans));
     text-align: center;
@@ -152,8 +153,57 @@ html, body {
 @media (hover: hover) {
     .cta:hover::before { opacity: .2; }   /* Hover=True: белый слой, непрозрачность 20% */
 }
-.cta .cta-label {
+.cta-content {
     position: relative;                   /* над слоем hover */
-    flex: none;                           /* 52 Large: текст по ширине содержимого, по центру кнопки */
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+/* «Оформить заказ», а когда не влезает рядом с плашкой — «Оформить» (JS), дальше многоточие */
+.cta .cta-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
+    text-align: left;
+}
+/* «Discount-tag»: #FF4B60, отступы 4 сверху, 3 снизу, 8 по бокам, радиус 8, между суммами 8 */
+.cta-tag {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 4px 8px 3px;
+    border-radius: 8px;
+    background: #ff4b60;
+    font-size: 14px;
+    line-height: 20px;
+    white-space: nowrap;
+}
+/* Старая сумма: P2 Regular Comp 14/20, непрозрачность 90%, «Strikethrough» — линия из нижнего левого угла в верхний
+   правый по полосе 4–14 px текста (картинка 38×11 растянута, с полупикселем на скруглённые концы) */
+.cta-old {
+    position: relative;
+    font-weight: 400;
+    opacity: .9;
+}
+.cta-old[hidden] { display: none; }
+.cta-strike {
+    position: absolute;
+    top: 3.5px;
+    left: -0.5px;
+    width: calc(100% + 1px);
+    height: 11px;
+    pointer-events: none;
+}
+/* Сумма к оплате: P2 Medium Comp 14/20, «₽» через 2 */
+.cta-sum {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    font-weight: 500;
 }
